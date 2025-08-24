@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chylnx Hub Chat</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      margin: 0;
+    }
+    header {
+      background: #25D366;
+      color: white;
+      padding: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    #chatWindow {
+      flex: 1;
+      padding: 10px;
+      overflow-y: auto;
+      background: #ece5dd;
+    }
+    #chatWindow .msg {
+      margin: 5px 0;
+      padding: 8px 12px;
+      border-radius: 10px;
+      max-width: 60%;
+      clear: both;
+    }
+    .me {
+      background: #dcf8c6;
+      float: right;
+    }
+    .other {
+      background: #fff;
+      float: left;
+    }
+    #inputArea {
+      display: flex;
+      border-top: 1px solid #ddd;
+      padding: 10px;
+      background: #f0f0f0;
+    }
+    #chatInput {
+      flex: 1;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 20px;
+      outline: none;
+    }
+    #sendBtn {
+      margin-left: 8px;
+      padding: 10px 15px;
+      background: #25D366;
+      border: none;
+      border-radius: 50%;
+      color: white;
+      cursor: pointer;
+    }
+    #bell {
+      cursor: pointer;
+    }
+    #winnerNotice {
+      display: none;
+      position: absolute;
+      top: 60px;
+      right: 20px;
+      background: white;
+      border: 1px solid #ccc;
+      padding: 10px;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h2>Chylnx Hub</h2>
+    <span id="bell">🔔</span>
+  </header>
+
+  <div id="chatWindow"></div>
+
+  <div id="inputArea">
+    <input id="chatInput" type="text" placeholder="Type message...">
+    <button id="sendBtn">➤</button>
+  </div>
+
+  <div id="winnerNotice">🏆 Winners will show here</div>
+
+  <script>
+    const chatWindow = document.getElementById("chatWindow");
+    const chatInput = document.getElementById("chatInput");
+    const sendBtn = document.getElementById("sendBtn");
+    const bell = document.getElementById("bell");
+    const winnerNotice = document.getElementById("winnerNotice");
+
+    let chatLocked = false; // will be updated by admin panel
+
+    function sendMessage() {
+      if (chatLocked) {
+        alert("❌ Chat is locked by admin.");
+        return;
+      }
+
+      const msg = chatInput.value.trim();
+      if (msg === "") return;
+
+      let div = document.createElement("div");
+      div.classList.add("msg", "me");
+      div.textContent = msg;
+      chatWindow.appendChild(div);
+
+      chatInput.value = "";
+      chatWindow.scrollTop = chatWindow.scrollHeight;
+
+      // send to server
+      fetch("/send", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({message: msg})
+      });
+    }
+
+    // Enter/Return to send
+    chatInput.addEventListener("keydown", (e) => {
+      if ((e.key === "Enter" || e.key === "Return") && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    sendBtn.addEventListener("click", sendMessage);
+
+    // Winner bell
+    bell.addEventListener("click", () => {
+      winnerNotice.style.display = (winnerNotice.style.display === "block") ? "none" : "block";
+    });
+
+    // Poll messages + admin controls
+    setInterval(async () => {
+      const res = await fetch("/messages");
+      const data = await res.json();
+
+      chatWindow.innerHTML = "";
+      data.messages.forEach(m => {
+        let div = document.createElement("div");
+        div.classList.add("msg", m.sender === "me" ? "me" : "other");
+        div.textContent = m.text;
+        chatWindow.appendChild(div);
+      });
+
+      chatLocked = data.chatLocked; // update lock status
+    }, 2000);
+  </script>
+</body>
+</html>
+<a href="/chat?user=player1"><button class="btn">Start Game</button></a>
