@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: chylnx-backend
+    env: python
+    buildCommand: ""
+    startCommand: gunicorn app:app
+    plan: free
+
+  - type: static
+    name: chylnx-frontend
+    staticPublishPath: frontend
+    plan: free
