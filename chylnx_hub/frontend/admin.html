@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin - CHYLNX HUB</title>
+</head>
+<body>
+    <h1>Admin Panel</h1>
+    <p>View payments and chat messages here.</p>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel - Chylnx Hub</title>
+</head>
+<body>
+  <h1>Admin Panel</h1>
+  <button onclick="lockChat()">🔒 Lock Chat</button>
+  <button onclick="unlockChat()">🔓 Unlock Chat</button>
+  <button onclick="announceWinner()">🏆 Announce Winner</button>
+
+  <script>
+    function lockChat() {
+      fetch("/lock", {method: "POST"});
+      alert("Chat locked!");
+    }
+    function unlockChat() {
+      fetch("/unlock", {method: "POST"});
+      alert("Chat unlocked!");
+    }
+    function announceWinner() {
+      fetch("/winner", {method: "POST"});
+      alert("Winner announced!");
+    }
+  </script>
+</body>
+</html>
