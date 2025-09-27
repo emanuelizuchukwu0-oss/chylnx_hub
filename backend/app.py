@@ -106,7 +106,10 @@ def execute_query(query, params=None):
 # ---------------- Routes ----------------
 @app.route("/")
 def index():
-    return render_template("index.html")  # <-- Flask will now find index.html correctly
+    try:
+        return render_template("index.html")
+    except Exception as e:
+        return f"<pre>❌ Error: {e}</pre>"
 
 @app.route("/chat")
 def chat():
