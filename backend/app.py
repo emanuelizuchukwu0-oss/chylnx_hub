@@ -1,16 +1,16 @@
 import os
-from datetime import datetime, timedelta
+import uuid
+from datetime import datetime
 from flask import Flask, render_template, session, request, redirect, url_for, jsonify
 from flask_socketio import SocketIO, emit
 from werkzeug.security import generate_password_hash, check_password_hash
 import psycopg2
 import psycopg2.extras
-import requests
 
 # ---------------- Absolute Paths ----------------
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # chylnx_backend
-TEMPLATE_DIR = os.path.join(BASE_DIR, "frontend", "chylnx_hub")  # <-- folder containing index.html
-STATIC_DIR = os.path.join(BASE_DIR, "frontend", "chylnx_hub", "static")  # <-- your static files
+TEMPLATE_DIR = os.path.join(BASE_DIR, "frontend", "chylnx_hub")
+STATIC_DIR = os.path.join(BASE_DIR, "frontend", "chylnx_hub", "static")
 
 # ---------------- Flask App Setup ----------------
 app = Flask(
@@ -26,7 +26,7 @@ socketio = SocketIO(app, cors_allowed_origins="*", manage_session=False)
 # ---------------- Database Setup ----------------
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-   "postgresql://chylnx_hub_user:Qz7ERTTXsstDh2cpjMPWMobvdj3oKORQ@dpg-d3br27b7mgec739v7hd0-a.oregon-postgres.render.com/chylnx_hub"
+    "postgresql://chylnx_hub_user:Qz7ERTTXsstDh2cpjMPWMobvdj3oKORQ@dpg-d3br27b7mgec739v7hd0-a.oregon-postgres.render.com/chylnx_hub"
 )
 
 def get_db_connection():
@@ -106,14 +106,15 @@ def index():
 
 @app.route("/chat")
 def chat():
-    return render_template("chat.html")  # Make sure chat.html is also inside chylnx_hub/index
+    return render_template("chat.html")
+
 
 @app.route("/payment")
 def payment():
-    return render_template("payment.html")  # Make sure payment.html is in the same folder
+    return render_template("payment.html")
 
 
-# Health check for Render
+# Health check
 @app.route("/health")
 def health():
     return jsonify({
@@ -135,7 +136,7 @@ def handle_connect():
 @socketio.on("message")
 def handle_message(data):
     username = connected_users.get(request.sid, "Unknown")
-    msg_text = data.get("text","").strip()
+    msg_text = data.get("text", "").strip()
     if not msg_text:
         return
     if db:
@@ -153,6 +154,37 @@ def handle_disconnect():
         user = connected_users.pop(sid)
         print(f"❌ {user} disconnected gracefully")
 
+# ---------------- Session Management ----------------
+current_session = {
+    "session_code": str(uuid.uuid4())[:8],
+    "paid_users": 0,
+    "total_users": 10
+}
+
+# ---------------- Admin Routes ----------------
+@app.route("/admin")
+def admin_panel():
+    return render_template("admin.html")
+
+
+@app.route("/get_session_info")
+def get_session_info():
+    return jsonify(current_session)
+
+
+@app.route("/start_new_session", methods=["POST"])
+def start_new_session():
+    try:
+        current_session["session_code"] = str(uuid.uuid4())[:8]
+        current_session["paid_users"] = 0
+        socketio.emit("session_reset", {"message": "Session has been reset"})
+        return jsonify({
+            "success": True,
+            "session_code": current_session["session_code"],
+            "message": "Chat session reset successfully"
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 # ---------------- Run ----------------
 if __name__ == "__main__":
