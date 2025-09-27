@@ -78,8 +78,14 @@ def init_db():
     db.commit()
     print("✅ Database tables initialized")
 
-# call once at startup
-init_db()
+# ---------------- Call Database Init ----------------
+try:
+    init_db()
+except Exception as e:
+    import traceback
+    print("❌ Database init failed:", e)
+    traceback.print_exc()
+
 
 # ---------------- Globals ----------------
 chat_locked = False
