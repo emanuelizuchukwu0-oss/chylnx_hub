@@ -43,15 +43,17 @@ def init_db():
         )
     """)
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS payments (
-            id SERIAL PRIMARY KEY,
-            user_id INT REFERENCES users(id) ON DELETE CASCADE,
-            reference VARCHAR(255),
-            amount NUMERIC(10, 2),
-            status VARCHAR(20) CHECK (status IN ('success', 'failed', 'pending')),
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+    CREATE TABLE IF NOT EXISTS payments (
+        id SERIAL PRIMARY KEY,
+        user_id INT REFERENCES users(id) ON DELETE CASCADE,
+        reference VARCHAR(255),
+        amount NUMERIC(10, 2),
+        status VARCHAR(20) CHECK (status IN ('success', 'failed', 'pending')),
+        chat_session_id INT REFERENCES chat_sessions(id) ON DELETE SET NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+""")
+
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS messages (
             id SERIAL PRIMARY KEY,
