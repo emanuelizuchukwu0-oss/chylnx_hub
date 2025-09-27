@@ -165,39 +165,26 @@ def login():
     return render_template("login.html")
 @app.route("/chat")
 def chat():
-    # force login first
-    if not session.get("user_id"):
-        return redirect(url_for("login"))
+    # Make sure user is logged in
+    if not session.get("user_id") or not session.get("username"):
+        return redirect(url_for("login"))  # force login first
 
-    user_id = session["user_id"]
+    username = session.get("username")
 
-    # get username
-    result_user = execute_query(
-        "SELECT username FROM users WHERE id = %s",
-        (user_id,),
-        fetch=True
-    )
-
-    if not result_user:
-        return redirect(url_for("login"))  # if somehow user not found
-
-    username = result_user[0]["username"]
-
-    # check payment status
-    result_payment = execute_query("""
-        SELECT p.id 
-        FROM payments p
+    # Check if user has paid
+    result = execute_query("""
+        SELECT p.id FROM payments p
         JOIN users u ON p.user_id = u.id
-        WHERE u.id = %s AND p.status = 'success'
+        WHERE u.username = %s AND p.status = 'success'
         LIMIT 1
-    """, (user_id,), fetch=True)
+    """, (username,), fetch=True)
 
-    if not result_payment:
-        flash("💳 You must complete payment before accessing the chat.")
+    if not result:  # no successful payment
         return redirect(url_for("payment_required"))
 
-    # finally allow access
+    # If login + payment passed → show chat
     return render_template("chat.html", username=username)
+
 
 
 @app.route("/admin_login", methods=["GET", "POST"])
