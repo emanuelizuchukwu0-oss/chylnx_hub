@@ -8,16 +8,24 @@ import psycopg2.extras
 import requests
 
 # ---------------- Paths ----------------
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-TEMPLATES_DIR = os.path.join(BASE_DIR, 'chylnx_hub', 'html files')  # Your HTML files
-STATIC_DIR = os.path.join(BASE_DIR, 'chylnx_hub', 'static')        # Your static files
 
-# ---------------- App Setup ----------------
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # this file, probably in backend or app
+TEMPLATE_DIR = os.path.join(BASE_DIR, "../chylnx_hub/index")   # points to your HTML files
+STATIC_DIR = os.path.join(BASE_DIR, "../chylnx_hub/static")    # points to your css/js etc
+
 app = Flask(
     __name__,
-    template_folder=TEMPLATES_DIR,
+    template_folder=TEMPLATE_DIR,
     static_folder=STATIC_DIR
 )
+
+print("📁 Template folder:", TEMPLATE_DIR)
+print("📁 Static folder:", STATIC_DIR)
+# ---------------- App Setup ----------------
+app = Flask(__name__, template_folder=os.path.join(BASE_DIR, "../chylnx_hub/templates"), 
+            static_folder=os.path.join(BASE_DIR, "../chylnx_hub/static"))
+
+
 app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "secret123")
 app.config['SESSION_TYPE'] = 'filesystem'
 
