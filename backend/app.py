@@ -1,14 +1,10 @@
 import os
-import requests
-import uuid
-import time
 from datetime import datetime, timedelta
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
-from werkzeug.security import generate_password_hash, check_password_hash
 from flask_socketio import SocketIO, emit, join_room, leave_room
+from werkzeug.security import generate_password_hash, check_password_hash
 import psycopg2
 import psycopg2.extras
-
 # ---------------- Fix Template Paths ----------------
 # Get the absolute path to the project root
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -28,9 +24,15 @@ if not os.path.exists(STATIC_DIR):
     print("❌ Static directory not found! Creating it...")
     os.makedirs(STATIC_DIR, exist_ok=True)
 # ---------------- App setup ----------------
+
+# Get the absolute path to the frontend directory
+current_dir = os.path.dirname(os.path.abspath(__file__))
+frontend_path = os.path.join(current_dir, '../../frontend')
+static_path = os.path.join(current_dir, '../../static')
+
 app = Flask(__name__, 
-           template_folder=FRONTEND_DIR, 
-           static_folder=STATIC_DIR)
+           template_folder=frontend_path, 
+           static_folder=static_path)
 app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "secret123")
 app.config['SESSION_TYPE'] = 'filesystem'
 
