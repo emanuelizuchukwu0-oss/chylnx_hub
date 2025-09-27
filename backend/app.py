@@ -148,9 +148,11 @@ def handle_message(data):
 
 @socketio.on("disconnect")
 def handle_disconnect():
-    if request.sid in connected_users:
-        user = connected_users.pop(request.sid)
-        print(f"❌ {user} disconnected")
+    sid = request.sid
+    if sid in connected_users:
+        user = connected_users.pop(sid)
+        print(f"❌ {user} disconnected gracefully")
+
 
 # ---------------- Run ----------------
 if __name__ == "__main__":
