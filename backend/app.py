@@ -1,32 +1,49 @@
-# backend/app.py
 import os
 import requests
 import uuid
 import time
 from datetime import datetime, timedelta
-
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_socketio import SocketIO, emit, join_room, leave_room
-
 import psycopg2
 import psycopg2.extras
 
+# ---------------- Fix Template Paths ----------------
+# Get the absolute path to the project root
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+FRONTEND_DIR = os.path.join(BASE_DIR, 'frontend')
+STATIC_DIR = os.path.join(BASE_DIR, 'static')
+
+print(f"📁 Base directory: {BASE_DIR}")
+print(f"📁 Frontend directory: {FRONTEND_DIR}")
+print(f"📁 Static directory: {STATIC_DIR}")
+
+# Check if directories exist
+if not os.path.exists(FRONTEND_DIR):
+    print("❌ Frontend directory not found! Creating it...")
+    os.makedirs(FRONTEND_DIR, exist_ok=True)
+
+if not os.path.exists(STATIC_DIR):
+    print("❌ Static directory not found! Creating it...")
+    os.makedirs(STATIC_DIR, exist_ok=True)
 # ---------------- App setup ----------------
-app = Flask(__name__, template_folder="../frontend", static_folder="../static")
+app = Flask(__name__, 
+           template_folder=FRONTEND_DIR, 
+           static_folder=STATIC_DIR)
 app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "secret123")
 app.config['SESSION_TYPE'] = 'filesystem'
 
 socketio = SocketIO(app, cors_allowed_origins="*", manage_session=False)
 
 PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY", "sk_test_...")
-
 # ---------------- PostgreSQL setup ----------------
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
     "postgresql://chylnx_hub_user:Qz7ERTTXsstDh2cpjMPWMobvdj3oKORQ@dpg-d3br27b7mgec739v7hd0-a.oregon-postgres.render.com/chylnx_hub"
 )
 
+# ... rest of your database code remains the same ...
 # Database connection with error handling
 def get_db_connection():
     try:
