@@ -84,7 +84,6 @@ if db:
     init_db()
 
 # ---------------- Dummy in-memory storage ----------------
-users_db = []  # temporary users storage
 chat_locked = True  # default chat lock status
 
 # ---------------- Helper ----------------
@@ -122,23 +121,29 @@ def admin_login():
             flash("Incorrect passcode", "error")
             return redirect(url_for("admin_login"))
     return render_template("admin_login.html")
-
 @app.route("/admin", methods=["GET"])
 def admin_dashboard():
     if not session.get("admin_logged_in"):
         return redirect(url_for("admin_login"))
 
-    # Prepare dummy user data with payment info
-    users = []
-    for u in users_db:
-        users.append({
-            "id": u.get("id"),
-            "username": u.get("username"),
-            "email": u.get("email"),
-            "last_payment_status": u.get("last_payment_status", None),
-            "last_payment_amount": u.get("last_payment_amount", None),
-            "last_payment_date": u.get("last_payment_date", None)
-        })
+    # Fetch all users from the database
+    users = execute_query("""
+        SELECT 
+            u.id, 
+            u.username, 
+            u.email, 
+            u.created_at,
+            p.status AS last_payment_status,
+            p.amount AS last_payment_amount,
+            p.created_at AS last_payment_date
+        FROM users u
+        LEFT JOIN payments p ON p.user_id = u.id
+        WHERE p.id = (
+            SELECT id FROM payments WHERE user_id = u.id ORDER BY created_at DESC LIMIT 1
+        )
+        OR p.id IS NULL
+        ORDER BY u.created_at DESC
+    """) or []
 
     return render_template("admin_dashboard.html", users=users, chat_locked=chat_locked)
 
@@ -160,29 +165,31 @@ def set_username():
         return redirect(url_for("index"))
     username = session.get("username", "")
     return render_template("set_username.html", username=username)
-
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
-        username = request.form.get("username")
-        email = request.form.get("email")
-        password = request.form.get("password")
+        username = request.form.get("username").strip()
+        email = request.form.get("email").strip()
+        password = request.form.get("password").strip()
 
-        # Simple validation
-        if any(u['username'] == username for u in users_db):
-            return "Username already exists", 400
+        # Check if username/email already exists
+        existing = execute_query("SELECT id FROM users WHERE username=%s OR email=%s", (username, email))
+        if existing:
+            flash("Username or email already exists", "error")
+            return redirect(url_for("register"))
 
-        user = {
-            "id": str(uuid.uuid4())[:8],
-            "username": username,
-            "email": email,
-            "password": generate_password_hash(password)
-        }
-        users_db.append(user)
+        # Insert new user
+        execute_query(
+            "INSERT INTO users (username, email, password) VALUES (%s, %s, %s)",
+            (username, email, generate_password_hash(password))
+        )
+
         session["username"] = username
-        return redirect(url_for("chat"))  # redirect to chat after registration
+        flash("Registration successful!", "success")
+        return redirect(url_for("chat"))
 
     return render_template("register.html")
+
 
 @app.route("/chat")
 def chat():
@@ -194,20 +201,30 @@ def chat():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        username = request.form.get("username")
-        password = request.form.get("password")
-        user = next((u for u in users_db if u["username"] == username), None)
-        if user and check_password_hash(user["password"], password):
-            session["username"] = username
-            return redirect(url_for("chat"))
-        else:
-            flash("Invalid credentials", "error")
-            return redirect(url_for("login"))
+        username = request.form.get("username").strip()
+        password = request.form.get("password").strip()
+
+        # Fetch user from DB
+        user = execute_query("SELECT * FROM users WHERE username=%s LIMIT 1", (username,))
+        if user:
+            user = user[0]  # fetch first row
+            if check_password_hash(user['password'], password):
+                session["username"] = username
+                flash("Login successful!", "success")
+                return redirect(url_for("chat"))
+
+        flash("Invalid username or password", "error")
+        return redirect(url_for("login"))
+
     return render_template("login.html")
 
+
 # ---------------- Socket.IO Chat ----------------
+# ---------------- Socket.IO Chat with DB ----------------
 connected_users = {}  # username -> session_id
-chat_history = []     # store all messages in memory
+
+# ---------------- Socket.IO Chat with DB ----------------
+connected_users = {}  # username -> session_id
 
 @socketio.on('join_chat')
 def handle_join(data):
@@ -215,10 +232,27 @@ def handle_join(data):
     if not username:
         return
 
-    connected_users[username] = request.sid
+    # Get user ID from DB
+    user = execute_query("SELECT id FROM users WHERE username = %s LIMIT 1", (username,))
+    if not user:
+        return  # user not found in DB
+    user_id = user[0]['id']
 
-    # Send chat history to this user
-    emit('chat_history', chat_history, to=request.sid)
+    connected_users[username] = {'sid': request.sid, 'user_id': user_id}
+
+    # Fetch chat history from DB
+    history = execute_query("""
+        SELECT 
+            u.username AS "from", 
+            m.message AS text, 
+            m.created_at AS timestamp 
+        FROM messages m
+        JOIN users u ON m.user_id = u.id
+        ORDER BY m.created_at ASC
+    """) or []
+
+    # Send chat history to the new user
+    emit('chat_history', history, to=request.sid)
 
     # Notify everyone that a user joined
     emit('message', {
@@ -230,28 +264,39 @@ def handle_join(data):
     # Update online count
     emit('user_count_update', {'count': len(connected_users)}, broadcast=True)
 
+
 @socketio.on('message')
 def handle_message(data):
     # Identify sender
     username = None
-    for user, sid in connected_users.items():
-        if sid == request.sid:
-            username = user
+    user_id = None
+    for u, info in connected_users.items():
+        if info['sid'] == request.sid:
+            username = u
+            user_id = info['user_id']
             break
-    if not username:
+    if not username or not user_id:
+        return
+
+    text = data.get('text', '').strip()
+    if not text:
         return
 
     msg_data = {
         'from': username,
-        'text': data.get('text', ''),
+        'text': text,
         'timestamp': datetime.utcnow().isoformat()
     }
 
-    # Save in history
-    chat_history.append(msg_data)
+    # Save message to DB
+    execute_query(
+        "INSERT INTO messages (user_id, username, message) VALUES (%s, %s, %s)",
+        (user_id, username, text)
+    )
 
     # Broadcast to everyone
     emit('message', msg_data, broadcast=True)
+
 
 @socketio.on('announce_winner')
 def handle_announcement(data):
@@ -259,13 +304,14 @@ def handle_announcement(data):
     for winner in winners:
         emit('announcement', {'text': f"🏆 WINNER: {winner}!"}, broadcast=True)
 
+
 @socketio.on('disconnect')
 def handle_disconnect():
     username = None
-    for user, sid in list(connected_users.items()):
-        if sid == request.sid:
-            username = user
-            del connected_users[user]
+    for u, info in list(connected_users.items()):
+        if info['sid'] == request.sid:
+            username = u
+            del connected_users[u]
             break
     if username:
         emit('message', {

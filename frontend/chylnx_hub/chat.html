@@ -389,142 +389,143 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
 <script>
     let myUsername = "";
-    let socket = null;
-    let selectedWinner = null;
+let socket = null;
+let selectedWinner = null;
 
-    // Initialize app
-    function initApp() {
-        document.getElementById('sendBtn').addEventListener('click', sendMessage);
-        document.getElementById('chatInput').addEventListener('keypress', handleKeyPress);
-        document.getElementById('bell').addEventListener('click', announceWinner);
-        document.getElementById('usernameInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') setUsername();
-        });
+// Initialize app
+function initApp() {
+    document.getElementById('sendBtn').addEventListener('click', sendMessage);
+    document.getElementById('chatInput').addEventListener('keypress', handleKeyPress);
+    document.getElementById('bell').addEventListener('click', announceWinner);
+    document.getElementById('usernameInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') setUsername();
+    });
 
-        document.getElementById('usernameOverlay').style.display = 'flex';
-    }
+    document.getElementById('usernameOverlay').style.display = 'flex';
+}
 
-    // Set username
-    function setUsername() {
-        const usernameInput = document.getElementById('usernameInput');
-        const username = usernameInput.value.trim();
-        if (!username) return alert("Please enter a username");
+// Set username
+function setUsername() {
+    const usernameInput = document.getElementById('usernameInput');
+    const username = usernameInput.value.trim();
+    if (!username) return alert("Please enter a username");
 
-        myUsername = username;
-        document.getElementById('usernameOverlay').style.display = 'none';
-        initializeChat();
-    }
+    myUsername = username;
+    document.getElementById('usernameOverlay').style.display = 'none';
+    initializeChat();
+}
 
-    // Initialize Socket.IO chat
-    function initializeChat() {
-        document.getElementById('chatInput').disabled = false;
-        document.getElementById('sendBtn').disabled = false;
+// Initialize Socket.IO chat
+function initializeChat() {
+    document.getElementById('chatInput').disabled = false;
+    document.getElementById('sendBtn').disabled = false;
 
-        socket = io();
+    socket = io(); // connect to server
 
-        // Join chat
-        socket.emit('join_chat', { username: myUsername });
+    // Join chat
+    socket.emit('join_chat', { username: myUsername });
 
-        // Chat history
-        socket.on('chat_history', function(history) {
-            const chatWindow = document.getElementById('chatWindow');
-            chatWindow.innerHTML = '<div class="system-msg">Welcome to the chat!</div>';
-            history.forEach(msg => addMessage(msg, msg.from === myUsername));
-        });
-
-        // Receive messages
-        socket.on('message', function(msg) {
-            addMessage(msg, msg.from === myUsername);
-        });
-
-        // Online count
-        socket.on('user_count_update', function(data) {
-            document.getElementById('onlineCount').textContent = data.count + ' online';
-        });
-
-        // Winner announcements
-        socket.on('announcement', function(data) {
-            addSystemMessage(data.text);
-        });
-
-        addSystemMessage(`Welcome, ${myUsername}! Start chatting below.`);
-    }
-
-    // Handle Enter key
-    function handleKeyPress(e) {
-        if (e.key === 'Enter') sendMessage();
-    }
-
-    // Send message
-    function sendMessage() {
-        const input = document.getElementById('chatInput');
-        const text = input.value.trim();
-        if (!text || !socket) return;
-
-        const msg = {
-            from: myUsername,
-            text: text,
-            timestamp: new Date().toISOString()
-        };
-
-        addMessage(msg, true);
-        socket.emit('message', { text: text });
-        input.value = '';
-    }
-
-    // Add message to UI
-    function addMessage(msg, isSent) {
+    // Receive chat history
+    socket.on('chat_history', function(history) {
         const chatWindow = document.getElementById('chatWindow');
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${isSent ? 'sent' : 'received'}`;
+        chatWindow.innerHTML = '<div class="system-msg">Welcome to the chat!</div>';
+        history.forEach(msg => addMessage(msg, msg.from === myUsername));
+    });
 
-        const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+    // Receive messages
+    socket.on('message', function(msg) {
+        addMessage(msg, msg.from === myUsername);
+    });
 
-        messageDiv.innerHTML = `
-            ${!isSent ? `<div class="sender-name" onclick="selectWinner('${msg.from}')">${msg.from}</div>` : ''}
-            <div class="message-content">${msg.text}</div>
-            <div class="message-time">${time}</div>
-        `;
-        chatWindow.appendChild(messageDiv);
-        chatWindow.scrollTop = chatWindow.scrollHeight;
-    }
+    // Online count
+    socket.on('user_count_update', function(data) {
+        document.getElementById('onlineCount').textContent = data.count + ' online';
+    });
 
-    // System messages
-    function addSystemMessage(text) {
-        const chatWindow = document.getElementById('chatWindow');
-        const div = document.createElement('div');
-        div.className = 'system-msg';
-        div.textContent = text;
-        chatWindow.appendChild(div);
-        chatWindow.scrollTop = chatWindow.scrollHeight;
-    }
+    // Winner announcements
+    socket.on('announcement', function(data) {
+        addSystemMessage(data.text);
+    });
 
-    // Winner selection
-    function selectWinner(username) {
-        if (username === myUsername) return alert("You can't select yourself as winner!");
-        selectedWinner = username;
-        showWinnerModal(username);
-    }
+    addSystemMessage(`Welcome, ${myUsername}! Start chatting below.`);
+}
 
-    function showWinnerModal(username) {
-        document.getElementById('winnerName').textContent = username;
-        document.getElementById('winnerModal').style.display = 'flex';
-    }
+// Handle Enter key in input
+function handleKeyPress(e) {
+    if (e.key === 'Enter') sendMessage();
+}
 
-    function closeWinnerModal() {
-        document.getElementById('winnerModal').style.display = 'none';
-    }
+// Send message
+function sendMessage() {
+    const input = document.getElementById('chatInput');
+    const text = input.value.trim();
+    if (!text || !socket) return;
 
-    function announceWinner() {
-        if (!selectedWinner) return alert("Select a winner by clicking their name!");
-        socket.emit('announce_winner', { winners: [selectedWinner] });
-        addSystemMessage(`🏆 WINNER ANNOUNCEMENT: ${selectedWinner}! Congratulations! 🎉`);
-        selectedWinner = null;
-        closeWinnerModal();
-    }
+    const msg = {
+        from: myUsername,
+        text: text,
+        timestamp: new Date().toISOString()
+    };
 
-    window.addEventListener('DOMContentLoaded', initApp);
+    addMessage(msg, true); // add locally
+    socket.emit('message', { text: text }); // send to server
+    input.value = '';
+}
+
+// Add message to chat window
+function addMessage(msg, isSent) {
+    const chatWindow = document.getElementById('chatWindow');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${isSent ? 'sent' : 'received'}`;
+
+    const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+
+    messageDiv.innerHTML = `
+        ${!isSent ? `<div class="sender-name" onclick="selectWinner('${msg.from}')">${msg.from}</div>` : ''}
+        <div class="message-content">${msg.text}</div>
+        <div class="message-time">${time}</div>
+    `;
+
+    chatWindow.appendChild(messageDiv);
+    chatWindow.scrollTop = chatWindow.scrollHeight;
+}
+
+// System messages
+function addSystemMessage(text) {
+    const chatWindow = document.getElementById('chatWindow');
+    const div = document.createElement('div');
+    div.className = 'system-msg';
+    div.textContent = text;
+    chatWindow.appendChild(div);
+    chatWindow.scrollTop = chatWindow.scrollHeight;
+}
+
+// Winner selection
+function selectWinner(username) {
+    if (username === myUsername) return alert("You can't select yourself as winner!");
+    selectedWinner = username;
+    showWinnerModal(username);
+}
+
+function showWinnerModal(username) {
+    document.getElementById('winnerName').textContent = username;
+    document.getElementById('winnerModal').style.display = 'flex';
+}
+
+function closeWinnerModal() {
+    document.getElementById('winnerModal').style.display = 'none';
+}
+
+function announceWinner() {
+    if (!selectedWinner) return alert("Select a winner by clicking their name!");
+    socket.emit('announce_winner', { winners: [selectedWinner] });
+    addSystemMessage(`🏆 WINNER ANNOUNCEMENT: ${selectedWinner}! Congratulations! 🎉`);
+    selectedWinner = null;
+    closeWinnerModal();
+}
+
+window.addEventListener('DOMContentLoaded', initApp);
+
 </script>
-
 </body>
 </html>
