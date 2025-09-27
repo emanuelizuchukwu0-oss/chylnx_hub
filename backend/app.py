@@ -26,7 +26,7 @@ socketio = SocketIO(app, cors_allowed_origins="*", manage_session=False)
 # ---------------- Database Setup ----------------
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://chylnx_hub_user:password@your-render-host/chylnx_hub"
+   "postgresql://chylnx_hub_user:Qz7ERTTXsstDh2cpjMPWMobvdj3oKORQ@dpg-d3br27b7mgec739v7hd0-a.oregon-postgres.render.com/chylnx_hub"
 )
 
 def get_db_connection():
