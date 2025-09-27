@@ -8,14 +8,9 @@ import psycopg2.extras
 import requests
 
 # ---------------- Absolute Paths ----------------
-# Absolute path to your backend
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-# Templates folder: chylnx_hub/index
-TEMPLATE_DIR = os.path.join(BASE_DIR, "../chylnx_hub/index")
-
-# Static folder: chylnx_hub/static
-STATIC_DIR = os.path.join(BASE_DIR, "../chylnx_hub/static")
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # chylnx_backend
+TEMPLATE_DIR = os.path.join(BASE_DIR, "frontend", "chylnx_hub")  # <-- folder containing index.html
+STATIC_DIR = os.path.join(BASE_DIR, "frontend", "chylnx_hub", "static")  # <-- your static files
 
 # ---------------- Flask App Setup ----------------
 app = Flask(
@@ -106,10 +101,8 @@ def execute_query(query, params=None):
 # ---------------- Routes ----------------
 @app.route("/")
 def index():
-    try:
-        return render_template("index.html")
-    except Exception as e:
-        return f"<pre>❌ Error: {e}</pre>"
+    return render_template("index.html")
+
 
 @app.route("/chat")
 def chat():
