@@ -13,9 +13,9 @@ import psycopg2
 import psycopg2.extras
 
 # ---------------- App setup ----------------
-# serve HTML from frontend/ and static files from static/
-app = Flask(__name__, template_folder="frontend", static_folder="static")
+app = Flask(__name__, template_folder="../frontend", static_folder="../static")
 app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "secret123")
+app.config['SESSION_TYPE'] = 'filesystem'
 
 socketio = SocketIO(app, cors_allowed_origins="*", manage_session=False)
 
@@ -24,68 +24,88 @@ PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY", "sk_test_...")
 # ---------------- PostgreSQL setup ----------------
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://chylnx_hub_user:Qz7ERTTXsstDh2cpjMPWMobvdj3oKORQ@dpg-d3br27b7mgec739v7hd0-a/chylnx_hub"
+    "postgresql://chylnx_hub_user:Qz7ERTTXsstDh2cpjMPWMobvdj3oKORQ@dpg-d3br27b7mgec739v7hd0-a.oregon-postgres.render.com/chylnx_hub"
 )
 
-# connect and use RealDictCursor to get dict-like rows
-db = psycopg2.connect(DATABASE_URL)
-cursor = db.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+# Database connection with error handling
+def get_db_connection():
+    try:
+        conn = psycopg2.connect(DATABASE_URL)
+        return conn
+    except Exception as e:
+        print(f"❌ Database connection failed: {e}")
+        return None
+
+db = get_db_connection()
+if db:
+    cursor = db.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+else:
+    cursor = None
+    print("⚠️  Running without database connection")
 
 # ---------------- Database Initialization ----------------
 def init_db():
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            id SERIAL PRIMARY KEY,
-            username VARCHAR(255) UNIQUE NOT NULL,
-            email VARCHAR(255) UNIQUE,
-            password VARCHAR(255),
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+    if not db:
+        print("❌ No database connection available")
+        return False
+        
+    try:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                username VARCHAR(255) UNIQUE NOT NULL,
+                email VARCHAR(255) UNIQUE,
+                password VARCHAR(255),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
 
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS chat_sessions (
-            id SERIAL PRIMARY KEY,
-            session_code VARCHAR(255) UNIQUE NOT NULL,
-            start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            end_time TIMESTAMP,
-            status VARCHAR(50) DEFAULT 'active'
-        )
-    """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS chat_sessions (
+                id SERIAL PRIMARY KEY,
+                session_code VARCHAR(255) UNIQUE NOT NULL,
+                start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                end_time TIMESTAMP,
+                status VARCHAR(50) DEFAULT 'active'
+            )
+        """)
 
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS payments (
-            id SERIAL PRIMARY KEY,
-            user_id INT REFERENCES users(id) ON DELETE CASCADE,
-            chat_session_id INT REFERENCES chat_sessions(id) ON DELETE SET NULL,
-            reference VARCHAR(255),
-            amount NUMERIC(10, 2),
-            status VARCHAR(20) CHECK (status IN ('success', 'failed', 'pending')),
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS payments (
+                id SERIAL PRIMARY KEY,
+                user_id INT REFERENCES users(id) ON DELETE CASCADE,
+                chat_session_id INT REFERENCES chat_sessions(id) ON DELETE SET NULL,
+                reference VARCHAR(255),
+                amount NUMERIC(10, 2),
+                status VARCHAR(20) CHECK (status IN ('success', 'failed', 'pending')),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
 
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS messages (
-            id SERIAL PRIMARY KEY,
-            user_id INT REFERENCES users(id) ON DELETE CASCADE,
-            username VARCHAR(255),
-            message TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS messages (
+                id SERIAL PRIMARY KEY,
+                user_id INT REFERENCES users(id) ON DELETE CASCADE,
+                username VARCHAR(255),
+                message TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
 
-    db.commit()
-    print("✅ Database tables initialized")
+        db.commit()
+        print("✅ Database tables initialized")
+        return True
+    except Exception as e:
+        print(f"❌ Database init failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
 
-# ---------------- Call Database Init ----------------
-try:
+# ---------------- Initialize Database ----------------
+if db:
     init_db()
-except Exception as e:
-    import traceback
-    print("❌ Database init failed:", e)
-    traceback.print_exc()
-
+else:
+    print("⚠️  Skipping database initialization - no connection")
 
 # ---------------- Globals ----------------
 chat_locked = False
@@ -94,43 +114,75 @@ game_active = False
 connected_users = {}  # { sid: username }
 current_chat_session = None
 
+# ---------------- Helper Functions ----------------
+def execute_query(query, params=None):
+    """Safe database query execution with error handling"""
+    if not db:
+        return None
+    try:
+        cursor.execute(query, params or ())
+        if query.strip().upper().startswith('SELECT'):
+            return cursor.fetchall()
+        else:
+            db.commit()
+            return True
+    except Exception as e:
+        print(f"❌ Query failed: {e}")
+        db.rollback()
+        return None
+
+def get_user_id(username):
+    """Safely get user ID"""
+    result = execute_query("SELECT id FROM users WHERE username = %s", (username,))
+    return result[0]['id'] if result else None
+
 # ---------------- Routes ----------------
 @app.route("/", methods=["GET"])
 def index():
     try:
         username = session.get('username')
-        paid_db = False
-        if username:
-            cursor.execute("""
-                SELECT p.id
-                FROM payments p
-                JOIN users u ON p.user_id = u.id
-                WHERE u.username=%s AND p.status='success'
-                ORDER BY p.created_at DESC
+        paid = session.get('paid', False)
+        
+        # Only check database if we have a connection and username
+        if db and username:
+            result = execute_query("""
+                SELECT p.id FROM payments p 
+                JOIN users u ON p.user_id = u.id 
+                WHERE u.username = %s AND p.status = 'success' 
                 LIMIT 1
             """, (username,))
-            paid_db = cursor.fetchone() is not None
-        paid = session.get('paid', False) or paid_db
+            paid = paid or (result is not None and len(result) > 0)
+            
         return render_template("index.html", paid=paid)
     except Exception as e:
-        import traceback
-        print("Error in index route:", e)
-        traceback.print_exc()
-        return "Internal Server Error", 500
+        print(f"❌ Error in index route: {e}")
+        return render_template("index.html", paid=False)
 
+@app.route("/health")
+def health_check():
+    """Health check endpoint for Render"""
+    return jsonify({
+        "status": "healthy", 
+        "database": "connected" if db else "disconnected",
+        "timestamp": datetime.utcnow().isoformat()
+    })
 
 @app.route("/set_timer", methods=["POST"])
 def set_timer():
     global next_game_time
-    hours = int(request.form.get("hours", 0))
-    minutes = int(request.form.get("minutes", 2))
-    seconds = int(request.form.get("seconds", 15))
-    next_game_time = datetime.utcnow() + timedelta(hours=hours, minutes=minutes, seconds=seconds)
-    return redirect(url_for("index"))
+    try:
+        hours = int(request.form.get("hours", 0))
+        minutes = int(request.form.get("minutes", 2))
+        seconds = int(request.form.get("seconds", 15))
+        next_game_time = datetime.utcnow() + timedelta(hours=hours, minutes=minutes, seconds=seconds)
+        return redirect(url_for("index"))
+    except Exception as e:
+        print(f"❌ Error in set_timer: {e}")
+        return redirect(url_for("index"))
 
 @app.route("/admin_login", methods=["GET","POST"])
 def admin_login():
-    ADMIN_PASSCODE = os.getenv("ADMIN_PASSCODE","12345")
+    ADMIN_PASSCODE = os.getenv("ADMIN_PASSCODE", "12345")
     if request.method == "POST":
         if request.form.get("passcode") == ADMIN_PASSCODE:
             session["is_admin"] = True
@@ -154,40 +206,34 @@ def username():
         new_name = request.form['username'].strip()
         if new_name:
             session['username'] = new_name
-            cursor.execute("SELECT id FROM users WHERE username=%s", (new_name,))
-            if not cursor.fetchone():
-                cursor.execute("INSERT INTO users (username) VALUES (%s) RETURNING id", (new_name,))
-                new_user = cursor.fetchone()
-                db.commit()
-                session['user_id'] = new_user['id']
+            if db:
+                result = execute_query("SELECT id FROM users WHERE username = %s", (new_name,))
+                if not result:
+                    execute_query("INSERT INTO users (username) VALUES (%s) RETURNING id", (new_name,))
+                    new_user = execute_query("SELECT id FROM users WHERE username = %s", (new_name,))
+                    if new_user:
+                        session['user_id'] = new_user[0]['id']
         return redirect(url_for('chat'))
     return render_template("username.html", username=session.get('username',''))
-
-def has_paid():
-    user_id = session.get('user_id')
-    if not user_id:
-        return False
-    cursor.execute("SELECT COUNT(*) AS count FROM payments WHERE user_id=%s AND status='success'", (user_id,))
-    result = cursor.fetchone()
-    return result['count'] > 0
 
 @app.route("/chat")
 def chat():
     is_admin = session.get('is_admin', False)
     username = session.get('username')
+    
     if not username:
         return redirect(url_for('username'))
 
-    cursor.execute("""
-        SELECT p.id 
-        FROM payments p
-        JOIN users u ON p.user_id = u.id
-        WHERE u.username=%s AND p.status='success'
-        ORDER BY p.created_at DESC
-        LIMIT 1
-    """, (username,))
-    paid_db = cursor.fetchone()
-    paid = session.get('paid', False) or bool(paid_db)
+    # Check payment status
+    paid = session.get('paid', False)
+    if db and not paid and not is_admin:
+        result = execute_query("""
+            SELECT p.id FROM payments p 
+            JOIN users u ON p.user_id = u.id 
+            WHERE u.username = %s AND p.status = 'success' 
+            LIMIT 1
+        """, (username,))
+        paid = bool(result)
 
     if not paid and not is_admin:
         session['payment_required'] = True
@@ -208,18 +254,20 @@ def chat():
 def game():
     is_admin = session.get('is_admin', False)
     username = session.get('username')
-    cursor.execute("""
-        SELECT p.id 
-        FROM payments p
-        JOIN users u ON p.user_id = u.id
-        WHERE u.username=%s AND p.status='success'
-        ORDER BY p.created_at DESC
-        LIMIT 1
-    """, (username,))
-    paid_db = cursor.fetchone()
-    paid = session.get('paid', False) or bool(paid_db)
+    
+    paid = session.get('paid', False)
+    if db and not paid and not is_admin:
+        result = execute_query("""
+            SELECT p.id FROM payments p 
+            JOIN users u ON p.user_id = u.id 
+            WHERE u.username = %s AND p.status = 'success' 
+            LIMIT 1
+        """, (username,))
+        paid = bool(result)
+
     if not paid and not is_admin:
         return render_template("payment_required.html")
+
     return render_template("game.html")
 
 @app.route("/verify/<reference>")
@@ -228,13 +276,15 @@ def verify_payment(reference):
     if not username:
         return jsonify({"status":"failed","message":"User not logged in"}), 401
 
-    cursor.execute("SELECT id, email FROM users WHERE username=%s", (username,))
-    user = cursor.fetchone()
-    if not user:
+    if not db:
+        return jsonify({"status":"error","message":"Database unavailable"}), 500
+
+    result = execute_query("SELECT id, email FROM users WHERE username = %s", (username,))
+    if not result:
         return jsonify({"status":"failed","message":"User not found"}), 404
 
-    user_id = user['id']
-    email = user['email']
+    user_id = result[0]['id']
+    email = result[0]['email']
 
     url = f"https://api.paystack.co/transaction/verify/{reference}"
     headers = {"Authorization": f"Bearer {PAYSTACK_SECRET_KEY}"}
@@ -251,18 +301,18 @@ def verify_payment(reference):
     if success:
         session['paid'] = True
         session.modified = True
-        cursor.execute("""
-            INSERT INTO payments (user_id, reference, amount, status)
+        
+        execute_query("""
+            INSERT INTO payments (user_id, reference, amount, status) 
             VALUES (%s, %s, %s, %s)
         """, (user_id, reference, amount, 'success'))
-        db.commit()
+        
         return jsonify({"status":"success"})
     else:
-        cursor.execute("""
-            INSERT INTO payments (user_id, reference, amount, status)
+        execute_query("""
+            INSERT INTO payments (user_id, reference, amount, status) 
             VALUES (%s, %s, %s, %s)
         """, (user_id, reference, amount, 'failed'))
-        db.commit()
         return jsonify({"status":"failed","message":"Payment verification failed"})
 
 # ---------------- SocketIO Events ----------------
@@ -270,16 +320,15 @@ def verify_payment(reference):
 def handle_connect():
     username = session.get('username', f"Guest-{request.sid[:5]}")
     connected_users[request.sid] = username
-    print(f"✅ {username} connected ({request.sid}) - Total users: {len(connected_users)}")
+    print(f"✅ {username} connected - Total users: {len(connected_users)}")
 
-    cursor.execute("""
-        SELECT m.username AS from_user, m.message AS text, m.created_at AS timestamp
-        FROM messages m
-        ORDER BY m.created_at DESC
-        LIMIT 50
-    """)
-    history = cursor.fetchall()
-    emit("chat_history", history[::-1])
+    if db:
+        history = execute_query("""
+            SELECT username AS from_user, message AS text, created_at AS timestamp
+            FROM messages ORDER BY created_at DESC LIMIT 50
+        """) or []
+        emit("chat_history", history[::-1])
+    
     emit("chat_status", {"locked": chat_locked})
 
 @socketio.on("message")
@@ -289,90 +338,114 @@ def handle_message(data):
         emit("error", {"msg": "Please set a username first"})
         return
 
-    cursor.execute("SELECT id FROM users WHERE username=%s", (username,))
-    user = cursor.fetchone()
-    if not user:
+    if not db:
+        emit("error", {"msg": "Database unavailable"})
+        return
+
+    user_result = execute_query("SELECT id FROM users WHERE username = %s", (username,))
+    if not user_result:
         emit("error", {"msg": "User not found"})
         return
 
-    user_id = user['id']
+    user_id = user_result[0]['id']
     msg_text = data.get('text','').strip()
     if not msg_text:
         return
 
-    cursor.execute(
-        "INSERT INTO messages (user_id, username, message) VALUES (%s, %s, %s) RETURNING id, username, message, created_at",
+    # Insert message
+    execute_query(
+        "INSERT INTO messages (user_id, username, message) VALUES (%s, %s, %s)",
         (user_id, username, msg_text)
     )
-    new_message = cursor.fetchone()
-    db.commit()
 
-    message_data = {
-        "from": new_message['username'],
-        "text": new_message['message'],
-        "timestamp": new_message['created_at'].isoformat()
-    }
-
-    print(f"📢 Broadcasting message from {username}: {msg_text}")
-    emit("message", message_data, broadcast=True)
+    # Get the new message
+    new_message = execute_query("""
+        SELECT username, message, created_at 
+        FROM messages 
+        ORDER BY id DESC LIMIT 1
+    """)
+    
+    if new_message:
+        message_data = {
+            "from": new_message[0]['username'],
+            "text": new_message[0]['message'],
+            "timestamp": new_message[0]['created_at'].isoformat()
+        }
+        emit("message", message_data, broadcast=True)
 
 @socketio.on("disconnect")
 def handle_disconnect():
     if request.sid in connected_users:
         user = connected_users.pop(request.sid)
-        print(f"{user} disconnected")
+        print(f"❌ {user} disconnected")
 
 @socketio.on("lock_chat")
 def lock_chat():
     if not session.get("is_admin"):
-        emit("error", {"msg":"Only admin can lock chat"}, room=request.sid); return
-    global chat_locked; chat_locked = True
+        emit("error", {"msg":"Only admin can lock chat"})
+        return
+    global chat_locked
+    chat_locked = True
     emit("chat_status", {"locked": True}, broadcast=True)
 
 @socketio.on("unlock_chat")
 def unlock_chat():
     if not session.get("is_admin"):
-        emit("error", {"msg":"Only admin can unlock chat"}, room=request.sid); return
-    global chat_locked; chat_locked = False
+        emit("error", {"msg":"Only admin can unlock chat"})
+        return
+    global chat_locked
+    chat_locked = False
     emit("chat_status", {"locked": False}, broadcast=True)
 
 @socketio.on("announce_winner")
 def handle_announce_winner(data):
     if not session.get("is_admin"):
-        emit("error", {"msg":"Only admin can announce winners"}, room=request.sid); return
+        emit("error", {"msg":"Only admin can announce winners"})
+        return
+        
     winners = data.get('winners', [])
     if not winners:
-        emit("error", {"msg":"No winners selected"}, room=request.sid); return
+        emit("error", {"msg":"No winners selected"})
+        return
 
     announcement = f"🏆 WINNER(S) ANNOUNCEMENT: {', '.join(winners)}! Congratulations! 🎉"
     emit("announcement", {"text": announcement}, broadcast=True)
-    global chat_locked; chat_locked = True
+    
+    global chat_locked
+    chat_locked = True
     emit("chat_status", {"locked": True}, broadcast=True)
+    
     session.clear()
     emit("payment_reset", {}, broadcast=True)
 
-# ---------------- Register/Login ----------------
+# ---------------- Other Routes ----------------
 @app.route("/register", methods=['GET','POST'])
 def register():
     if request.method == 'POST':
         username = request.form['username'].strip()
         email = request.form['email'].strip()
         password = request.form['password'].strip()
+        
         if not username or not email or not password:
             return "❌ All fields are required"
 
-        cursor.execute("SELECT id FROM users WHERE email=%s", (email,))
-        if cursor.fetchone():
+        if not db:
+            return "❌ Database unavailable"
+
+        result = execute_query("SELECT id FROM users WHERE email = %s", (email,))
+        if result:
             return "❌ Email already registered"
 
         password_hash = generate_password_hash(password)
-        cursor.execute("INSERT INTO users (username, email, password) VALUES (%s, %s, %s) RETURNING id", 
-                       (username, email, password_hash))
-        new_user = cursor.fetchone()
-        db.commit()
-        session['user_id'] = new_user['id']
-        session['username'] = username
-        return redirect(url_for('chat'))
+        execute_query("INSERT INTO users (username, email, password) VALUES (%s, %s, %s)", 
+                     (username, email, password_hash))
+        
+        user_result = execute_query("SELECT id FROM users WHERE email = %s", (email,))
+        if user_result:
+            session['user_id'] = user_result[0]['id']
+            session['username'] = username
+            return redirect(url_for('chat'))
+            
     return render_template("register.html")
 
 @app.route("/login", methods=['GET','POST'])
@@ -380,123 +453,39 @@ def login():
     if request.method == 'POST':
         email = request.form['email'].strip()
         password = request.form['password'].strip()
-        cursor.execute("SELECT * FROM users WHERE email=%s", (email,))
-        user = cursor.fetchone()
-        if user and check_password_hash(user['password'], password):
-            session['user_id'] = user['id']
-            session['username'] = user['username']
+        
+        if not db:
+            return "❌ Database unavailable"
+
+        result = execute_query("SELECT * FROM users WHERE email = %s", (email,))
+        if result and check_password_hash(result[0]['password'], password):
+            session['user_id'] = result[0]['id']
+            session['username'] = result[0]['username']
             return redirect(url_for('chat'))
         else:
             return "❌ Invalid credentials"
+            
     return render_template("login.html")
 
-@app.route("/admin_dashboard")
-def admin_dashboard():
-    if not session.get("is_admin"):
-        return redirect(url_for("admin_login"))
-    cursor.execute("""
-        SELECT u.id, u.username, u.email, 
-               p.status AS last_payment_status, 
-               p.amount AS last_payment_amount,
-               p.created_at AS last_payment_date
-        FROM users u
-        LEFT JOIN payments p ON p.user_id = u.id
-        AND p.created_at = (
-            SELECT MAX(created_at) 
-            FROM payments 
-            WHERE user_id = u.id
-        )
-        ORDER BY u.id DESC
-    """)
-    users = cursor.fetchall()
-    global chat_locked
-    return render_template("admin_dashboard.html", users=users, chat_locked=chat_locked)
+@app.route("/health")
+def health():
+    return jsonify({"status": "healthy", "database": "connected" if db else "disconnected"})
 
-@app.route("/toggle_chat_lock", methods=["POST"])
-def toggle_chat_lock():
-    if not session.get("is_admin"):
-        return redirect(url_for("admin_login"))
-    global chat_locked
-    chat_locked = not chat_locked
-    return redirect(url_for("admin_dashboard"))
+# ---------------- Error Handlers ----------------
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({"error": "Not found"}), 404
 
-@app.route("/check_payment_status")
-def check_payment_status():
-    username = session.get('username')
-    if not username:
-        return jsonify({"error":"Not logged in"}), 401
-    cursor.execute("SELECT id FROM users WHERE username=%s", (username,))
-    user = cursor.fetchone()
-    if not user:
-        return jsonify({"error":"User not found"}), 404
-    cursor.execute("SELECT COUNT(*) AS count FROM payments WHERE user_id=%s AND status='success'", (user['id'],))
-    result = cursor.fetchone()
-    return jsonify({
-        "username": username,
-        "paid_in_session": session.get('paid', False),
-        "paid_in_db": result['count'] > 0
-    })
-
-@app.route("/test_payment")
-def test_payment():
-    if not session.get('username'):
-        return "Please log in first"
-    session['paid'] = True
-    session.modified = True
-    cursor.execute("SELECT id FROM users WHERE username=%s", (session.get('username'),))
-    user = cursor.fetchone()
-    if user:
-        cursor.execute("INSERT INTO payments (user_id, reference, amount, status) VALUES (%s, %s, %s, %s)", (user['id'], 'test_ref', 0, 'success'))
-        db.commit()
-    return "OK"
-
-@app.route("/start_new_session", methods=["POST"])
-def start_new_session():
-    if not session.get("is_admin"):
-        return jsonify({"error":"Admin access required"}), 403
-    global current_chat_session
-    try:
-        if current_chat_session:
-            cursor.execute("UPDATE chat_sessions SET end_time = CURRENT_TIMESTAMP, status='completed' WHERE id=%s", (current_chat_session,))
-        session_code = f"CHAT_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
-        cursor.execute("INSERT INTO chat_sessions (session_code, status) VALUES (%s, 'active') RETURNING id", (session_code,))
-        row = cursor.fetchone()
-        db.commit()
-        current_chat_session = row['id']
-        session.clear()
-        socketio.emit("session_reset", {"message":"Chat session reset! Payment required to continue chatting.", "session_code": session_code, "timestamp": datetime.utcnow().isoformat()}, broadcast=True)
-        print(f"🔄 Chat session reset by admin. New session: {session_code}")
-        return jsonify({"success": True, "session_code": session_code, "message":"Chat session reset successfully"})
-    except Exception as e:
-        print("Error resetting session:", e)
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/get_session_info")
-def get_session_info():
-    try:
-        cursor.execute("""
-            SELECT cs.session_code, cs.start_time, 
-                   COUNT(DISTINCT p.user_id) as paid_users,
-                   (SELECT COUNT(*) FROM users) as total_users
-            FROM chat_sessions cs
-            LEFT JOIN payments p ON p.chat_session_id = cs.id AND p.status = 'success'
-            WHERE cs.status = 'active'
-            GROUP BY cs.id, cs.session_code, cs.start_time
-            ORDER BY cs.id DESC LIMIT 1
-        """)
-        session_info = cursor.fetchone()
-        if session_info:
-            return jsonify({
-                "session_code": session_info['session_code'],
-                "start_time": session_info['start_time'].isoformat() if hasattr(session_info['start_time'],'isoformat') else session_info['start_time'],
-                "paid_users": session_info['paid_users'],
-                "total_users": session_info['total_users']
-            })
-        return jsonify({"error":"No active session found"})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+@app.errorhandler(500)
+def internal_error(error):
+    return jsonify({"error": "Internal server error"}), 500
 
 # ---------------- Run ----------------
 if __name__ == "__main__":
-    # In production, Render uses gunicorn; this is for local testing
-    socketio.run(app, host="0.0.0.0", port=int(os.getenv("PORT", 5000)), debug=True)
+    port = int(os.getenv("PORT", 5000))
+    debug = os.getenv("DEBUG", "false").lower() == "true"
+    
+    print(f"🚀 Starting server on port {port}")
+    print(f"📊 Database status: {'Connected' if db else 'Disconnected'}")
+    
+    socketio.run(app, host="0.0.0.0", port=port, debug=debug, allow_unsafe_werkzeug=True)
