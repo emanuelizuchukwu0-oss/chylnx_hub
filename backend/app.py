@@ -77,6 +77,14 @@ game_active = False
 connected_users = {}  # { sid: username }
 
 # ---------------- SocketIO Events ----------------
+
+# tell Flask to look inside "frontend" for HTML files
+app = Flask(__name__, template_folder="frontend")
+
+@app.route("/")
+def index():
+    return render_template("index.html")  # this will load frontend/index.html
+
 @socketio.on("connect")
 def handle_connect():
     username = session.get('username', f"Guest-{request.sid[:5]}")
