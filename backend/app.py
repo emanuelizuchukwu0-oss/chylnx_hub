@@ -8,17 +8,14 @@ import psycopg2.extras
 import requests
 
 # ---------------- Absolute Paths ----------------
+# Absolute path to your backend
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Your HTML templates are in chylnx_hub/index
+# Templates folder: chylnx_hub/index
 TEMPLATE_DIR = os.path.join(BASE_DIR, "../chylnx_hub/index")
 
-# Your static files (CSS/JS/images) are in chylnx_hub/static
+# Static folder: chylnx_hub/static
 STATIC_DIR = os.path.join(BASE_DIR, "../chylnx_hub/static")
-
-print(f"📁 Base directory: {BASE_DIR}")
-print(f"📁 Template folder: {TEMPLATE_DIR}")
-print(f"📁 Static folder: {STATIC_DIR}")
 
 # ---------------- Flask App Setup ----------------
 app = Flask(
@@ -109,23 +106,16 @@ def execute_query(query, params=None):
 # ---------------- Routes ----------------
 @app.route("/")
 def index():
-    return render_template("index.html")
-
-@app.route("/login")
-def login():
-    return render_template("login.html")
+    return render_template("index.html")  # <-- Flask will now find index.html correctly
 
 @app.route("/chat")
 def chat():
-    username = session.get("username")
-    if not username:
-        return redirect(url_for("login"))
-    return render_template("chat.html", username=username)
+    return render_template("chat.html")  # Make sure chat.html is also inside chylnx_hub/index
 
-# Example payment route
 @app.route("/payment")
 def payment():
-    return render_template("payment.html")
+    return render_template("payment.html")  # Make sure payment.html is in the same folder
+
 
 # Health check for Render
 @app.route("/health")
