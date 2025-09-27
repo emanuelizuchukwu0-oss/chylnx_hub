@@ -100,10 +100,13 @@ def index():
             """, (username,))
             paid_db = cursor.fetchone() is not None
         paid = session.get('paid', False) or paid_db
-        return render_template("index.html", next_game_time=next_game_time, paid=paid)
+        return render_template("index.html", paid=paid)
     except Exception as e:
+        import traceback
         print("Error in index route:", e)
-        return str(e), 500
+        traceback.print_exc()
+        return "Internal Server Error", 500
+
 
 @app.route("/set_timer", methods=["POST"])
 def set_timer():
