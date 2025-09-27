@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CHYLNX HUB - Admin Control</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        /* Keep all your existing admin panel styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .admin-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .admin-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 0, 0.2);
+        }
+        
+        .admin-header h1 {
+            color: yellow; 
+            font-size: 32px; 
+            margin: 0;
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(255, 255, 0, 0.7);
+        }
+        
+        .reset-section {
+            text-align: center;
+            padding: 30px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        
+        .reset-btn {
+            background: linear-gradient(45deg, #ff6600, #ff3300);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            margin: 10px;
+        }
+        
+        .reset-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(255, 102, 0, 0.5);
+        }
+        
+        .session-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .info-card {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .info-card h3 {
+            color: #25D366;
+            margin-bottom: 10px;
+        }
+        
+        .info-card p {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        .success-message {
+            background: rgba(37, 211, 102, 0.2);
+            border-left: 4px solid #25D366;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+            display: none;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            background: white;
+            color: #333;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <div class="admin-header">
+            <h1>CHYLNX HUB ADMIN PANEL</h1>
+        </div>
+        
+        <div class="session-info">
+            <div class="info-card">
+                <h3>Current Session</h3>
+                <p id="sessionCode">Loading...</p>
+            </div>
+            <div class="info-card">
+                <h3>Paid Users</h3>
+                <p id="paidUsers">0</p>
+            </div>
+            <div class="info-card">
+                <h3>Total Users</h3>
+                <p id="totalUsers">0</p>
+            </div>
+        </div>
+        
+        <div class="reset-section">
+            <h3>Reset Chat Session</h3>
+            <p>This will immediately reset the chat session.</p>
+            <p><strong>All users will need to pay again to access the chat.</strong></p>
+            
+            <button class="reset-btn" onclick="showResetConfirm()">
+                <i class="fas fa-sync-alt"></i> RESET CHAT SESSION
+            </button>
+        </div>
+        
+        <div class="success-message" id="resetSuccess">
+            <i class="fas fa-check-circle"></i> 
+            Chat session reset successfully! All users must now pay again.
+        </div>
+    </div>
+    
+    <!-- Reset Confirmation Modal -->
+    <div class="modal" id="resetModal">
+        <div class="modal-content">
+            <h2>Confirm Session Reset</h2>
+            <p>Are you sure you want to reset the chat session?</p>
+            <p><strong>This will log out all users and require payment to continue.</strong></p>
+            
+            <div style="display: flex; justify-content: center; gap: 15px; margin-top: 20px;">
+                <button class="reset-btn" onclick="resetChatSession()" style="padding: 10px 20px; font-size: 1rem;">
+                    Yes, Reset Session
+                </button>
+                <button onclick="hideResetConfirm()" style="background: #ccc; color: #333; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Connect to Socket.IO
+        const socket = io();
+        
+        // Load current session info
+        function loadSessionInfo() {
+            fetch('/get_session_info')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.session_code) {
+                        document.getElementById('sessionCode').textContent = data.session_code;
+                        document.getElementById('paidUsers').textContent = data.paid_users;
+                        document.getElementById('totalUsers').textContent = data.total_users;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading session info:', error);
+                });
+        }
+        
+        // Reset confirmation modal
+        function showResetConfirm() {
+            document.getElementById('resetModal').style.display = 'flex';
+        }
+        
+        function hideResetConfirm() {
+            document.getElementById('resetModal').style.display = 'none';
+        }
+        
+        // Reset chat session function
+        function resetChatSession() {
+            const resetBtn = document.querySelector('.reset-btn');
+            resetBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> RESETTING...';
+            resetBtn.disabled = true;
+            
+            fetch('/start_new_session', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    hideResetConfirm();
+                    
+                    // Update session info
+                    document.getElementById('sessionCode').textContent = data.session_code;
+                    document.getElementById('paidUsers').textContent = '0';
+                    
+                    // Show success message
+                    document.getElementById('resetSuccess').style.display = 'block';
+                    
+                    // Reset button state
+                    resetBtn.innerHTML = '<i class="fas fa-sync-alt"></i> RESET CHAT SESSION';
+                    resetBtn.disabled = false;
+                    
+                    // Hide success message after 5 seconds
+                    setTimeout(() => {
+                        document.getElementById('resetSuccess').style.display = 'none';
+                    }, 5000);
+                    
+                    console.log('Session reset successfully:', data.message);
+                } else {
+                    alert('Error: ' + data.error);
+                    resetBtn.innerHTML = '<i class="fas fa-sync-alt"></i> RESET CHAT SESSION';
+                    resetBtn.disabled = false;
+                }
+            })
+            .catch(error => {
+                alert('Error resetting session: ' + error);
+                resetBtn.innerHTML = '<i class="fas fa-sync-alt"></i> RESET CHAT SESSION';
+                resetBtn.disabled = false;
+            });
+        }
+        
+        // Listen for session reset events (in case another admin resets)
+        socket.on("session_reset", function(data) {
+            alert('Session was reset by another admin!');
+            loadSessionInfo(); // Refresh the session info
+        });
+        
+        // Initialize
+        window.onload = function() {
+            loadSessionInfo();
+            // Refresh session info every 30 seconds
+            setInterval(loadSessionInfo, 30000);
+        };
+    </script>
+</body>
+</html>

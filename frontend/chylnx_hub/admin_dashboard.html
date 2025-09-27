@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Dashboard - CHYLNX HUB</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 min-h-screen p-6">
+
+  <h1 class="text-3xl font-bold mb-6 text-center">Admin Dashboard</h1>
+
+  <div class="flex justify-between items-center mb-4">
+    <h2 class="text-xl font-semibold">Users & Payments</h2>
+    <form action="/toggle_chat_lock" method="POST">
+      <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded">
+        {{ 'Unlock Chat' if chat_locked else 'Lock Chat' }}
+      </button>
+    </form>
+  </div>
+
+  <table class="min-w-full bg-white shadow rounded-lg">
+    <thead>
+      <tr>
+        <th class="py-2 px-4 border-b">ID</th>
+        <th class="py-2 px-4 border-b">Username</th>
+        <th class="py-2 px-4 border-b">Email</th>
+        <th class="py-2 px-4 border-b">Last Payment Status</th>
+        <th class="py-2 px-4 border-b">Last Payment Amount</th>
+        <th class="py-2 px-4 border-b">Payment Date</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for user in users %}
+      <tr class="text-center">
+        <td class="py-2 px-4 border-b">{{ user.id }}</td>
+        <td class="py-2 px-4 border-b">{{ user.username }}</td>
+        <td class="py-2 px-4 border-b">{{ user.email or '-' }}</td>
+        <td class="py-2 px-4 border-b">{{ user.last_payment_status or 'None' }}</td>
+        <td class="py-2 px-4 border-b">{{ user.last_payment_amount or '-' }}</td>
+        <td class="py-2 px-4 border-b">{{ user.last_payment_date or '-' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+</body>
+</html>

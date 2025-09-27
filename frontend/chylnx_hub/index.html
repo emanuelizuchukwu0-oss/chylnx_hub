@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CHYLNX HUB</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: navy;
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .head {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 30px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 0, 0.2);
+        }
+        
+        .head p {
+            color: yellow; 
+            font-size: 28px; 
+            margin: 0;
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(255, 255, 0, 0.7);
+        }
+        
+        .icons {
+            margin-left: 15px;
+            display: flex;
+            align-items: center;
+        }
+
+        .icons img {
+            height: 30px;
+            background: transparent;
+            cursor: pointer;
+            filter: drop-shadow(0 0 3px gold) drop-shadow(0 0 10px gold);
+            display: inline;
+            padding-right: 10px;
+            transition: transform 0.3s ease;
+        }
+        
+        .icons img:hover {
+            transform: scale(1.1);
+        }
+        
+        .icon-fallback {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            margin-right: 10px;
+            border-radius: 50%;
+            background: gold;
+            text-align: center;
+            line-height: 30px;
+            font-weight: bold;
+            color: navy;
+        }
+        
+        main {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .section-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: transform 0.3s ease;
+        }
+        
+        .section-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .section-card h2 {
+            margin-bottom: 20px;
+            font-size: 1.8rem;
+            color: #ffcc00;
+        }
+        
+        .btn {
+            background: linear-gradient(45deg, #25D366, #128C7E);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .game-timer {
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            text-align: center;
+            border-radius: 12px;
+            margin: 0 auto 30px;
+            font-weight: bold;
+            font-size: 1.4rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            max-width: 500px;
+            border: 1px solid rgba(255, 204, 0, 0.3);
+        }
+        
+        .game-timer span {
+            color: #ffcc00;
+            font-size: 1.5rem;
+        }
+        
+        .timer-control {
+            background: rgba(0, 0, 0, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .timer-control h3 {
+            margin-bottom: 15px;
+            color: #ffcc00;
+        }
+        
+        .timer-input {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .timer-input input {
+            width: 60px;
+            padding: 8px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.9);
+        }
+        
+        .timer-btn {
+            background: #25D366;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .timer-btn:hover {
+            background: #128C7E;
+        }
+        
+        .password-protection {
+            text-align: center;
+            margin-top: 10px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+        }
+        
+        .password-input {
+            padding: 10px 15px;
+            border-radius: 5px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            margin-right: 10px;
+            width: 180px;
+            background: rgba(255, 255, 255, 0.9);
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            padding: 20px;
+            opacity: 0.8;
+        }
+        
+        .unlock-btn {
+            background: linear-gradient(45deg, #ff9900, #ff6600);
+        }
+        
+        .fa-whatsapp {
+            color: #25D366;
+            margin-bottom: 15px;
+        }
+        
+        .tagline {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 1.2rem;
+            opacity: 0.9;
+            color: #ffcc00;
+        }
+    </style>
+</head>
+<body>
+    <!-- Game Timer Display -->
+    <div class="game-timer">
+        NEXT GAME STARTS IN: <span id="countdown">05:00</span>
+    </div>
+
+    <!-- Updated Header with CHYLNX HUB styling -->
+    <div class="head">
+        <p>CHYLNX HUB</p>
+        <div class="icons" id="iconContainer">
+    <img src="{{ url_for('static', filename='images/earth.png') }}" 
+         alt="Earth Icon" 
+         class="icon-img"
+         onerror="this.style.display='none'; showFallbackIcons();">
+    <img src="{{ url_for('static', filename='images/note.png') }}" 
+         alt="Note Icon" 
+         class="icon-img"
+         onerror="this.style.display='none'; showFallbackIcons();">
+    <img src="{{ url_for('static', filename='images/king.png') }}" 
+         alt="King Icon" 
+         class="icon-img"
+         onerror="this.style.display='none'; showFallbackIcons();">
+</div>
+    </div>
+    
+    <div class="tagline">
+        SMART PLAY • WIN • STAY CONNECTED
+    </div>
+
+    <main>
+        <section class="section-card">
+            <h2>Start Game</h2>
+            <a href="{{ url_for('chat') }}">
+                <button class="btn">Start Game / Chat Box</button>
+            </a>
+        </section>
+
+        <section class="section-card">
+            <h2>Payment</h2>
+            <a href="/payment"><button class="btn">Pay to Unlock</button></a>
+        </section>
+
+        <section class="section-card">
+            <i class="fa-brands fa-whatsapp fa-3x"></i>
+            <h2>WhatsApp Link</h2>
+            <a href="https://wa.me/2347074069417" target="_blank">
+                <button class="btn">Contact Us on WhatsApp</button>
+            </a>
+        </section>
+        
+        <section class="section-card">
+            <h2>Admin Panel</h2>
+            <button class="btn" onclick="window.location.href='/admin'">Admin</button>
+            
+            <!-- Password protection -->
+            <div class="password-protection" id="passwordSection">
+                <h3>Timer Controls Locked</h3>
+                <input type="password" id="passwordInput" class="password-input" placeholder="Enter password (12345)">
+                <button class="btn unlock-btn" onclick="checkPassword()">Unlock Timer</button>
+            </div>
+            
+            <!-- Timer Control Section (hidden by default) -->
+            <div class="timer-control hidden" id="timerControl">
+                <h3>Set Game Timer</h3>
+                <div class="timer-input">
+                    <input type="number" id="minutes" min="0" max="59" value="5" placeholder="Min">
+                    <span>:</span>
+                    <input type="number" id="seconds" min="0" max="59" value="0" placeholder="Sec">
+                </div>
+                <button class="timer-btn" onclick="setCustomTimer()">Set Timer</button>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>© 2025 CHYLNX HUB. All rights reserved.</p>
+    </footer>
+
+    <script>
+        // Timer functionality
+        let timerInterval;
+        let totalSeconds = 300; // Default 5 minutes
+        
+        function updateTimer() {
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            
+            document.getElementById('countdown').textContent = 
+                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            if (totalSeconds <= 0) {
+                clearInterval(timerInterval);
+                document.getElementById('countdown').textContent = "GAME TIME!";
+                return;
+            }
+            
+            totalSeconds--;
+        }
+        
+        function setCustomTimer() {
+            const minutes = parseInt(document.getElementById('minutes').value) || 0;
+            const seconds = parseInt(document.getElementById('seconds').value) || 0;
+            
+            totalSeconds = (minutes * 60) + seconds;
+            
+            // Clear existing timer and start new one
+            clearInterval(timerInterval);
+            updateTimer(); // Update immediately
+            timerInterval = setInterval(updateTimer, 1000);
+            
+            alert(`Timer set to ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
+        }
+        
+        // Password protection functionality
+        function checkPassword() {
+            const password = document.getElementById('passwordInput').value;
+            if (password === '12345') {
+                document.getElementById('passwordSection').classList.add('hidden');
+                document.getElementById('timerControl').classList.remove('hidden');
+            } else {
+                alert('Incorrect password! Please try again.');
+                document.getElementById('passwordInput').value = '';
+            }
+        }
+        
+        // Image fallback functionality
+        function showFallbackIcons() {
+            const iconContainer = document.getElementById('iconContainer');
+            const images = iconContainer.getElementsByTagName('img');
+            let allImagesFailed = true;
+            
+            // Check if any images loaded successfully
+            for (let img of images) {
+                if (img.style.display !== 'none') {
+                    allImagesFailed = false;
+                    break;
+                }
+            }
+            
+            // If all images failed, show fallback
+            if (allImagesFailed) {
+                iconContainer.innerHTML = `
+                    <span class="icon-fallback">E</span>
+                    <span class="icon-fallback">N</span>
+                    <span class="icon-fallback">K</span>
+                `;
+            }
+        }
+        
+        // Check if images loaded after page loads
+        window.addEventListener('load', function() {
+            setTimeout(showFallbackIcons, 1000);
+        });
+        
+        // Initialize timer
+        timerInterval = setInterval(updateTimer, 1000);
+    </script>
+</body>
+</html>

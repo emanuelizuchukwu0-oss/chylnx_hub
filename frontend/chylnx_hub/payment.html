@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pay to Unlock - CHYLNX HUB</title>
+  <script src="https://js.paystack.co/v1/inline.js"></script>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <style>
+    body {
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .header {
+      background: linear-gradient(90deg, #25D366 0%, #128C7E 100%);
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
+    .content {
+      padding: 30px;
+    }
+    input {
+      transition: all 0.3s ease;
+    }
+    input:focus {
+      box-shadow: 0 0 0 3px rgba(37, 211, 102, 0.3);
+    }
+    .btn {
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .btn:after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 5px;
+      height: 5px;
+      background: rgba(255, 255, 255, 0.5);
+      opacity: 0;
+      border-radius: 100%;
+      transform: scale(1, 1) translate(-50%);
+      transform-origin: 50% 50%;
+    }
+    .btn:hover:after {
+      animation: ripple 1s ease-out;
+    }
+    @keyframes ripple {
+      0% {
+        transform: scale(0, 0);
+        opacity: 1;
+      }
+      20% {
+        transform: scale(200, 200);
+        opacity: 1;
+      }
+      100% {
+        opacity: 0;
+        transform: scale(500, 500);
+      }
+    }
+    .loading {
+      display: none;
+      text-align: center;
+      margin-top: 20px;
+    }
+    .spinner {
+      border: 4px solid rgba(0, 0, 0, 0.1);
+      border-left: 4px solid #25D366;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .features {
+      margin-top: 25px;
+      border-top: 1px solid #eee;
+      padding-top: 20px;
+    }
+    .feature-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .checkmark {
+      color: #25D366;
+      margin-right: 10px;
+      font-weight: bold;
+    }
+    .success-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.5s ease;
+    }
+    .success-overlay.active {
+      opacity: 1;
+      pointer-events: all;
+    }
+    .success-card {
+      background: white;
+      padding: 30px;
+      border-radius: 16px;
+      text-align: center;
+      max-width: 350px;
+      width: 90%;
+      animation: scaleIn 0.5s ease-out;
+    }
+    @keyframes scaleIn {
+      from { transform: scale(0.9); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .success-icon {
+      font-size: 60px;
+      color: #25D366;
+      margin-bottom: 20px;
+    }
+    .error-message {
+      color: #e53e3e;
+      text-align: center;
+      margin-top: 10px;
+      display: none;
+    }
+    .session-notice {
+      background: #fff3cd;
+      border: 1px solid #ffeaa7;
+      color: #856404;
+      padding: 10px;
+      border-radius: 5px;
+      margin-bottom: 15px;
+      text-align: center;
+      display: none;
+    }
+  </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+  <div class="container bg-white w-full max-w-md">
+    <div class="header">
+      <h1 class="text-2xl font-bold">CHYLNX HUB</h1>
+      <p class="mt-2">Premium Access</p>
+    </div>
+
+    <div class="content">
+      <div class="session-notice" id="sessionNotice">
+        <strong>Notice:</strong> Chat session was reset. New payment required.
+      </div>
+      
+      <p class="text-center text-lg font-semibold text-green-600 mb-4">
+        Only ₦500 to unlock all features
+      </p>
+
+      <h2 class="text-2xl font-bold mb-6 text-center text-gray-800">Pay to Unlock</h2>
+
+      <input id="email" type="email" placeholder="Enter your email" 
+             class="w-full border border-gray-300 rounded-lg p-3 mb-4 focus:outline-none focus:border-green-500">
+
+      <button onclick="payWithPaystack()" 
+              class="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 font-semibold btn">
+        Pay ₦500 Now
+      </button>
+
+      <div class="error-message" id="errorMessage">
+        Payment verification failed. Please try again or contact support.
+      </div>
+
+      <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p class="mt-2 text-gray-600">Processing payment...</p>
+      </div>
+
+      <div class="features">
+        <h3 class="font-semibold text-gray-700 mb-3">What you'll get:</h3>
+        <div class="feature-item">
+          <span class="checkmark">✓</span>
+          <span>Full access to all chat features</span>
+        </div>
+        <div class="feature-item">
+          <span class="checkmark">✓</span>
+          <span>Priority support</span>
+        </div>
+        <div class="feature-item">
+          <span class="checkmark">✓</span>
+          <span>No advertisements</span>
+        </div>
+        <div class="feature-item">
+          <span class="checkmark">✓</span>
+          <span>Exclusive content</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Success Overlay -->
+  <div class="success-overlay" id="successOverlay">
+    <div class="success-card">
+      <div class="success-icon">✓</div>
+      <h2 class="text-2xl font-bold text-green-600 mb-2">Payment Successful!</h2>
+      <p class="text-gray-600 mb-4">Thank you for your payment. You now have full access to CHYLNX HUB.</p>
+      <p class="text-sm text-gray-500 mb-4">Redirecting you to the chat in <span id="countdown">5</span> seconds...</p>
+      <button onclick="redirectNow()" class="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 font-semibold">
+        Go to Chat Now
+      </button>
+    </div>
+  </div>
+
+ <script>
+    // Connect to Socket.IO
+    const socket = io();
+    
+    // Listen for session reset events
+    socket.on('session_reset', function(data) {
+        console.log("Session reset received on payment page");
+        showSessionNotice();
+    });
+    
+    function showSessionNotice() {
+        document.getElementById('sessionNotice').style.display = 'block';
+    }
+    
+    function payWithPaystack() {
+        const email = document.getElementById('email').value;
+        
+        // Validate email
+        if (!email || !email.includes('@')) {
+            alert('Please enter a valid email address');
+            return;
+        }
+        
+        // Hide any previous error messages
+        document.getElementById('errorMessage').style.display = 'none';
+        document.getElementById('sessionNotice').style.display = 'none';
+        
+        // Show loading state
+        document.getElementById('loading').style.display = 'block';
+        
+        let handler = PaystackPop.setup({
+            key: "pk_test_17014f2dc60b93d64e7625f6158f9f3724f4ecd4",
+            email: email,
+            amount: 500 * 100,
+            currency: "NGN",
+            ref: "CHYLNX_" + Math.floor((Math.random() * 1000000000) + 1),
+            callback: function(response){
+                // Send payment verification to server
+                verifyPayment(response.reference, email);
+            },
+            onClose: function(){
+                document.getElementById('loading').style.display = 'none';
+                alert("Payment cancelled.");
+            }
+        });
+        handler.openIframe();
+    }
+
+    function verifyPayment(reference, email) {
+        // Send verification request to your backend
+        fetch(`/verify/${reference}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === "success") {
+                document.getElementById('loading').style.display = 'none';
+                showSuccessOverlay();
+                
+                // Notify server to update user's payment status
+                socket.emit('payment_completed', { 
+                    reference: reference,
+                    email: email 
+                });
+            } else {
+                // Show error message
+                document.getElementById('errorMessage').style.display = 'block';
+                document.getElementById('loading').style.display = 'none';
+            }
+        })
+        .catch(error => {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('errorMessage').style.display = 'block';
+        });
+    } 
+
+    function showSuccessOverlay() {
+        const overlay = document.getElementById('successOverlay');
+        overlay.classList.add('active');
+        
+        // Start countdown
+        let seconds = 3;
+        const countdownElement = document.getElementById('countdown');
+        
+        const countdownInterval = setInterval(function() {
+            seconds--;
+            countdownElement.textContent = seconds;
+            
+            if (seconds <= 0) {
+                clearInterval(countdownInterval);
+                redirectToIndex(); // CHANGED: Goes to index instead of chat
+            }
+        }, 1000);
+    }
+    
+    function redirectToIndex() {
+        // Redirect to the index page
+        window.location.href = "/";
+    }
+    
+    function redirectNow() {
+        // Immediately redirect when button is clicked
+        redirectToIndex();
+    }
+
+    // Allow pressing Enter to submit
+    document.getElementById('email').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            payWithPaystack();
+        }
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chylnx Hub Chat</title>
+    <style>
+        /* Modern WhatsApp-like Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Helvetica, Arial, sans-serif;
+            height: 100vh;
+            background: #e5ddd5;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header Styles */
+        header {
+            background: #25D366;
+            color: white;
+            padding: 10px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            z-index: 100;
+        }
+
+        .header-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 20px;
+            font-size: 18px;
+        }
+
+        /* Chat Container */
+        #chatContainer {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" opacity="0.05"><path fill="%23007bff" d="M30,30 Q50,10 70,30 Q90,50 70,70 Q50,90 30,70 Q10,50 30,30 Z"/></svg>');
+            background-color: #e5ddd5;
+        }
+
+        #chatWindow {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        /* Message Styles */
+        .message {
+            max-width: 70%;
+            padding: 8px 12px;
+            border-radius: 7.5px;
+            position: relative;
+            word-wrap: break-word;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.sent {
+            align-self: flex-end;
+            background: #dcf8c6;
+            border-top-right-radius: 0;
+        }
+
+        .message.received {
+            align-self: flex-start;
+            background: white;
+            border-top-left-radius: 0;
+            box-shadow: 0 1px 0.5px rgba(0,0,0,0.1);
+        }
+
+        .message-content {
+            margin-bottom: 2px;
+            line-height: 1.4;
+        }
+
+        .message-time {
+            font-size: 11px;
+            color: #667781;
+            text-align: right;
+            margin-top: 2px;
+        }
+
+        .message.received .message-time {
+            text-align: left;
+        }
+
+        .sender-name {
+            font-weight: 600;
+            color: #25D366;
+            font-size: 13px;
+            margin-bottom: 2px;
+            cursor: pointer;
+        }
+
+        .sender-name:hover {
+            text-decoration: underline;
+        }
+
+        .selected-sender .sender-name {
+            background: rgba(37, 211, 102, 0.2);
+            padding: 2px 6px;
+            border-radius: 12px;
+        }
+
+        /* Input Area */
+        #inputArea {
+            background: #f0f0f0;
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-top: 1px solid #d1d7db;
+        }
+
+        #chatInput {
+            flex: 1;
+            padding: 12px 16px;
+            border: none;
+            border-radius: 20px;
+            outline: none;
+            font-size: 15px;
+            background: white;
+        }
+
+        #sendBtn {
+            background: #25D366;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        #sendBtn:hover {
+            background: #20bd5a;
+        }
+
+        #sendBtn:disabled {
+            background: #a0a0a0;
+            cursor: not-allowed;
+        }
+
+        /* System Messages */
+        .system-msg {
+            text-align: center;
+            color: #667781;
+            font-size: 13px;
+            margin: 10px 0;
+            font-style: italic;
+        }
+
+        /* Winner Announcement */
+        .winner-announcement {
+            background: linear-gradient(135deg, #ffd700, #ff8c00);
+            color: #000;
+            text-align: center;
+            padding: 12px;
+            font-weight: bold;
+            margin: 10px 0;
+            border-radius: 8px;
+            animation: winnerPulse 2s infinite;
+        }
+
+        @keyframes winnerPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+
+        /* Overlays */
+        #usernameOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #667781 0%, #25D366 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        #usernameForm {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            width: 90%;
+            max-width: 400px;
+        }
+
+        #usernameForm input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e5eb;
+            border-radius: 10px;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+
+        #usernameForm button {
+            width: 100%;
+            padding: 15px;
+            background: #25D366;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        /* Scrollbar Styling */
+        #chatWindow::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #chatWindow::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        #chatWindow::-webkit-scrollbar-thumb {
+            background: #cccccc;
+            border-radius: 3px;
+        }
+
+        /* Winner Selection Modal */
+        #winnerModal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .winner-modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            max-width: 400px;
+        }
+        
+        /* Username Form Styles */
+        #usernameOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #667781 0%, #25D366 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        #usernameForm {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            width: 90%;
+            max-width: 400px;
+        }
+
+        #usernameForm h3 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        #usernameForm input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e5eb;
+            border-radius: 10px;
+            font-size: 16px;
+            margin-bottom: 20px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        #usernameForm input:focus {
+            border-color: #25D366;
+        }
+
+        #usernameForm button {
+            width: 100%;
+            padding: 15px;
+            background: #25D366;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        #usernameForm button:hover {
+            background: #20bd5a;
+        }
+
+        .form-note {
+            margin-top: 20px;
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body data-paid="false">
+    <!-- Username Form Overlay -->
+    <div id="usernameOverlay">
+        <div id="usernameForm">
+            <h3>Join the Chat</h3>
+            <input type="text" id="usernameInput" placeholder="Enter your username" autocomplete="off">
+            <button onclick="setUsername()">Start Chatting</button>
+            <div class="form-note">
+                Choose a cool name to get started!
+            </div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header>
+        <div class="header-info">
+            <h2>💬 Chylnx Chat</h2>
+            <span id="onlineCount">1 online</span>
+        </div>
+        <div class="header-actions">
+            <span id="bell" title="Announce Winner">🔔</span>
+        </div>
+    </header>
+
+    <!-- Chat Container -->
+    <div id="chatContainer">
+        <div id="chatWindow">
+            <div class="system-msg">Welcome to the chat! Type a message to begin.</div>
+        </div>
+
+        <!-- Input Area -->
+        <div id="inputArea">
+            <input id="chatInput" type="text" placeholder="Type a message..." disabled>
+            <button id="sendBtn" disabled>➤</button>
+        </div>
+    </div>
+
+    <!-- Winner Modal -->
+    <div id="winnerModal">
+        <div class="winner-modal-content">
+            <h2>🎉 Winner Selected! 🎉</h2>
+            <p id="winnerMessage">THE WINNER IS: <span id="winnerName"></span></p>
+            <button onclick="closeWinnerModal()" style="padding: 10px 20px; background: #25D366; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                Close
+            </button>
+        </div>
+    </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+        // Global variables
+        let myUsername = "";
+        let socket = null;
+        let selectedWinner = null;
+
+        // Initialize application
+        function initApp() {
+            // Set up event listeners
+            document.getElementById('sendBtn').addEventListener('click', sendMessage);
+            document.getElementById('chatInput').addEventListener('keypress', handleKeyPress);
+            document.getElementById('bell').addEventListener('click', announceWinner);
+            document.getElementById('usernameInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') setUsername();
+            });
+
+            // Show username form
+            document.getElementById('usernameOverlay').style.display = 'flex';
+        }
+
+        // Set username
+        function setUsername() {
+            const usernameInput = document.getElementById('usernameInput');
+            const username = usernameInput.value.trim();
+            
+            if (username) {
+                myUsername = username;
+                document.getElementById('usernameOverlay').style.display = 'none';
+                initializeChat();
+            } else {
+                alert('Please enter a username');
+            }
+        }
+
+        // Initialize chat functionality with real Socket.IO
+        function initializeChat() {
+            // Enable chat input
+            document.getElementById('chatInput').disabled = false;
+            document.getElementById('sendBtn').disabled = false;
+            
+            // Connect to Socket.IO server
+            socket = io();
+            
+            // Join chat room with username
+            socket.emit('join_chat', { username: myUsername });
+            
+            // Listen for new messages from other users
+            socket.on('message', function(data) {
+                addMessage({
+                    from: data.from,
+                    text: data.text,
+                    timestamp: data.timestamp,
+                    isSent: false
+                });
+            });
+            
+           // In your frontend JavaScript
+const socket = io();
+
+// Handle incoming messages
+socket.on("message", function(data) {
+    console.log("Received message:", data);
+    addMessage({
+        from: data.from,
+        text: data.text,
+        timestamp: data.timestamp,
+        isSent: data.from === myUsername
+    });
+});
+
+// Handle chat history
+socket.on("chat_history", function(history) {
+    console.log("Received chat history:", history);
+    // Clear existing messages
+    const chatWindow = document.getElementById('chatWindow');
+    chatWindow.innerHTML = '<div class="system-msg">Welcome to the chat!</div>';
+    
+    // Add history messages
+    history.forEach(msg => {
+        addMessage({
+            from: msg.from,
+            text: msg.text,
+            timestamp: msg.timestamp,
+            isSent: msg.from === myUsername
+        });
+    });
+});
+            
+            // Listen for user count updates
+            socket.on('user_count_update', function(data) {
+                document.getElementById('onlineCount').textContent = data.count + ' online';
+            });
+            
+            // Listen for winner announcements
+            socket.on('announcement', function(data) {
+                addSystemMessage(data.text);
+            });
+            
+            // Focus on input
+            document.getElementById('chatInput').focus();
+            
+            // Add welcome message
+            addSystemMessage("Welcome to the chat, " + myUsername + "! Start a conversation.");
+        }
+
+        // Handle key press
+        function handleKeyPress(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        // Send message
+        function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const text = input.value.trim();
+            
+            if (text && socket) {
+                // Add message to UI immediately
+                addMessage({
+                    from: myUsername,
+                    text: text,
+                    timestamp: new Date().toISOString(),
+                    isSent: true
+                });
+                
+                // Clear input
+                input.value = '';
+                
+                // Send to server
+                socket.emit('message', { text: text });
+            }
+        }
+
+        // Add message to UI
+        function addMessage(msg) {
+            const chatWindow = document.getElementById('chatWindow');
+            const messageDiv = document.createElement('div');
+            
+            messageDiv.className = `message ${msg.isSent ? 'sent' : 'received'}`;
+            
+            // Format time
+            const time = new Date(msg.timestamp);
+            const timeString = time.toLocaleTimeString('en-US', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                hour12: true 
+            });
+            
+            messageDiv.innerHTML = `
+                ${!msg.isSent ? `<div class="sender-name" onclick="selectWinner('${msg.from}')">${msg.from}</div>` : ''}
+                <div class="message-content">${msg.text}</div>
+                <div class="message-time">${timeString}</div>
+            `;
+            
+            chatWindow.appendChild(messageDiv);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        // Add system message
+        function addSystemMessage(text) {
+            const chatWindow = document.getElementById('chatWindow');
+            const div = document.createElement('div');
+            div.className = 'system-msg';
+            div.textContent = text;
+            chatWindow.appendChild(div);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        // Select winner
+        function selectWinner(username) {
+            if (username === myUsername) {
+                alert("You can't select yourself as winner!");
+                return;
+            }
+            
+            selectedWinner = username;
+            showWinnerModal(username);
+        }
+
+        // Show winner modal
+        function showWinnerModal(username) {
+            document.getElementById('winnerName').textContent = username;
+            document.getElementById('winnerModal').style.display = 'flex';
+        }
+
+        // Close winner modal
+        function closeWinnerModal() {
+            document.getElementById('winnerModal').style.display = 'none';
+        }
+
+        // Announce winner
+        function announceWinner() {
+            if (!selectedWinner) {
+                alert("Please select a winner first by clicking on a sender's name!");
+                return;
+            }
+            
+            // Send winner announcement to server
+            socket.emit('announce_winner', { winners: [selectedWinner] });
+            
+            // Add local announcement
+            addSystemMessage(`🏆 WINNER ANNOUNCEMENT: ${selectedWinner}! Congratulations! 🎉`);
+            selectedWinner = null;
+        }
+
+        // Initialize when page loads
+        window.addEventListener('DOMContentLoaded', function() {
+            initApp();
+        });
+    </script>
+</body>
+</html>

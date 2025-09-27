@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Chat Locked</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script>
+    function startCountdown(targetTime) {
+      let endTime = new Date(targetTime).getTime();
+
+      let timer = setInterval(function() {
+        let now = new Date().getTime();
+        let distance = endTime - now;
+
+        if (distance <= 0) {
+          clearInterval(timer);
+          document.getElementById("countdown").innerHTML = "Game Unlocked!";
+          return;
+        }
+
+        let hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        let minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+        let seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+        document.getElementById("countdown").innerHTML =
+          hours + "h " + minutes + "m " + seconds + "s ";
+      }, 1000);
+    }
+  </script>
+</head>
+<body onload="startCountdown('{{ next_game_time }}')">
+  <h1>🔒 Chat is Locked</h1>
+  <p>Next game starts in:</p>
+  <h2 id="countdown"></h2>
+  <a href="{{ url_for('payment') }}"><button>Pay to Unlock</button></a>
+</body>
+</html>
