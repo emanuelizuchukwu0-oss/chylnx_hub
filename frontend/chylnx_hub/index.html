@@ -18,58 +18,60 @@
             min-height: 100vh;
             padding: 20px;
         }
-        
-        .head {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 30px;
-            padding: 15px;
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 10px;
-            border: 1px solid rgba(255, 255, 0, 0.2);
-        }
-        
-        .head p {
-            color: yellow; 
-            font-size: 28px; 
-            margin: 0;
-            font-weight: bold;
-            text-shadow: 0 0 10px rgba(255, 255, 0, 0.7);
-        }
-        
-        .icons {
-            margin-left: 15px;
-            display: flex;
-            align-items: center;
-        }
+       .head {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap; /* allows wrapping on small screens */
+    margin-bottom: 20px;
+    padding: 15px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 0, 0.2);
+    gap: 10px;
+}
 
-        .icons img {
-            height: 30px;
-            background: transparent;
-            cursor: pointer;
-            filter: drop-shadow(0 0 3px gold) drop-shadow(0 0 10px gold);
-            display: inline;
-            padding-right: 10px;
-            transition: transform 0.3s ease;
-        }
-        
-        .icons img:hover {
-            transform: scale(1.1);
-        }
-        
-        .icon-fallback {
-            display: inline-block;
-            width: 30px;
-            height: 30px;
-            margin-right: 10px;
-            border-radius: 50%;
-            background: gold;
-            text-align: center;
-            line-height: 30px;
-            font-weight: bold;
-            color: navy;
-        }
+.head p {
+    color: yellow; 
+    font-size: clamp(20px, 5vw, 28px); /* responsive text size */
+    font-weight: bold;
+    text-shadow: 0 0 10px rgba(255, 255, 0, 0.7);
+}
+
+.icons {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.icons img {
+    height: clamp(25px, 5vw, 40px); /* responsive icon size */
+    width: auto;
+    cursor: pointer;
+    filter: drop-shadow(0 0 3px gold) drop-shadow(0 0 10px gold);
+    transition: transform 0.3s ease, filter 0.3s ease;
+}
+
+.icons img:hover {
+    transform: scale(1.2);
+    filter: drop-shadow(0 0 5px gold) drop-shadow(0 0 15px gold);
+}
+
+/* fallback letters */
+.icon-fallback {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: clamp(25px, 5vw, 40px);
+    height: clamp(25px, 5vw, 40px);
+    border-radius: 50%;
+    background: gold;
+    color: navy;
+    font-weight: bold;
+    font-size: clamp(12px, 4vw, 20px);
+}
+
         
         main {
             display: grid;
@@ -231,23 +233,16 @@
         NEXT GAME STARTS IN: <span id="countdown">05:00</span>
     </div>
 
-    <!-- Updated Header with CHYLNX HUB styling -->
-    <div class="head">
-        <p>CHYLNX HUB</p>
-        <div class="icons" id="iconContainer">
-    <img src="{{ url_for('static', filename='images/earth.png') }}" 
-         alt="Earth Icon" 
-         class="icon-img"
-         onerror="this.style.display='none'; showFallbackIcons();">
-    <img src="{{ url_for('static', filename='images/note.png') }}" 
-         alt="Note Icon" 
-         class="icon-img"
-         onerror="this.style.display='none'; showFallbackIcons();">
-    <img src="{{ url_for('static', filename='images/king.png') }}" 
-         alt="King Icon" 
-         class="icon-img"
-         onerror="this.style.display='none'; showFallbackIcons();">
+   <!-- Responsive Header with Icons -->
+<div class="head">
+    <p>CHYLNX HUB</p>
+    <div class="icons" id="iconContainer">
+        <img src="{{ url_for('static', filename='images/earth.png') }}" alt="Earth Icon" class="icon-img">
+        <img src="{{ url_for('static', filename='images/note.png') }}" alt="Note Icon" class="icon-img">
+        <img src="{{ url_for('static', filename='images/king.png') }}" alt="King Icon" class="icon-img">
+    </div>
 </div>
+
     </div>
     
     <div class="tagline">
@@ -350,34 +345,32 @@
             }
         }
         
-        // Image fallback functionality
-        function showFallbackIcons() {
-            const iconContainer = document.getElementById('iconContainer');
-            const images = iconContainer.getElementsByTagName('img');
-            let allImagesFailed = true;
-            
-            // Check if any images loaded successfully
-            for (let img of images) {
-                if (img.style.display !== 'none') {
-                    allImagesFailed = false;
-                    break;
-                }
-            }
-            
-            // If all images failed, show fallback
-            if (allImagesFailed) {
-                iconContainer.innerHTML = `
-                    <span class="icon-fallback">E</span>
-                    <span class="icon-fallback">N</span>
-                    <span class="icon-fallback">K</span>
-                `;
-            }
+function showFallbackIcons() {
+    const iconContainer = document.getElementById('iconContainer');
+    const images = iconContainer.getElementsByTagName('img');
+    let allFailed = true;
+
+    for (let img of images) {
+        if (img.complete && img.naturalWidth > 0) {
+            allFailed = false;
+            break;
         }
-        
-        // Check if images loaded after page loads
-        window.addEventListener('load', function() {
-            setTimeout(showFallbackIcons, 1000);
-        });
+    }
+
+    if (allFailed) {
+        iconContainer.innerHTML = `
+            <span class="icon-fallback">E</span>
+            <span class="icon-fallback">N</span>
+            <span class="icon-fallback">K</span>
+        `;
+    }
+}
+
+// Run after page loads
+window.addEventListener('load', function() {
+    setTimeout(showFallbackIcons, 500);
+});
+
         
         // Initialize timer
         timerInterval = setInterval(updateTimer, 1000);

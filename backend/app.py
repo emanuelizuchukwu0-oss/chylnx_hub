@@ -1,7 +1,7 @@
 import os
 import uuid
 from datetime import datetime
-from flask import Flask, render_template, session, request, redirect, url_for, jsonify
+from flask import Flask, render_template, session, request, redirect, url_for, jsonify, flash
 from flask_socketio import SocketIO, emit
 from werkzeug.security import generate_password_hash, check_password_hash
 import psycopg2
@@ -10,7 +10,7 @@ import psycopg2.extras
 # ---------------- Absolute Paths ----------------
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # chylnx_backend
 TEMPLATE_DIR = os.path.join(BASE_DIR, "frontend", "chylnx_hub")
-STATIC_DIR = os.path.join(BASE_DIR, "frontend", "chylnx_hub", "static")
+STATIC_DIR = os.path.join(TEMPLATE_DIR, "static")
 
 # ---------------- Flask App Setup ----------------
 app = Flask(
@@ -83,6 +83,10 @@ def init_db():
 if db:
     init_db()
 
+# ---------------- Dummy in-memory storage ----------------
+users_db = []  # temporary users storage
+chat_locked = True  # default chat lock status
+
 # ---------------- Helper ----------------
 def execute_query(query, params=None):
     if not db:
@@ -103,88 +107,173 @@ def execute_query(query, params=None):
 def index():
     return render_template("index.html")
 
-
-@app.route("/chat")
-def chat():
-    return render_template("chat.html")
-
-
 @app.route("/payment")
 def payment():
     return render_template("payment.html")
 
+@app.route("/admin_login", methods=["GET", "POST"])
+def admin_login():
+    if request.method == "POST":
+        passcode = request.form.get("passcode")
+        if passcode == "12345":  # example passcode
+            session["admin_logged_in"] = True
+            return redirect(url_for("admin_dashboard"))
+        else:
+            flash("Incorrect passcode", "error")
+            return redirect(url_for("admin_login"))
+    return render_template("admin_login.html")
 
-# Health check
-@app.route("/health")
-def health():
-    return jsonify({
-        "status": "healthy",
-        "database": "connected" if db else "disconnected",
-        "timestamp": datetime.utcnow().isoformat()
-    })
+@app.route("/admin", methods=["GET"])
+def admin_dashboard():
+    if not session.get("admin_logged_in"):
+        return redirect(url_for("admin_login"))
 
-# ---------------- SocketIO Events ----------------
-connected_users = {}
-
-@socketio.on("connect")
-def handle_connect():
-    username = session.get("username", f"Guest-{request.sid[:5]}")
-    connected_users[request.sid] = username
-    print(f"✅ {username} connected")
-    emit("chat_status", {"locked": False})
-
-@socketio.on("message")
-def handle_message(data):
-    username = connected_users.get(request.sid, "Unknown")
-    msg_text = data.get("text", "").strip()
-    if not msg_text:
-        return
-    if db:
-        user_id = execute_query("SELECT id FROM users WHERE username=%s", (username,))
-        execute_query(
-            "INSERT INTO messages (user_id, username, message) VALUES (%s,%s,%s)",
-            (user_id[0]['id'] if user_id else None, username, msg_text)
-        )
-    emit("message", {"from": username, "text": msg_text}, broadcast=True)
-
-@socketio.on("disconnect")
-def handle_disconnect():
-    sid = request.sid
-    if sid in connected_users:
-        user = connected_users.pop(sid)
-        print(f"❌ {user} disconnected gracefully")
-
-# ---------------- Session Management ----------------
-current_session = {
-    "session_code": str(uuid.uuid4())[:8],
-    "paid_users": 0,
-    "total_users": 10
-}
-
-# ---------------- Admin Routes ----------------
-@app.route("/admin")
-def admin_panel():
-    return render_template("admin.html")
-
-
-@app.route("/get_session_info")
-def get_session_info():
-    return jsonify(current_session)
-
-
-@app.route("/start_new_session", methods=["POST"])
-def start_new_session():
-    try:
-        current_session["session_code"] = str(uuid.uuid4())[:8]
-        current_session["paid_users"] = 0
-        socketio.emit("session_reset", {"message": "Session has been reset"})
-        return jsonify({
-            "success": True,
-            "session_code": current_session["session_code"],
-            "message": "Chat session reset successfully"
+    # Prepare dummy user data with payment info
+    users = []
+    for u in users_db:
+        users.append({
+            "id": u.get("id"),
+            "username": u.get("username"),
+            "email": u.get("email"),
+            "last_payment_status": u.get("last_payment_status", None),
+            "last_payment_amount": u.get("last_payment_amount", None),
+            "last_payment_date": u.get("last_payment_date", None)
         })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+
+    return render_template("admin_dashboard.html", users=users, chat_locked=chat_locked)
+
+@app.route("/toggle_chat_lock", methods=["POST"])
+def toggle_chat_lock():
+    global chat_locked
+    chat_locked = not chat_locked
+    return redirect(url_for("admin_dashboard"))
+
+@app.route("/payment_required")
+def payment_required():
+    return render_template("payment_required.html")
+
+@app.route("/set_username", methods=["GET", "POST"])
+def set_username():
+    if request.method == "POST":
+        username = request.form.get("username")
+        session["username"] = username
+        return redirect(url_for("index"))
+    username = session.get("username", "")
+    return render_template("set_username.html", username=username)
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if request.method == "POST":
+        username = request.form.get("username")
+        email = request.form.get("email")
+        password = request.form.get("password")
+
+        # Simple validation
+        if any(u['username'] == username for u in users_db):
+            return "Username already exists", 400
+
+        user = {
+            "id": str(uuid.uuid4())[:8],
+            "username": username,
+            "email": email,
+            "password": generate_password_hash(password)
+        }
+        users_db.append(user)
+        session["username"] = username
+        return redirect(url_for("chat"))  # redirect to chat after registration
+
+    return render_template("register.html")
+
+@app.route("/chat")
+def chat():
+    username = session.get("username")
+    if not username:
+        return redirect(url_for("set_username"))
+    return render_template("chat.html", username=username)
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        username = request.form.get("username")
+        password = request.form.get("password")
+        user = next((u for u in users_db if u["username"] == username), None)
+        if user and check_password_hash(user["password"], password):
+            session["username"] = username
+            return redirect(url_for("chat"))
+        else:
+            flash("Invalid credentials", "error")
+            return redirect(url_for("login"))
+    return render_template("login.html")
+
+# ---------------- Socket.IO Chat ----------------
+connected_users = {}  # username -> session_id
+chat_history = []     # store all messages in memory
+
+@socketio.on('join_chat')
+def handle_join(data):
+    username = data.get('username')
+    if not username:
+        return
+
+    connected_users[username] = request.sid
+
+    # Send chat history to this user
+    emit('chat_history', chat_history, to=request.sid)
+
+    # Notify everyone that a user joined
+    emit('message', {
+        'from': 'System',
+        'text': f"{username} joined the chat!",
+        'timestamp': datetime.utcnow().isoformat()
+    }, broadcast=True)
+
+    # Update online count
+    emit('user_count_update', {'count': len(connected_users)}, broadcast=True)
+
+@socketio.on('message')
+def handle_message(data):
+    # Identify sender
+    username = None
+    for user, sid in connected_users.items():
+        if sid == request.sid:
+            username = user
+            break
+    if not username:
+        return
+
+    msg_data = {
+        'from': username,
+        'text': data.get('text', ''),
+        'timestamp': datetime.utcnow().isoformat()
+    }
+
+    # Save in history
+    chat_history.append(msg_data)
+
+    # Broadcast to everyone
+    emit('message', msg_data, broadcast=True)
+
+@socketio.on('announce_winner')
+def handle_announcement(data):
+    winners = data.get('winners', [])
+    for winner in winners:
+        emit('announcement', {'text': f"🏆 WINNER: {winner}!"}, broadcast=True)
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    username = None
+    for user, sid in list(connected_users.items()):
+        if sid == request.sid:
+            username = user
+            del connected_users[user]
+            break
+    if username:
+        emit('message', {
+            'from': 'System',
+            'text': f"{username} left the chat",
+            'timestamp': datetime.utcnow().isoformat()
+        }, broadcast=True)
+        emit('user_count_update', {'count': len(connected_users)}, broadcast=True)
 
 # ---------------- Run ----------------
 if __name__ == "__main__":
