@@ -42,17 +42,28 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS payments (
-        id SERIAL PRIMARY KEY,
-        user_id INT REFERENCES users(id) ON DELETE CASCADE,
-        reference VARCHAR(255),
-        amount NUMERIC(10, 2),
-        status VARCHAR(20) CHECK (status IN ('success', 'failed', 'pending')),
-        chat_session_id INT REFERENCES chat_sessions(id) ON DELETE SET NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
-""")
+        CREATE TABLE IF NOT EXISTS chat_sessions (
+            id SERIAL PRIMARY KEY,
+            session_code VARCHAR(255) UNIQUE NOT NULL,
+            start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            end_time TIMESTAMP,
+            status VARCHAR(50) DEFAULT 'active'
+        )
+    """)
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS payments (
+            id SERIAL PRIMARY KEY,
+            user_id INT REFERENCES users(id) ON DELETE CASCADE,
+            chat_session_id INT REFERENCES chat_sessions(id) ON DELETE SET NULL,
+            reference VARCHAR(255),
+            amount NUMERIC(10, 2),
+            status VARCHAR(20) CHECK (status IN ('success', 'failed', 'pending')),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS messages (
@@ -63,15 +74,7 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS chat_sessions (
-            id SERIAL PRIMARY KEY,
-            session_code VARCHAR(255) UNIQUE NOT NULL,
-            start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            end_time TIMESTAMP,
-            status VARCHAR(50) DEFAULT 'active'
-        )
-    """)
+
     db.commit()
     print("✅ Database tables initialized")
 
