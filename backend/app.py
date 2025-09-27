@@ -195,8 +195,22 @@ def register():
 def chat():
     username = session.get("username")
     if not username:
-        return redirect(url_for("set_username"))
+        return redirect(url_for("set_username"))  # must have username
+
+    # Check if user has paid
+    result = execute_query("""
+        SELECT p.id FROM payments p
+        JOIN users u ON p.user_id = u.id
+        WHERE u.username = %s AND p.status = 'success'
+        LIMIT 1
+    """, (username,))
+
+    if not result:  # no successful payment
+        return redirect(url_for("payment_required"))
+
     return render_template("chat.html", username=username)
+
+
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
