@@ -1,73 +1,66 @@
-import mysql.connector
-from werkzeug.security import generate_password_hash, check_password_hash
-from flask import Flask, render_template, session, request, redirect, url_for, jsonify
-from flask_socketio import SocketIO, emit, join_room
-import requests
+import psycopg2
+import psycopg2.extras
+import os
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify
+from flask_socketio import SocketIO, emit, join_room, leave_room
 from datetime import datetime, timedelta
-import uuid
-import time
+from werkzeug.security import generate_password_hash, check_password_hash
+import requests
 
-# ---------------- MySQL setup ----------------
-db = mysql.connector.connect(
-    host="localhost",
-    user="root",
-    password="emmanuel%$%77$",
-    database="chylnxhub"
+# ---------------- PostgreSQL setup ----------------
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql://chylnx_hub_user:Qz7ERTTXsstDh2cpjMPWMobvdj3oKORQ@dpg-d3br27b7mgec739v7hd0-a/chylnx_hub"
 )
-cursor = db.cursor(dictionary=True)
 
-# ADD THIS CODE FOR DATABASE INITIALIZATION
+db = psycopg2.connect(DATABASE_URL)
+cursor = db.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+# ---------------- Database Initialization ----------------
 def init_db():
-    # Create users table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             username VARCHAR(255) UNIQUE NOT NULL,
             email VARCHAR(255) UNIQUE,
             password VARCHAR(255),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
-    
-    # Create payments table
+
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS payments (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            user_id INT,
+            id SERIAL PRIMARY KEY,
+            user_id INT REFERENCES users(id) ON DELETE CASCADE,
             reference VARCHAR(255),
-            amount DECIMAL(10, 2),
-            status ENUM('success', 'failed', 'pending'),
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(id)
+            amount NUMERIC(10, 2),
+            status VARCHAR(20) CHECK (status IN ('success', 'failed', 'pending')),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
-    
-    # Create messages table - UPDATED with username column
+
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS messages (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            user_id INT,
-            username VARCHAR(255),  -- ADDED THIS COLUMN
+            id SERIAL PRIMARY KEY,
+            user_id INT REFERENCES users(id) ON DELETE CASCADE,
+            username VARCHAR(255),
             message TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(id)
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS chat_sessions (
+            id SERIAL PRIMARY KEY,
+            session_code VARCHAR(255) UNIQUE NOT NULL,
+            start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            end_time TIMESTAMP,
+            status VARCHAR(50) DEFAULT 'active'
+        )
+    """)
+
     db.commit()
     print("✅ Database tables initialized")
-    
-    # Check if messages table needs to be altered (add username column if missing)
-    try:
-        cursor.execute("DESCRIBE messages")
-        columns = [column['Field'] for column in cursor.fetchall()]
-        if 'username' not in columns:
-            print("⚠️  Adding username column to messages table...")
-            cursor.execute("ALTER TABLE messages ADD COLUMN username VARCHAR(255)")
-            db.commit()
-            print("✅ Added username column to messages table")
-    except Exception as e:
-        print(f"⚠️  Could not check messages table structure: {e}")
-
 
 # ---------------- App setup ----------------
 app = Flask(__name__, template_folder="chylnx_hub", static_folder="static")
@@ -83,294 +76,61 @@ next_game_time = datetime.utcnow() + timedelta(minutes=2, seconds=15)
 game_active = False
 connected_users = {}  # { sid: username }
 
-# ---------------- Routes ----------------
-@app.route("/", methods=["GET"])
-def index():
-    print("Index route called")  # Debugging
-    try:
-        username = session.get('username')
-        paid_db = False
-        if username:
-            cursor.execute("""
-                SELECT p.id
-                FROM payments p
-                JOIN users u ON p.user_id = u.id
-                WHERE u.username=%s AND p.status='success'
-                ORDER BY p.created_at DESC
-                LIMIT 1
-            """, (username,))
-            paid_db = cursor.fetchone() is not None
-        paid = session.get('paid', False) or paid_db
-        print(f"Rendering index.html with username: {username}, paid: {paid}")  # Debugging
-        return render_template("index.html", next_game_time=next_game_time, paid=paid)
-    except Exception as e:
-        print(f"Error in index route: {e}")  # Debugging
-        return str(e), 500
-
-@app.route("/set_timer", methods=["POST"])
-def set_timer(): 
-    global next_game_time
-    hours = int(request.form.get("hours", 0))
-    minutes = int(request.form.get("minutes", 2))
-    seconds = int(request.form.get("seconds", 15))
-    next_game_time = datetime.utcnow() + timedelta(hours=hours, minutes=minutes, seconds=seconds)
-    return redirect(url_for("index"))
-
-ADMIN_PASSCODE = "12345"
-
-@app.route("/admin_login", methods=["GET", "POST"])
-def admin_login():
-    if request.method == "POST":
-        if request.form.get("passcode") == ADMIN_PASSCODE:
-            session["is_admin"] = True
-            return redirect(url_for("admin"))
-        return "<h3>❌ Wrong Passcode</h3><a href='/admin_login'>Try again</a>"
-    return render_template("admin_login.html")
-
-@app.route("/admin")
-def admin():
-    if not session.get("is_admin"):
-        return redirect(url_for("admin_login"))
-    return render_template("admin.html")
-
-@app.route("/payment")
-def payment():
-    return render_template("payment.html")
-
-@app.route("/username", methods=['GET', 'POST'])
-def username():
-    if request.method == 'POST':
-        new_name = request.form['username'].strip()
-        if new_name:
-            session['username'] = new_name
-
-            # Add user to DB if not exists
-            cursor.execute("SELECT id FROM users WHERE username=%s", (new_name,))
-            if not cursor.fetchone():
-                cursor.execute("INSERT INTO users (username) VALUES (%s)", (new_name,))
-                db.commit()
-
-        return redirect(url_for('chat'))
-    return render_template("username.html", username=session.get('username', ''))
-
-def has_paid():
-    """Check if the current user has a successful payment in the DB"""
-    user_id = session.get('user_id')
-    if not user_id:
-        return False
-    cursor.execute("SELECT COUNT(*) AS count FROM payments WHERE user_id=%s AND status='success'", (user_id,))
-    result = cursor.fetchone()
-    return result['count'] > 0
-
-@app.route("/chat")
-def chat():
-    is_admin = session.get('is_admin', False)
-    username = session.get('username')
-
-    if not username:
-        return redirect(url_for('username'))
-
-    # Check if user has paid in DB
-    cursor.execute("""
-        SELECT p.id 
-        FROM payments p
-        JOIN users u ON p.user_id = u.id
-        WHERE u.username=%s AND p.status='success'
-        ORDER BY p.created_at DESC
-        LIMIT 1
-    """, (username,))
-    paid_db = cursor.fetchone()
-    paid = session.get('paid', False) or bool(paid_db)
-
-    # If user hasn't paid and is not admin, show payment required message
-    if not paid and not is_admin:
-        # Set session variable to indicate payment is needed
-        session['payment_required'] = True
-        return render_template("chat.html", is_admin=is_admin, username=username, paid=False)
-    
-    # If user has paid, clear the payment required flag
-    if 'payment_required' in session:
-        session.pop('payment_required', None)
-    
-    # If chat is locked and user is not admin
-    global chat_locked, next_game_time
-    if chat_locked and not is_admin:
-        if not next_game_time:
-            next_game_time = datetime.utcnow() + timedelta(seconds=15)
-        return render_template("locked.html", next_game_time=next_game_time)
-
-    return render_template("chat.html", is_admin=is_admin, username=username, paid=True)
-@app.route("/game")
-def game():
-    is_admin = session.get('is_admin', False)
-    username = session.get('username')
-
-    # Check if user has paid in DB
-    cursor.execute("""
-        SELECT p.id 
-        FROM payments p
-        JOIN users u ON p.user_id = u.id
-        WHERE u.username=%s AND p.status='success'
-        ORDER BY p.created_at DESC
-        LIMIT 1
-    """, (username,))
-    paid_db = cursor.fetchone()
-    paid = session.get('paid', False) or bool(paid_db)
-
-    if not paid and not is_admin:
-        return render_template("payment_required.html")
-
-    return render_template("game.html")
-
-
-@app.route("/verify/<reference>")
-def verify_payment(reference):
-    # Get username from session instead of email
-    username = session.get('username')
-    if not username:
-        return jsonify({"status": "failed", "message": "User not logged in"}), 401
-        
-    cursor.execute("SELECT id, email FROM users WHERE username=%s", (username,))
-    user = cursor.fetchone()
-
-    if not user:
-        return jsonify({"status": "failed", "message": "User not found"}), 404
-
-    user_id = user['id']
-    email = user['email']  # Use the email from database
-
-    url = f"https://api.paystack.co/transaction/verify/{reference}"
-    headers = {"Authorization": f"Bearer {PAYSTACK_SECRET_KEY}"}
-
-    try:
-        response = requests.get(url, headers=headers, timeout=10)
-        result = response.json()
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
-
-    success = result.get("status") and result.get("data", {}).get("status") == "success"
-    amount = result.get("data", {}).get("amount", 0) / 100  # Paystack sends in kobo
-
-    if success:
-        # Update session to mark as paid
-        session['paid'] = True
-        session.modified = True  # Ensure session is saved
-
-        # Insert payment into DB
-        cursor.execute("""
-            INSERT INTO payments (user_id, reference, amount, status)
-            VALUES (%s, %s, %s, %s)
-        """, (user_id, reference, amount, 'success'))
-        db.commit()
-
-        # Return JSON response instead of HTML
-        return jsonify({"status": "success"})
-
-    else:
-        # Store failed payment attempt
-        cursor.execute("""
-            INSERT INTO payments (user_id, reference, amount, status)
-            VALUES (%s, %s, %s, %s)
-        """, (user_id, reference, amount, 'failed'))
-        db.commit()
-
-        return jsonify({"status": "failed", "message": "Payment verification failed"})
 # ---------------- SocketIO Events ----------------
-def has_paid_sid(sid):
-    """Check if the user corresponding to a session has paid"""
-    username = connected_users.get(sid)
-    if not username:
-        return False
-    cursor.execute("SELECT id FROM users WHERE username=%s", (username,))
-    user = cursor.fetchone()
-    if not user:
-        return False
-    cursor.execute("SELECT COUNT(*) AS count FROM payments WHERE user_id=%s AND status='success'", (user['id'],))
-    result = cursor.fetchone()
-    return result['count'] > 0
-
 @socketio.on("connect")
 def handle_connect():
     username = session.get('username', f"Guest-{request.sid[:5]}")
-    is_admin = session.get('is_admin', False)
-    
-    # Store connection
     connected_users[request.sid] = username
-    print(f"✅ {username} connected ({request.sid}) - Total users: {len(connected_users)}")
-    
+    print(f"✅ {username} connected ({request.sid})")
+
     # Load last 50 messages
     cursor.execute("""
-        SELECT m.username AS `from`, m.message AS text, m.created_at AS timestamp
+        SELECT m.username AS from_user, m.message AS text, m.created_at AS timestamp
         FROM messages m
         ORDER BY m.created_at DESC
         LIMIT 50
     """)
     history = cursor.fetchall()
-    emit("chat_history", history[::-1])
-    
-    # Send current chat status
-    emit("chat_status", {"locked": chat_locked})
+    emit("chat_history", history[::-1])  # send in correct order
 
+    emit("chat_status", {"locked": chat_locked})
 
 @socketio.on("message")
 def handle_message(data):
     username = connected_users.get(request.sid, "Unknown")
-    
+
     if not username or username == "Unknown":
         emit("error", {"msg": "Please set a username first"})
         return
-    
-    # Get user_id from database
+
     cursor.execute("SELECT id FROM users WHERE username=%s", (username,))
     user = cursor.fetchone()
-    
     if not user:
         emit("error", {"msg": "User not found"})
         return
-        
+
     user_id = user['id']
-    
-    # Check if user has paid
-    paid = session.get('paid', False)
-    if not paid:
-        cursor.execute("SELECT COUNT(*) as count FROM payments WHERE user_id=%s AND status='success'", (user_id,))
-        result = cursor.fetchone()
-        paid = result['count'] > 0
-    
-    if not paid:
-        emit("error", {"msg": "Payment required to send messages"})
-        return
-    
     msg_text = data.get('text', '').strip()
     if not msg_text:
         return
-    
-    # Insert message into database WITH username
-    cursor.execute("INSERT INTO messages (user_id, username, message) VALUES (%s, %s, %s)", 
-                   (user_id, username, msg_text))
-    db.commit()
-    
-    # Get the inserted message
-    cursor.execute("""
-        SELECT m.username as `from`, m.message as text, m.created_at as timestamp 
-        FROM messages m WHERE m.id = %s
-    """, (cursor.lastrowid,))
+
+    # Insert message
+    cursor.execute(
+        "INSERT INTO messages (user_id, username, message) VALUES (%s, %s, %s) RETURNING id, username, message, created_at",
+        (user_id, username, msg_text)
+    )
     new_message = cursor.fetchone()
-    
-    # Format the message for broadcasting
+    db.commit()
+
     message_data = {
-        "from": new_message['from'],
-        "text": new_message['text'],
-        "timestamp": new_message['timestamp'].isoformat() if hasattr(new_message['timestamp'], 'isoformat') else str(new_message['timestamp'])
+        "from": new_message['username'],
+        "text": new_message['message'],
+        "timestamp": new_message['created_at'].isoformat()
     }
-    
-    # DEBUG: Print to console
+
     print(f"📢 Broadcasting message from {username}: {msg_text}")
-    print(f"📊 Connected users: {len(connected_users)}")
-    
-    # Broadcast to all connected users
-    emit("message", message_data, broadcast=True)  # Remove room="chat_room"
-    print(f"💬 {username}: {msg_text} (broadcasted)")
+    emit("message", message_data, broadcast=True)
+
 @socketio.on("disconnect")
 def handle_disconnect():
     if request.sid in connected_users:
