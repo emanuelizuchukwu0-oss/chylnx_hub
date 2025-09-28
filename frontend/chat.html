@@ -455,24 +455,6 @@ function handleKeyPress(e) {
     if (e.key === 'Enter') sendMessage();
 }
 
-// Send message
-function sendMessage() {
-    const input = document.getElementById('chatInput');
-    const text = input.value.trim();
-    if (!text || !socket) return;
-
-    const msg = {
-        from: myUsername,
-        text: text,
-        timestamp: new Date().toISOString()
-    };
-
-    addMessage(msg, true); // add locally
-    socket.emit('message', msg); // ✅ send full message to server
-    input.value = '';
-}
-
-
 // Add message to chat window
 function addMessage(msg, isSent) {
     const chatWindow = document.getElementById('chatWindow');
