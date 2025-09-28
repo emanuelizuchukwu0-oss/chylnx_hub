@@ -282,32 +282,32 @@ def handle_join(data):
 @socketio.on("message")
 def handle_message(data):
     print("📨 Message received:", data)
-    msg = {
-        "from": data.get("from", "User"),
-        "text": data.get("text", ""),
-        "timestamp": datetime.utcnow().isoformat()
-    }
-    emit("message", msg, broadcast=True)  # ✅ send to ALL clients
 
-    if not username:
-        return
-
+    # Extract sender info
     text = (data.get("text") or "").strip()
+    username = data.get("from", "User")
+    user_id = data.get("user_id", None)  # optional if you track IDs
+
     if not text:
-        return
+        return  # don’t process empty messages
 
     # Save to DB
-    execute_query(
-        "INSERT INTO messages (user_id, username, message) VALUES (%s, %s, %s)",
-        (user_id, username, text)
-    )
+    if user_id:  # only save if user_id exists
+        execute_query(
+            "INSERT INTO messages (user_id, username, message) VALUES (%s, %s, %s)",
+            (user_id, username, text)
+        )
 
-    # Broadcast to all clients
-    emit("new_message", {
-        "username": username,
-        "message": text,
+    # Build message object
+    msg = {
+        "from": username,
+        "text": text,
         "timestamp": datetime.utcnow().isoformat()
-    }, broadcast=True)
+    }
+
+    # ✅ Broadcast same event to ALL clients
+    emit("message", msg, broadcast=True)
+
 
 @socketio.on("disconnect")
 def handle_disconnect():
