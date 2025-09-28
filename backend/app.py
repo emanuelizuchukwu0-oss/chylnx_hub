@@ -10,7 +10,7 @@ import psycopg2.extras
 
 # ---------------- Paths ----------------
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # chylnx_backend
-TEMPLATE_DIR = os.path.join(BASE_DIR, "frontend", "chylnx_hub")
+TEMPLATE_DIR = os.path.join(BASE_DIR, "frontend")
 STATIC_DIR = os.path.join(TEMPLATE_DIR, "static")
 
 # Debug logs for Render
