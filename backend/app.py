@@ -117,24 +117,13 @@ def payment_required():
 @app.route("/set_username", methods=["GET", "POST"])
 def set_username():
     if request.method == "POST":
-        username = request.form.get("username")
-        session["username"] = username
-        return redirect(url_for("index"))
-    username = session.get("username", "")
-    return render_template("set_username.html", username=username)
-
-@app.route("/set_username", methods=["GET", "POST"])
-def set_username():
-    if request.method == "POST":
         username = request.form.get("username").strip()
 
         # Check if username exists
         user = execute_query("SELECT * FROM users WHERE username=%s LIMIT 1", (username,), fetch=True)
         if not user:
-            # Create new user with just username (no password)
             execute_query("INSERT INTO users (username) VALUES (%s)", (username,))
             user = execute_query("SELECT * FROM users WHERE username=%s LIMIT 1", (username,), fetch=True)[0]
-
         else:
             user = user[0]
 
@@ -146,7 +135,6 @@ def set_username():
         return redirect(url_for("chat"))
 
     return render_template("set_username.html")
-
 
 @app.route("/chat")
 def chat():
