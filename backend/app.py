@@ -281,11 +281,13 @@ def handle_join(data):
     emit("user_count_update", {"count": len(connected_users)}, broadcast=True)
 @socketio.on("message")
 def handle_message(data):
-    username, user_id = None, None
-    for u, info in connected_users.items():
-        if info["sid"] == request.sid:
-            username, user_id = u, info["user_id"]
-            break
+    print("📨 Message received:", data)
+    msg = {
+        "from": data.get("from", "User"),
+        "text": data.get("text", ""),
+        "timestamp": datetime.utcnow().isoformat()
+    }
+    emit("message", msg, broadcast=True)  # ✅ send to ALL clients
 
     if not username:
         return

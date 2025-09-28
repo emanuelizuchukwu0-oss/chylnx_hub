@@ -468,9 +468,10 @@ function sendMessage() {
     };
 
     addMessage(msg, true); // add locally
-    socket.emit('message', { text: text }); // send to server
+    socket.emit('message', msg); // ✅ send full message to server
     input.value = '';
 }
+
 
 // Add message to chat window
 function addMessage(msg, isSent) {
