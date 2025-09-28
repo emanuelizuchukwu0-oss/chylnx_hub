@@ -178,21 +178,7 @@ def set_username():
 
 @app.route("/chat")
 def chat():
-    if not session.get("user_id") or not session.get("username"):
-        return redirect(url_for("set_username"))
-
-    username = session["username"]
-    paid = execute_query("""
-        SELECT p.id FROM payments p
-        JOIN users u ON p.user_id = u.id
-        WHERE u.username = %s AND p.status = 'success'
-        LIMIT 1
-    """, (username,), fetch=True)
-
-    if not paid:
-        return redirect(url_for("payment_required"))
-
-    return render_template("chat.html", username=username)
+    return render_template("chat.html")
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
@@ -293,7 +279,6 @@ def handle_join(data):
     emit("chat_history", history, to=request.sid)
     emit("message", {"from": "System", "text": f"{username} joined!"}, broadcast=True)
     emit("user_count_update", {"count": len(connected_users)}, broadcast=True)
-
 @socketio.on("message")
 def handle_message(data):
     username, user_id = None, None
@@ -301,13 +286,26 @@ def handle_message(data):
         if info["sid"] == request.sid:
             username, user_id = u, info["user_id"]
             break
+
     if not username:
         return
+
     text = (data.get("text") or "").strip()
     if not text:
         return
-    execute_query("INSERT INTO messages (user_id, username, message) VALUES (%s, %s, %s)", (user_id, username, text))
-    emit("message", {"from": username, "text": text, "timestamp": datetime.utcnow().isoformat()}, broadcast=True)
+
+    # Save to DB
+    execute_query(
+        "INSERT INTO messages (user_id, username, message) VALUES (%s, %s, %s)",
+        (user_id, username, text)
+    )
+
+    # Broadcast to all clients
+    emit("new_message", {
+        "username": username,
+        "message": text,
+        "timestamp": datetime.utcnow().isoformat()
+    }, broadcast=True)
 
 @socketio.on("disconnect")
 def handle_disconnect():
