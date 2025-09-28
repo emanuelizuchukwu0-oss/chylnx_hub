@@ -1,38 +1,37 @@
 import os
 import uuid
+import traceback
 from datetime import datetime
 from flask import Flask, render_template, session, request, redirect, url_for, jsonify, flash
 from flask_socketio import SocketIO, emit
 from werkzeug.security import generate_password_hash, check_password_hash
 import psycopg2
 import psycopg2.extras
-import traceback
 
 # ---------------- Paths ----------------
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # chylnx_backend
 TEMPLATE_DIR = os.path.join(BASE_DIR, "frontend", "chylnx_hub")
 STATIC_DIR = os.path.join(TEMPLATE_DIR, "static")
 
-# Print paths for debugging (Render logs)
+# Debug logs for Render
 print("🔎 BASE_DIR:", BASE_DIR)
-print("🔎 TEMPLATE_DIR (templates):", TEMPLATE_DIR)
+print("🔎 TEMPLATE_DIR:", TEMPLATE_DIR)
 print("🔎 STATIC_DIR:", STATIC_DIR)
 
-# sanity checks: list templates/static files if available (helps find missing index.html / images)
 try:
     if os.path.isdir(TEMPLATE_DIR):
-        print("📂 Templates folder contents:", os.listdir(TEMPLATE_DIR)[:50])
+        print("📂 Templates:", os.listdir(TEMPLATE_DIR)[:30])
     else:
-        print("❌ Templates folder not found at TEMPLATE_DIR")
+        print("❌ Templates folder not found at", TEMPLATE_DIR)
+
     if os.path.isdir(STATIC_DIR):
-        print("📂 Static folder contents:", os.listdir(STATIC_DIR)[:50])
+        print("📂 Static:", os.listdir(STATIC_DIR)[:30])
     else:
-        print("❌ Static folder not found at STATIC_DIR")
+        print("❌ Static folder not found at", STATIC_DIR)
 except Exception as e:
-    print("⚠️ Error listing template/static dir:", e)
+    print("⚠️ Error listing template/static:", e)
 
 # ---------------- Flask ----------------
-# Ensure Flask will look into TEMPLATE_DIR for render_template and serve static from STATIC_DIR
 app = Flask(
     __name__,
     template_folder=TEMPLATE_DIR,
@@ -41,31 +40,25 @@ app = Flask(
 app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "secret123")
 app.config['SESSION_TYPE'] = 'filesystem'
 
-# ---------------- Socket.IO with optional Redis ----------------
-REDIS_URL = os.getenv("REDIS_URL")  # e.g. redis://:password@host:port/0
+# ---------------- Socket.IO (with optional Redis) ----------------
+REDIS_URL = os.getenv("REDIS_URL")
 if REDIS_URL:
-    print("🔑 Using Redis message queue:", REDIS_URL)
+    print("🔑 Using Redis:", REDIS_URL)
     socketio = SocketIO(app, cors_allowed_origins="*", message_queue=REDIS_URL, manage_session=False)
 else:
     socketio = SocketIO(app, cors_allowed_origins="*", manage_session=False)
 
 # ---------------- Database ----------------
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    # keep default if you want (replace for production)
-    "postgresql://chylnx_hub_user:Qz7ERTTXsstDh2cpjMPWMobvdj3oKORQ@dpg-d3br27b7mgec739v7hd0-a/chylnx_hub"
-)
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 def get_db_connection():
     try:
-        conn = psycopg2.connect(DATABASE_URL)
-        return conn
+        return psycopg2.connect(DATABASE_URL)
     except Exception as e:
-        print(f"❌ Database connection failed: {e}")
+        print(f"❌ DB connection failed: {e}")
         return None
 
 def execute_query(query, params=None, fetch=False):
-    """Execute a query and optionally fetch results; always opens/closes connection."""
     conn = get_db_connection()
     if not conn:
         return None
@@ -89,11 +82,11 @@ def execute_query(query, params=None, fetch=False):
     finally:
         conn.close()
 
-# ---------------- Initialize Tables ----------------
+# ---------------- Initialize DB ----------------
 def init_db():
     conn = get_db_connection()
     if not conn:
-        print("❌ init_db: no DB connection available")
+        print("❌ init_db: no DB connection")
         return
     try:
         with conn.cursor() as cursor:
@@ -126,9 +119,9 @@ def init_db():
                 )
             """)
         conn.commit()
-        print("✅ Database tables initialized")
+        print("✅ Tables initialized")
     except Exception as e:
-        print("❌ Database init failed:", e)
+        print("❌ DB init failed:", e)
         traceback.print_exc()
         try:
             conn.rollback()
@@ -140,19 +133,17 @@ def init_db():
 init_db()
 
 # ---------------- App Logic ----------------
-chat_locked = True  # default
+chat_locked = True
 
 @app.errorhandler(500)
 def internal_error(e):
-    # Log stack trace
-    print("❌ Internal Server Error:", e)
+    print("❌ Internal Error:", e)
     traceback.print_exc()
     return "Internal server error", 500
 
 # ---------------- Routes ----------------
 @app.route("/")
 def index():
-    # render index.html from TEMPLATE_DIR
     return render_template("index.html")
 
 @app.route("/payment")
@@ -165,40 +156,32 @@ def payment_required():
 
 @app.route("/set_username", methods=["GET", "POST"])
 def set_username():
-    # single endpoint only (no duplicate)
     if request.method == "POST":
         username = (request.form.get("username") or "").strip()
         if not username:
-            flash("Please provide a username", "error")
+            flash("Username required", "error")
             return redirect(url_for("set_username"))
 
-        # Try to find user
         existing = execute_query("SELECT * FROM users WHERE username=%s LIMIT 1", (username,), fetch=True)
         if not existing:
-            # create user
             execute_query("INSERT INTO users (username) VALUES (%s)", (username,))
             existing = execute_query("SELECT * FROM users WHERE username=%s LIMIT 1", (username,), fetch=True)
+
         if existing:
             user = existing[0]
             session["user_id"] = user["id"]
             session["username"] = user["username"]
-            flash("Username set successfully!", "success")
+            flash("Username set!", "success")
             return redirect(url_for("chat"))
-
-        flash("Could not set username, try again", "error")
-        return redirect(url_for("set_username"))
 
     return render_template("set_username.html")
 
 @app.route("/chat")
 def chat():
-    # Make sure user selected username
     if not session.get("user_id") or not session.get("username"):
         return redirect(url_for("set_username"))
 
     username = session["username"]
-
-    # Check payment
     paid = execute_query("""
         SELECT p.id FROM payments p
         JOIN users u ON p.user_id = u.id
@@ -224,13 +207,13 @@ def register():
 
         existing = execute_query("SELECT id FROM users WHERE username=%s OR email=%s", (username, email), fetch=True)
         if existing:
-            flash("Username or email already exists", "error")
+            flash("Username/email exists", "error")
             return redirect(url_for("register"))
 
         execute_query("INSERT INTO users (username, email, password) VALUES (%s, %s, %s)",
                       (username, email, generate_password_hash(password)))
         session["username"] = username
-        flash("Registration successful", "success")
+        flash("Registered!", "success")
         return redirect(url_for("chat"))
     return render_template("register.html")
 
@@ -239,28 +222,24 @@ def login():
     if request.method == "POST":
         username = (request.form.get("username") or "").strip()
         password = (request.form.get("password") or "").strip()
-
         user = execute_query("SELECT * FROM users WHERE username=%s LIMIT 1", (username,), fetch=True)
         if user:
             user = user[0]
             if user.get("password") and check_password_hash(user["password"], password):
                 session["user_id"] = user["id"]
                 session["username"] = user["username"]
-                flash("Login successful", "success")
+                flash("Login success", "success")
                 return redirect(url_for("chat"))
-        flash("Invalid credentials", "error")
-        return redirect(url_for("login"))
+        flash("Invalid login", "error")
     return render_template("login.html")
 
 @app.route("/admin_login", methods=["GET", "POST"])
 def admin_login():
     if request.method == "POST":
-        passcode = request.form.get("passcode")
-        if passcode == "12345":
+        if request.form.get("passcode") == "12345":
             session["admin_logged_in"] = True
             return redirect(url_for("admin_dashboard"))
-        flash("Incorrect passcode", "error")
-        return redirect(url_for("admin_login"))
+        flash("Wrong passcode", "error")
     return render_template("admin_login.html")
 
 @app.route("/admin")
@@ -290,19 +269,17 @@ def toggle_chat_lock():
     return redirect(url_for("admin_dashboard"))
 
 # ---------------- Socket.IO ----------------
-connected_users = {}  # username -> {sid, user_id}
+connected_users = {}
 
 @socketio.on("join_chat")
 def handle_join(data):
     username = data.get("username")
     if not username:
         return
-
     user = execute_query("SELECT id FROM users WHERE username=%s LIMIT 1", (username,), fetch=True)
     if not user:
         return
     user_id = user[0]["id"]
-
     connected_users[username] = {"sid": request.sid, "user_id": user_id}
 
     history = execute_query("""
@@ -314,32 +291,23 @@ def handle_join(data):
     """, fetch=True) or []
 
     emit("chat_history", history, to=request.sid)
-    emit("message", {"from": "System", "text": f"{username} joined!", "timestamp": datetime.utcnow().isoformat()}, broadcast=True)
+    emit("message", {"from": "System", "text": f"{username} joined!"}, broadcast=True)
     emit("user_count_update", {"count": len(connected_users)}, broadcast=True)
 
 @socketio.on("message")
 def handle_message(data):
-    username = None
-    user_id = None
+    username, user_id = None, None
     for u, info in connected_users.items():
         if info["sid"] == request.sid:
             username, user_id = u, info["user_id"]
             break
-    if not username or not user_id:
+    if not username:
         return
-
     text = (data.get("text") or "").strip()
     if not text:
         return
-
     execute_query("INSERT INTO messages (user_id, username, message) VALUES (%s, %s, %s)", (user_id, username, text))
     emit("message", {"from": username, "text": text, "timestamp": datetime.utcnow().isoformat()}, broadcast=True)
-
-@socketio.on("announce_winner")
-def handle_announcement(data):
-    winners = data.get("winners", [])
-    for winner in winners:
-        emit("announcement", {'text': f"🏆 WINNER: {winner}!"}, broadcast=True)
 
 @socketio.on("disconnect")
 def handle_disconnect():
@@ -350,7 +318,7 @@ def handle_disconnect():
             del connected_users[u]
             break
     if username:
-        emit("message", {"from": "System", "text": f"{username} left", "timestamp": datetime.utcnow().isoformat()}, broadcast=True)
+        emit("message", {"from": "System", "text": f"{username} left"}, broadcast=True)
         emit("user_count_update", {"count": len(connected_users)}, broadcast=True)
 
 # ---------------- Run ----------------
