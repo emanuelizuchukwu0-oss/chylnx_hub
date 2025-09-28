@@ -123,53 +123,37 @@ def set_username():
     username = session.get("username", "")
     return render_template("set_username.html", username=username)
 
-@app.route("/register", methods=["GET", "POST"])
-def register():
+@app.route("/set_username", methods=["GET", "POST"])
+def set_username():
     if request.method == "POST":
         username = request.form.get("username").strip()
-        email = request.form.get("email").strip()
-        password = request.form.get("password").strip()
 
-        # Check duplicate
-        existing = execute_query("SELECT id FROM users WHERE username=%s OR email=%s", (username, email), fetch=True)
-        if existing:
-            flash("Username or email already exists", "error")
-            return redirect(url_for("register"))
+        # Check if username exists
+        user = execute_query("SELECT * FROM users WHERE username=%s LIMIT 1", (username,), fetch=True)
+        if not user:
+            # Create new user with just username (no password)
+            execute_query("INSERT INTO users (username) VALUES (%s)", (username,))
+            user = execute_query("SELECT * FROM users WHERE username=%s LIMIT 1", (username,), fetch=True)[0]
 
-        execute_query(
-            "INSERT INTO users (username, email, password) VALUES (%s, %s, %s)",
-            (username, email, generate_password_hash(password))
-        )
-        session["username"] = username
-        flash("Registration successful!", "success")
+        else:
+            user = user[0]
+
+        # Save to session
+        session["user_id"] = user["id"]
+        session["username"] = user["username"]
+
+        flash("Username set successfully!", "success")
         return redirect(url_for("chat"))
 
-    return render_template("register.html")
+    return render_template("set_username.html")
 
-@app.route("/login", methods=["GET", "POST"])
-def login():
-    if request.method == "POST":
-        username = request.form.get("username").strip()
-        password = request.form.get("password").strip()
 
-        user = execute_query("SELECT * FROM users WHERE username=%s LIMIT 1", (username,), fetch=True)
-        if user:
-            user = user[0]
-            if check_password_hash(user["password"], password):
-                session["username"] = username
-                flash("Login successful!", "success")
-                return redirect(url_for("chat"))
-
-        flash("Invalid username or password", "error")
-        return redirect(url_for("login"))
-    return render_template("login.html")
 @app.route("/chat")
 def chat():
-    # Make sure user is logged in
     if not session.get("user_id") or not session.get("username"):
-        return redirect(url_for("login"))  # force login first
+        return redirect(url_for("set_username"))  # must pick username first
 
-    username = session.get("username")
+    username = session["username"]
 
     # Check if user has paid
     result = execute_query("""
@@ -179,11 +163,11 @@ def chat():
         LIMIT 1
     """, (username,), fetch=True)
 
-    if not result:  # no successful payment
+    if not result:  # no payment yet
         return redirect(url_for("payment_required"))
 
-    # If login + payment passed → show chat
     return render_template("chat.html", username=username)
+
 
 
 
