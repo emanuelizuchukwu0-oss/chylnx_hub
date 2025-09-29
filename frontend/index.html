@@ -358,82 +358,130 @@
         <p>© 2025 CHYLNX HUB. All rights reserved.</p>
     </footer>
 
-    <script>
-        // Timer functionality
-        let timerInterval;
-        let totalSeconds = 300; // Default 5 minutes
+   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+    // Timer functionality
+    let timerInterval;
+    let totalSeconds = 300; // Default 5 minutes
+    let socket = null;
+
+    // Initialize Socket.io connection
+    function initializeSocket() {
+        socket = io();
         
-        function updateTimer() {
-            const minutes = Math.floor(totalSeconds / 60);
-            const seconds = totalSeconds % 60;
-            
-            document.getElementById('countdown').textContent = 
-                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-            
-            if (totalSeconds <= 0) {
+        // Listen for timer updates from server
+        socket.on('timer_update', function(data) {
+            if (data.is_running && data.remaining_seconds > 0) {
+                totalSeconds = data.remaining_seconds;
                 clearInterval(timerInterval);
-                document.getElementById('countdown').textContent = "GAME TIME!";
-                return;
+                updateTimer(); // Update immediately
+                timerInterval = setInterval(updateTimer, 1000);
+            } else if (!data.is_running) {
+                clearInterval(timerInterval);
+                document.getElementById('countdown').textContent = "00:00";
             }
-            
-            totalSeconds--;
-        }
+        });
         
-        function setCustomTimer() {
-            const minutes = parseInt(document.getElementById('minutes').value) || 0;
-            const seconds = parseInt(document.getElementById('seconds').value) || 0;
-            
-            totalSeconds = (minutes * 60) + seconds;
-            
-            // Clear existing timer and start new one
+        socket.on('timer_error', function(data) {
+            alert('Timer error: ' + data.message);
+        });
+        
+        // Request current timer state when connected
+        socket.on('connect', function() {
+            socket.emit('get_timer');
+        });
+    }
+
+    function updateTimer() {
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        
+        document.getElementById('countdown').textContent = 
+            `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        
+        if (totalSeconds <= 0) {
             clearInterval(timerInterval);
-            updateTimer(); // Update immediately
-            timerInterval = setInterval(updateTimer, 1000);
-            
-            alert(`Timer set to ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
+            document.getElementById('countdown').textContent = "GAME TIME!";
+            // Optionally emit timer finished event
+            if (socket) {
+                socket.emit('timer_finished');
+            }
+            return;
         }
         
-        // Password protection functionality
-        function checkPassword() {
-            const password = document.getElementById('passwordInput').value;
-            if (password === '12345') {
-                document.getElementById('passwordSection').classList.add('hidden');
-                document.getElementById('timerControl').classList.remove('hidden');
-            } else {
-                alert('Incorrect password! Please try again.');
-                document.getElementById('passwordInput').value = '';
+        totalSeconds--;
+    }
+    
+    function setCustomTimer() {
+        const minutes = parseInt(document.getElementById('minutes').value) || 0;
+        const seconds = parseInt(document.getElementById('seconds').value) || 0;
+        
+        if (minutes === 0 && seconds === 0) {
+            alert('Please set a valid timer duration');
+            return;
+        }
+        
+        // Send timer to server
+        if (socket) {
+            socket.emit('set_timer', {
+                minutes: minutes,
+                seconds: seconds
+            });
+        } else {
+            alert('Not connected to server. Using local timer only.');
+            totalSeconds = (minutes * 60) + seconds;
+            clearInterval(timerInterval);
+            updateTimer();
+            timerInterval = setInterval(updateTimer, 1000);
+        }
+        
+        alert(`Timer set to ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
+    }
+    
+    // Password protection functionality
+    function checkPassword() {
+        const password = document.getElementById('passwordInput').value;
+        if (password === '12345') {
+            document.getElementById('passwordSection').classList.add('hidden');
+            document.getElementById('timerControl').classList.remove('hidden');
+        } else {
+            alert('Incorrect password! Please try again.');
+            document.getElementById('passwordInput').value = '';
+        }
+    }
+    
+    function showFallbackIcons() {
+        const iconContainer = document.getElementById('iconContainer');
+        const images = iconContainer.getElementsByTagName('img');
+        let allFailed = true;
+
+        for (let img of images) {
+            if (img.complete && img.naturalWidth > 0) {
+                allFailed = false;
+                break;
             }
         }
-        
-function showFallbackIcons() {
-    const iconContainer = document.getElementById('iconContainer');
-    const images = iconContainer.getElementsByTagName('img');
-    let allFailed = true;
 
-    for (let img of images) {
-        if (img.complete && img.naturalWidth > 0) {
-            allFailed = false;
-            break;
+        if (allFailed) {
+            iconContainer.innerHTML = `
+                <span class="icon-fallback">E</span>
+                <span class="icon-fallback">N</span>
+                <span class="icon-fallback">K</span>
+            `;
         }
     }
 
-    if (allFailed) {
-        iconContainer.innerHTML = `
-            <span class="icon-fallback">E</span>
-            <span class="icon-fallback">N</span>
-            <span class="icon-fallback">K</span>
-        `;
-    }
-}
-
-// Run after page loads
-window.addEventListener('load', function() {
-    setTimeout(showFallbackIcons, 500);
-});
-
+    // Initialize everything when page loads
+    window.addEventListener('load', function() {
+        // Initialize Socket.io
+        initializeSocket();
         
-        // Initialize timer
+        // Start with default timer (will be overridden by server if active)
         timerInterval = setInterval(updateTimer, 1000);
-    </script>
+        
+        // Check for icons after load
+        setTimeout(showFallbackIcons, 500);
+    });
+</script>
 </body>
 </html>

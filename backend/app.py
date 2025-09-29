@@ -1,7 +1,7 @@
 import os
 import uuid
 import traceback
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import Flask, render_template, session, request, redirect, url_for, jsonify, flash
 from flask_socketio import SocketIO, emit
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -118,6 +118,14 @@ def init_db():
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS game_timer (
+                    id SERIAL PRIMARY KEY,
+                    end_time TIMESTAMP NOT NULL,
+                    is_running BOOLEAN DEFAULT TRUE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
         conn.commit()
         print("✅ Tables initialized")
     except Exception as e:
@@ -132,6 +140,50 @@ def init_db():
 
 init_db()
 
+# ---------------- Timer Functions ----------------
+def get_current_timer():
+    """Get the active timer from database"""
+    result = execute_query(
+        "SELECT * FROM game_timer WHERE is_running = TRUE ORDER BY created_at DESC LIMIT 1",
+        fetch=True
+    )
+    if result:
+        return result[0]
+    return None
+
+def set_timer(minutes, seconds):
+    """Set a new timer in the database"""
+    total_seconds = (minutes * 60) + seconds
+    end_time = datetime.now() + timedelta(seconds=total_seconds)
+    
+    # Deactivate any existing timers
+    execute_query("UPDATE game_timer SET is_running = FALSE WHERE is_running = TRUE")
+    
+    # Create new timer
+    execute_query(
+        "INSERT INTO game_timer (end_time, is_running) VALUES (%s, %s)",
+        (end_time, True)
+    )
+    
+    return end_time
+
+def get_remaining_time():
+    """Calculate remaining time for active timer"""
+    timer = get_current_timer()
+    if not timer:
+        return None
+    
+    end_time = timer['end_time']
+    now = datetime.now()
+    
+    if now >= end_time:
+        # Timer expired, deactivate it
+        execute_query("UPDATE game_timer SET is_running = FALSE WHERE id = %s", (timer['id'],))
+        return 0
+    
+    remaining = (end_time - now).total_seconds()
+    return max(0, int(remaining))
+
 # ---------------- App Logic ----------------
 chat_locked = True
 
@@ -144,6 +196,8 @@ def internal_error(e):
 # ---------------- Routes ----------------
 @app.route("/")
 def index():
+    # Get current timer state for the frontend
+    remaining = get_remaining_time()
     return render_template("index.html")
 
 @app.route("/payment")
@@ -257,6 +311,59 @@ def toggle_chat_lock():
 # ---------------- Socket.IO ----------------
 connected_users = {}
 
+@socketio.on("connect")
+def handle_connect():
+    """Send current timer state when client connects"""
+    remaining = get_remaining_time()
+    if remaining is not None:
+        emit('timer_update', {
+            'remaining_seconds': remaining,
+            'is_running': True
+        })
+    else:
+        emit('timer_update', {
+            'remaining_seconds': 300,  # Default 5 minutes
+            'is_running': False
+        })
+
+@socketio.on("set_timer")
+def handle_set_timer(data):
+    """Handle timer setting from admin"""
+    try:
+        minutes = int(data.get('minutes', 5))
+        seconds = int(data.get('seconds', 0))
+        
+        if minutes == 0 and seconds == 0:
+            emit('timer_error', {'message': 'Please set a valid timer duration'})
+            return
+        
+        end_time = set_timer(minutes, seconds)
+        remaining = get_remaining_time()
+        
+        # Broadcast to all clients
+        emit('timer_update', {
+            'remaining_seconds': remaining,
+            'is_running': True
+        }, broadcast=True)
+        
+    except Exception as e:
+        emit('timer_error', {'message': str(e)})
+
+@socketio.on("get_timer")
+def handle_get_timer():
+    """Send current timer state to requesting client"""
+    remaining = get_remaining_time()
+    if remaining is not None:
+        emit('timer_update', {
+            'remaining_seconds': remaining,
+            'is_running': True
+        })
+    else:
+        emit('timer_update', {
+            'remaining_seconds': 300,
+            'is_running': False
+        })
+
 @socketio.on("join_chat")
 def handle_join(data):
     username = data.get("username")
@@ -279,6 +386,7 @@ def handle_join(data):
     emit("chat_history", history, to=request.sid)
     emit("message", {"from": "System", "text": f"{username} joined!"}, broadcast=True)
     emit("user_count_update", {"count": len(connected_users)}, broadcast=True)
+
 @socketio.on("message")
 def handle_message(data):
     print("📨 Message received:", data)
@@ -289,7 +397,7 @@ def handle_message(data):
     user_id = data.get("user_id", None)  # optional if you track IDs
 
     if not text:
-        return  # don’t process empty messages
+        return  # don't process empty messages
 
     # Save to DB
     if user_id:  # only save if user_id exists
@@ -307,7 +415,6 @@ def handle_message(data):
 
     # ✅ Broadcast same event to ALL clients
     emit("message", msg, broadcast=True)
-
 
 @socketio.on("disconnect")
 def handle_disconnect():
