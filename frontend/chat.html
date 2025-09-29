@@ -2,6 +2,7 @@
 <html>
 <head>
     <title>Chylnx Hub Chat</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         /* Modern WhatsApp-like Styles */
         * {
@@ -16,30 +17,40 @@
             background: #e5ddd5;
             display: flex;
             flex-direction: column;
+            overflow: hidden;
         }
 
-        /* Header Styles */
+        /* Fixed Header Styles */
         header {
             background: #25D366;
             color: white;
-            padding: 10px 16px;
+            padding: clamp(8px, 2vw, 10px) clamp(12px, 3vw, 16px);
             display: flex;
             justify-content: space-between;
             align-items: center;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             z-index: 100;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: clamp(50px, 12vw, 60px);
         }
 
         .header-info {
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: clamp(10px, 2vw, 15px);
+        }
+
+        .header-info h2 {
+            font-size: clamp(16px, 4vw, 20px);
         }
 
         .header-actions {
             display: flex;
-            gap: 20px;
-            font-size: 18px;
+            gap: clamp(15px, 3vw, 20px);
+            font-size: clamp(16px, 4vw, 18px);
         }
 
         /* Chat Container */
@@ -49,21 +60,25 @@
             flex-direction: column;
             background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" opacity="0.05"><path fill="%23007bff" d="M30,30 Q50,10 70,30 Q90,50 70,70 Q50,90 30,70 Q10,50 30,30 Z"/></svg>');
             background-color: #e5ddd5;
+            margin-top: clamp(50px, 12vw, 60px); /* Header height */
+            margin-bottom: clamp(60px, 15vw, 70px); /* Input area height */
+            height: calc(100vh - clamp(50px, 12vw, 60px) - clamp(60px, 15vw, 70px));
         }
 
         #chatWindow {
             flex: 1;
-            padding: 20px;
+            padding: clamp(15px, 3vw, 20px);
             overflow-y: auto;
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: clamp(6px, 2vw, 8px);
+            height: 100%;
         }
 
         /* Message Styles */
         .message {
-            max-width: 70%;
-            padding: 8px 12px;
+            max-width: min(70%, 400px);
+            padding: clamp(6px, 2vw, 8px) clamp(10px, 2vw, 12px);
             border-radius: 7.5px;
             position: relative;
             word-wrap: break-word;
@@ -91,10 +106,12 @@
         .message-content {
             margin-bottom: 2px;
             line-height: 1.4;
+            font-size: clamp(14px, 3vw, 16px);
+            word-break: break-word;
         }
 
         .message-time {
-            font-size: 11px;
+            font-size: clamp(10px, 2vw, 11px);
             color: #667781;
             text-align: right;
             margin-top: 2px;
@@ -107,7 +124,7 @@
         .sender-name {
             font-weight: 600;
             color: #25D366;
-            font-size: 13px;
+            font-size: clamp(11px, 2.5vw, 13px);
             margin-bottom: 2px;
             cursor: pointer;
         }
@@ -122,38 +139,47 @@
             border-radius: 12px;
         }
 
-        /* Input Area */
+        /* Fixed Input Area */
         #inputArea {
             background: #f0f0f0;
-            padding: 10px 16px;
+            padding: clamp(8px, 2vw, 10px) clamp(12px, 3vw, 16px);
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: clamp(8px, 2vw, 10px);
             border-top: 1px solid #d1d7db;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: clamp(60px, 15vw, 70px);
+            z-index: 100;
         }
 
         #chatInput {
             flex: 1;
-            padding: 12px 16px;
+            padding: clamp(10px, 2vw, 12px) clamp(12px, 3vw, 16px);
             border: none;
             border-radius: 20px;
             outline: none;
-            font-size: 15px;
+            font-size: clamp(14px, 3vw, 15px);
             background: white;
+            min-width: 0; /* Prevents flex item overflow */
         }
 
         #sendBtn {
             background: #25D366;
             border: none;
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
+            width: clamp(35px, 10vw, 40px);
+            height: clamp(35px, 10vw, 40px);
             color: white;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             transition: background 0.2s;
+            font-size: clamp(14px, 3vw, 16px);
+            flex-shrink: 0;
         }
 
         #sendBtn:hover {
@@ -169,8 +195,8 @@
         .system-msg {
             text-align: center;
             color: #667781;
-            font-size: 13px;
-            margin: 10px 0;
+            font-size: clamp(12px, 2.5vw, 13px);
+            margin: clamp(8px, 2vw, 10px) 0;
             font-style: italic;
         }
 
@@ -179,11 +205,12 @@
             background: linear-gradient(135deg, #ffd700, #ff8c00);
             color: #000;
             text-align: center;
-            padding: 12px;
+            padding: clamp(10px, 2vw, 12px);
             font-weight: bold;
-            margin: 10px 0;
+            margin: clamp(8px, 2vw, 10px) 0;
             border-radius: 8px;
             animation: winnerPulse 2s infinite;
+            font-size: clamp(14px, 3vw, 16px);
         }
 
         @keyframes winnerPulse {
@@ -203,37 +230,61 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            z-index: 1000;
+            z-index: 2000;
         }
 
         #usernameForm {
             background: white;
-            padding: 40px;
+            padding: clamp(25px, 6vw, 40px);
             border-radius: 16px;
             text-align: center;
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
             width: 90%;
-            max-width: 400px;
+            max-width: min(400px, 95vw);
+            margin: 20px;
+        }
+
+        #usernameForm h3 {
+            margin-bottom: clamp(15px, 3vw, 20px);
+            color: #333;
+            font-size: clamp(18px, 4vw, 22px);
         }
 
         #usernameForm input {
             width: 100%;
-            padding: 15px;
+            padding: clamp(12px, 3vw, 15px);
             border: 2px solid #e1e5eb;
             border-radius: 10px;
-            font-size: 16px;
-            margin-bottom: 20px;
+            font-size: clamp(14px, 3vw, 16px);
+            margin-bottom: clamp(15px, 3vw, 20px);
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        #usernameForm input:focus {
+            border-color: #25D366;
         }
 
         #usernameForm button {
             width: 100%;
-            padding: 15px;
+            padding: clamp(12px, 3vw, 15px);
             background: #25D366;
             color: white;
             border: none;
             border-radius: 10px;
-            font-size: 16px;
+            font-size: clamp(14px, 3vw, 16px);
             cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        #usernameForm button:hover {
+            background: #20bd5a;
+        }
+
+        .form-note {
+            margin-top: clamp(15px, 3vw, 20px);
+            color: #666;
+            font-size: clamp(12px, 2.5vw, 14px);
         }
 
         /* Scrollbar Styling */
@@ -261,81 +312,96 @@
             display: none;
             justify-content: center;
             align-items: center;
-            z-index: 2000;
+            z-index: 3000;
         }
 
         .winner-modal-content {
             background: white;
-            padding: 30px;
+            padding: clamp(20px, 5vw, 30px);
             border-radius: 15px;
             text-align: center;
-            max-width: 400px;
-        }
-        
-        /* Username Form Styles */
-        #usernameOverlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(135deg, #667781 0%, #25D366 100%);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
+            max-width: min(400px, 90vw);
+            margin: 20px;
         }
 
-        #usernameForm {
-            background: white;
-            padding: 40px;
-            border-radius: 16px;
-            text-align: center;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            width: 90%;
-            max-width: 400px;
+        .winner-modal-content h2 {
+            font-size: clamp(18px, 4vw, 22px);
+            margin-bottom: 15px;
         }
 
-        #usernameForm h3 {
+        .winner-modal-content p {
+            font-size: clamp(14px, 3vw, 16px);
             margin-bottom: 20px;
-            color: #333;
         }
 
-        #usernameForm input {
-            width: 100%;
-            padding: 15px;
-            border: 2px solid #e1e5eb;
-            border-radius: 10px;
-            font-size: 16px;
-            margin-bottom: 20px;
-            outline: none;
-            transition: border-color 0.3s;
-        }
-
-        #usernameForm input:focus {
-            border-color: #25D366;
-        }
-
-        #usernameForm button {
-            width: 100%;
-            padding: 15px;
+        .winner-modal-content button {
+            padding: clamp(8px, 2vw, 10px) clamp(15px, 3vw, 20px);
             background: #25D366;
             color: white;
             border: none;
-            border-radius: 10px;
-            font-size: 16px;
+            border-radius: 5px;
             cursor: pointer;
-            transition: background 0.3s;
+            font-size: clamp(14px, 3vw, 16px);
         }
 
-        #usernameForm button:hover {
-            background: #20bd5a;
+        /* Mobile-specific adjustments */
+        @media (max-width: 480px) {
+            .message {
+                max-width: 85%;
+            }
+            
+            #chatWindow {
+                padding: 12px 10px;
+            }
+            
+            .header-info {
+                gap: 8px;
+            }
+            
+            .header-actions {
+                gap: 12px;
+            }
         }
 
-        .form-note {
-            margin-top: 20px;
-            color: #666;
-            font-size: 14px;
+        @media (max-width: 768px) {
+            .message {
+                max-width: 80%;
+            }
+        }
+
+        /* Large screen optimizations */
+        @media (min-width: 1200px) {
+            #chatContainer {
+                margin-top: 60px;
+                margin-bottom: 70px;
+            }
+            
+            header {
+                padding: 10px 16px;
+                height: 60px;
+            }
+            
+            #inputArea {
+                padding: 10px 16px;
+                height: 70px;
+            }
+        }
+
+        /* Very small screens */
+        @media (max-width: 320px) {
+            .message {
+                max-width: 90%;
+            }
+            
+            #usernameForm {
+                padding: 20px 15px;
+            }
+        }
+
+        /* Prevent horizontal scrolling */
+        html, body {
+            max-width: 100%;
+            overflow-x: hidden;
         }
     </style>
 </head>
@@ -352,7 +418,7 @@
         </div>
     </div>
 
-    <!-- Header -->
+    <!-- Fixed Header -->
     <header>
         <div class="header-info">
             <h2>💬 Chylnx Chat</h2>
@@ -368,12 +434,12 @@
         <div id="chatWindow">
             <div class="system-msg">Welcome to the chat! Type a message to begin.</div>
         </div>
+    </div>
 
-        <!-- Input Area -->
-        <div id="inputArea">
-            <input id="chatInput" type="text" placeholder="Type a message..." disabled>
-            <button id="sendBtn" disabled>➤</button>
-        </div>
+    <!-- Fixed Input Area -->
+    <div id="inputArea">
+        <input id="chatInput" type="text" placeholder="Type a message..." disabled>
+        <button id="sendBtn" disabled>➤</button>
     </div>
 
     <!-- Winner Modal -->
@@ -381,144 +447,153 @@
         <div class="winner-modal-content">
             <h2>🎉 Winner Selected! 🎉</h2>
             <p id="winnerMessage">THE WINNER IS: <span id="winnerName"></span></p>
-            <button onclick="closeWinnerModal()" style="padding: 10px 20px; background: #25D366; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                Close
-            </button>
+            <button onclick="closeWinnerModal()">Close</button>
         </div>
     </div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
-<script>
-    let myUsername = "";
-let socket = null;
-let selectedWinner = null;
 
-// Initialize app
-function initApp() {
-    document.getElementById('sendBtn').addEventListener('click', sendMessage);
-    document.getElementById('chatInput').addEventListener('keypress', handleKeyPress);
-    document.getElementById('bell').addEventListener('click', announceWinner);
-    document.getElementById('usernameInput').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') setUsername();
-    });
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+        let myUsername = "";
+        let socket = null;
+        let selectedWinner = null;
 
-    document.getElementById('usernameOverlay').style.display = 'flex';
-}
+        // Initialize app
+        function initApp() {
+            document.getElementById('sendBtn').addEventListener('click', sendMessage);
+            document.getElementById('chatInput').addEventListener('keypress', handleKeyPress);
+            document.getElementById('bell').addEventListener('click', announceWinner);
+            document.getElementById('usernameInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') setUsername();
+            });
 
-// Set username
-function setUsername() {
-    const usernameInput = document.getElementById('usernameInput');
-    const username = usernameInput.value.trim();
-    if (!username) return alert("Please enter a username");
+            document.getElementById('usernameOverlay').style.display = 'flex';
+            
+            // Focus on username input
+            document.getElementById('usernameInput').focus();
+        }
 
-    myUsername = username;
-    document.getElementById('usernameOverlay').style.display = 'none';
-    initializeChat();
-}
+        // Set username
+        function setUsername() {
+            const usernameInput = document.getElementById('usernameInput');
+            const username = usernameInput.value.trim();
+            if (!username) return alert("Please enter a username");
 
-// Initialize Socket.IO chat
-function initializeChat() {
-    document.getElementById('chatInput').disabled = false;
-    document.getElementById('sendBtn').disabled = false;
+            myUsername = username;
+            document.getElementById('usernameOverlay').style.display = 'none';
+            initializeChat();
+        }
 
-    socket = io(); // connect to server
+        // Initialize Socket.IO chat
+        function initializeChat() {
+            document.getElementById('chatInput').disabled = false;
+            document.getElementById('sendBtn').disabled = false;
 
-    // Join chat
-    socket.emit('join_chat', { username: myUsername });
+            socket = io(); // connect to server
 
-    // Receive chat history
-    socket.on('chat_history', function(history) {
-        const chatWindow = document.getElementById('chatWindow');
-        chatWindow.innerHTML = '<div class="system-msg">Welcome to the chat!</div>';
-        history.forEach(msg => addMessage(msg, msg.from === myUsername));
-    });
+            // Join chat
+            socket.emit('join_chat', { username: myUsername });
 
-    // Receive messages
-    socket.on('message', function(msg) {
-        addMessage(msg, msg.from === myUsername);
-    });
+            // Receive chat history
+            socket.on('chat_history', function(history) {
+                const chatWindow = document.getElementById('chatWindow');
+                chatWindow.innerHTML = '<div class="system-msg">Welcome to the chat!</div>';
+                history.forEach(msg => addMessage(msg, msg.from === myUsername));
+            });
 
-    // Online count
-    socket.on('user_count_update', function(data) {
-        document.getElementById('onlineCount').textContent = data.count + ' online';
-    });
+            // Receive messages
+            socket.on('message', function(msg) {
+                addMessage(msg, msg.from === myUsername);
+            });
 
-    // Winner announcements
-    socket.on('announcement', function(data) {
-        addSystemMessage(data.text);
-    });
+            // Online count
+            socket.on('user_count_update', function(data) {
+                document.getElementById('onlineCount').textContent = data.count + ' online';
+            });
 
-    addSystemMessage(`Welcome, ${myUsername}! Start chatting below.`);
-}
+            // Winner announcements
+            socket.on('announcement', function(data) {
+                addSystemMessage(data.text);
+            });
 
-// Handle Enter key in input
-function handleKeyPress(e) {
-    if (e.key === 'Enter') sendMessage();
-}
+            addSystemMessage(`Welcome, ${myUsername}! Start chatting below.`);
+            
+            // Focus on chat input
+            document.getElementById('chatInput').focus();
+        }
 
-// Send message
-function sendMessage() {
-    const input = document.getElementById('chatInput');
-    const text = input.value.trim();
-    if (!text || !socket) return;
+        // Handle Enter key in input
+        function handleKeyPress(e) {
+            if (e.key === 'Enter') sendMessage();
+        }
 
-    socket.emit('message', { from: myUsername, text: text }); // only send
-    input.value = '';
-}
+        // Send message
+        function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const text = input.value.trim();
+            if (!text || !socket) return;
 
-// Add message to chat window
-function addMessage(msg, isSent) {
-    const chatWindow = document.getElementById('chatWindow');
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${isSent ? 'sent' : 'received'}`;
+            socket.emit('message', { from: myUsername, text: text });
+            input.value = '';
+            input.focus();
+        }
 
-    const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+        // Add message to chat window
+        function addMessage(msg, isSent) {
+            const chatWindow = document.getElementById('chatWindow');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isSent ? 'sent' : 'received'}`;
 
-    messageDiv.innerHTML = `
-        ${!isSent ? `<div class="sender-name" onclick="selectWinner('${msg.from}')">${msg.from}</div>` : ''}
-        <div class="message-content">${msg.text}</div>
-        <div class="message-time">${time}</div>
-    `;
+            const time = new Date(msg.timestamp).toLocaleTimeString([], { 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                hour12: true 
+            });
 
-    chatWindow.appendChild(messageDiv);
-    chatWindow.scrollTop = chatWindow.scrollHeight;
-}
+            messageDiv.innerHTML = `
+                ${!isSent ? `<div class="sender-name" onclick="selectWinner('${msg.from}')">${msg.from}</div>` : ''}
+                <div class="message-content">${msg.text}</div>
+                <div class="message-time">${time}</div>
+            `;
 
-// System messages
-function addSystemMessage(text) {
-    const chatWindow = document.getElementById('chatWindow');
-    const div = document.createElement('div');
-    div.className = 'system-msg';
-    div.textContent = text;
-    chatWindow.appendChild(div);
-    chatWindow.scrollTop = chatWindow.scrollHeight;
-}
+            chatWindow.appendChild(messageDiv);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
 
-// Winner selection
-function selectWinner(username) {
-    if (username === myUsername) return alert("You can't select yourself as winner!");
-    selectedWinner = username;
-    showWinnerModal(username);
-}
+        // System messages
+        function addSystemMessage(text) {
+            const chatWindow = document.getElementById('chatWindow');
+            const div = document.createElement('div');
+            div.className = 'system-msg';
+            div.textContent = text;
+            chatWindow.appendChild(div);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
 
-function showWinnerModal(username) {
-    document.getElementById('winnerName').textContent = username;
-    document.getElementById('winnerModal').style.display = 'flex';
-}
+        // Winner selection
+        function selectWinner(username) {
+            if (username === myUsername) return alert("You can't select yourself as winner!");
+            selectedWinner = username;
+            showWinnerModal(username);
+        }
 
-function closeWinnerModal() {
-    document.getElementById('winnerModal').style.display = 'none';
-}
+        function showWinnerModal(username) {
+            document.getElementById('winnerName').textContent = username;
+            document.getElementById('winnerModal').style.display = 'flex';
+        }
 
-function announceWinner() {
-    if (!selectedWinner) return alert("Select a winner by clicking their name!");
-    socket.emit('announce_winner', { winners: [selectedWinner] });
-    addSystemMessage(`🏆 WINNER ANNOUNCEMENT: ${selectedWinner}! Congratulations! 🎉`);
-    selectedWinner = null;
-    closeWinnerModal();
-}
+        function closeWinnerModal() {
+            document.getElementById('winnerModal').style.display = 'none';
+        }
 
-window.addEventListener('DOMContentLoaded', initApp);
+        function announceWinner() {
+            if (!selectedWinner) return alert("Select a winner by clicking their name!");
+            socket.emit('announce_winner', { winners: [selectedWinner] });
+            addSystemMessage(`🏆 WINNER ANNOUNCEMENT: ${selectedWinner}! Congratulations! 🎉`);
+            selectedWinner = null;
+            closeWinnerModal();
+        }
 
-</script>
+        window.addEventListener('DOMContentLoaded', initApp);
+    </script>
 </body>
 </html>

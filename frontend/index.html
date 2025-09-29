@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CHYLNX HUB</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -16,80 +17,85 @@
             background: navy;
             color: #fff;
             min-height: 100vh;
-            padding: 20px;
+            padding: clamp(10px, 3vw, 20px);
+            width: 100%;
+            overflow-x: hidden;
         }
-       .head {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-wrap: wrap; /* allows wrapping on small screens */
-    margin-bottom: 20px;
-    padding: 15px;
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 10px;
-    border: 1px solid rgba(255, 255, 0, 0.2);
-    gap: 10px;
-}
+        
+        .head {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: clamp(15px, 4vw, 20px);
+            padding: clamp(10px, 3vw, 15px);
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 0, 0.2);
+            gap: clamp(8px, 2vw, 10px);
+            width: 100%;
+        }
 
-.head p {
-    color: yellow; 
-    font-size: clamp(20px, 5vw, 28px); /* responsive text size */
-    font-weight: bold;
-    text-shadow: 0 0 10px rgba(255, 255, 0, 0.7);
-}
+        .head p {
+            color: yellow; 
+            font-size: clamp(18px, 6vw, 28px);
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(255, 255, 0, 0.7);
+            text-align: center;
+        }
 
-.icons {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-}
+        .icons {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(8px, 2vw, 10px);
+        }
 
-.icons img {
-    height: clamp(25px, 5vw, 40px); /* responsive icon size */
-    width: auto;
-    cursor: pointer;
-    filter: drop-shadow(0 0 3px gold) drop-shadow(0 0 10px gold);
-    transition: transform 0.3s ease, filter 0.3s ease;
-}
+        .icons img {
+            height: clamp(22px, 6vw, 40px);
+            width: auto;
+            cursor: pointer;
+            filter: drop-shadow(0 0 3px gold) drop-shadow(0 0 10px gold);
+            transition: transform 0.3s ease, filter 0.3s ease;
+        }
 
-.icons img:hover {
-    transform: scale(1.2);
-    filter: drop-shadow(0 0 5px gold) drop-shadow(0 0 15px gold);
-}
+        .icons img:hover {
+            transform: scale(1.2);
+            filter: drop-shadow(0 0 5px gold) drop-shadow(0 0 15px gold);
+        }
 
-/* fallback letters */
-.icon-fallback {
-    display: inline-flex;
-    justify-content: center;
-    align-items: center;
-    width: clamp(25px, 5vw, 40px);
-    height: clamp(25px, 5vw, 40px);
-    border-radius: 50%;
-    background: gold;
-    color: navy;
-    font-weight: bold;
-    font-size: clamp(12px, 4vw, 20px);
-}
-
+        .icon-fallback {
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            width: clamp(22px, 6vw, 40px);
+            height: clamp(22px, 6vw, 40px);
+            border-radius: 50%;
+            background: gold;
+            color: navy;
+            font-weight: bold;
+            font-size: clamp(10px, 3vw, 20px);
+        }
         
         main {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
+            gap: clamp(15px, 4vw, 20px);
             max-width: 1200px;
             margin: 0 auto;
+            width: 100%;
         }
         
         .section-card {
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
             border-radius: 15px;
-            padding: 25px;
+            padding: clamp(20px, 4vw, 25px);
             text-align: center;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
             border: 1px solid rgba(255, 255, 255, 0.1);
             transition: transform 0.3s ease;
+            width: 100%;
         }
         
         .section-card:hover {
@@ -97,8 +103,8 @@
         }
         
         .section-card h2 {
-            margin-bottom: 20px;
-            font-size: 1.8rem;
+            margin-bottom: clamp(15px, 3vw, 20px);
+            font-size: clamp(1.3rem, 4vw, 1.8rem);
             color: #ffcc00;
         }
         
@@ -106,13 +112,16 @@
             background: linear-gradient(45deg, #25D366, #128C7E);
             color: white;
             border: none;
-            padding: 12px 25px;
+            padding: clamp(10px, 3vw, 12px) clamp(20px, 4vw, 25px);
             border-radius: 50px;
             cursor: pointer;
-            font-size: 1rem;
+            font-size: clamp(0.9rem, 3vw, 1rem);
             font-weight: bold;
             transition: all 0.3s ease;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            width: auto;
+            min-width: min(200px, 80%);
+            display: inline-block;
         }
         
         .btn:hover {
@@ -122,59 +131,66 @@
         
         .game-timer {
             background: rgba(0, 0, 0, 0.7);
-            padding: 15px;
+            padding: clamp(12px, 3vw, 15px);
             text-align: center;
             border-radius: 12px;
-            margin: 0 auto 30px;
+            margin: 0 auto clamp(20px, 5vw, 30px);
             font-weight: bold;
-            font-size: 1.4rem;
+            font-size: clamp(1rem, 4vw, 1.4rem);
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
-            max-width: 500px;
+            max-width: min(500px, 90%);
             border: 1px solid rgba(255, 204, 0, 0.3);
+            width: 100%;
         }
         
         .game-timer span {
             color: #ffcc00;
-            font-size: 1.5rem;
+            font-size: clamp(1.2rem, 4vw, 1.5rem);
         }
         
         .timer-control {
             background: rgba(0, 0, 0, 0.1);
-            padding: 15px;
+            padding: clamp(12px, 3vw, 15px);
             border-radius: 10px;
-            margin-top: 20px;
+            margin-top: clamp(15px, 3vw, 20px);
             text-align: center;
+            width: 100%;
         }
         
         .timer-control h3 {
-            margin-bottom: 15px;
+            margin-bottom: clamp(12px, 3vw, 15px);
             color: #ffcc00;
+            font-size: clamp(1rem, 3vw, 1.2rem);
         }
         
         .timer-input {
             display: flex;
             justify-content: center;
-            gap: 10px;
-            margin-bottom: 15px;
+            align-items: center;
+            gap: clamp(8px, 2vw, 10px);
+            margin-bottom: clamp(12px, 3vw, 15px);
+            flex-wrap: wrap;
         }
         
         .timer-input input {
-            width: 60px;
-            padding: 8px;
+            width: clamp(50px, 15vw, 60px);
+            padding: clamp(6px, 2vw, 8px);
             border-radius: 5px;
             border: 1px solid #ddd;
             text-align: center;
             background: rgba(255, 255, 255, 0.9);
+            font-size: clamp(0.9rem, 3vw, 1rem);
         }
         
         .timer-btn {
             background: #25D366;
             color: white;
             border: none;
-            padding: 8px 15px;
+            padding: clamp(6px, 2vw, 8px) clamp(12px, 3vw, 15px);
             border-radius: 5px;
             cursor: pointer;
             transition: background 0.3s;
+            font-size: clamp(0.9rem, 3vw, 1rem);
         }
         
         .timer-btn:hover {
@@ -183,19 +199,22 @@
         
         .password-protection {
             text-align: center;
-            margin-top: 10px;
-            padding: 15px;
+            margin-top: clamp(8px, 2vw, 10px);
+            padding: clamp(12px, 3vw, 15px);
             background: rgba(0, 0, 0, 0.2);
             border-radius: 10px;
+            width: 100%;
         }
         
         .password-input {
-            padding: 10px 15px;
+            padding: clamp(8px, 2vw, 10px) clamp(12px, 3vw, 15px);
             border-radius: 5px;
             border: 1px solid rgba(255, 255, 255, 0.2);
-            margin-right: 10px;
-            width: 180px;
+            margin-right: clamp(8px, 2vw, 10px);
+            width: min(180px, 70%);
             background: rgba(255, 255, 255, 0.9);
+            font-size: clamp(0.9rem, 3vw, 1rem);
+            margin-bottom: 10px;
         }
         
         .hidden {
@@ -204,9 +223,10 @@
         
         footer {
             text-align: center;
-            margin-top: 40px;
-            padding: 20px;
+            margin-top: clamp(25px, 6vw, 40px);
+            padding: clamp(15px, 4vw, 20px);
             opacity: 0.8;
+            width: 100%;
         }
         
         .unlock-btn {
@@ -215,15 +235,57 @@
         
         .fa-whatsapp {
             color: #25D366;
-            margin-bottom: 15px;
+            margin-bottom: clamp(12px, 3vw, 15px);
+            font-size: clamp(2rem, 8vw, 3rem);
         }
         
         .tagline {
             text-align: center;
-            margin-bottom: 30px;
-            font-size: 1.2rem;
+            margin-bottom: clamp(20px, 5vw, 30px);
+            font-size: clamp(1rem, 3vw, 1.2rem);
             opacity: 0.9;
             color: #ffcc00;
+            padding: 0 10px;
+        }
+
+        /* Mobile-specific adjustments */
+        @media (max-width: 480px) {
+            .timer-input {
+                flex-direction: column;
+            }
+            
+            .password-input {
+                margin-right: 0;
+                margin-bottom: 10px;
+                width: 90%;
+            }
+            
+            .section-card {
+                padding: 15px 10px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            main {
+                grid-template-columns: 1fr;
+                padding: 0 10px;
+            }
+            
+            .head {
+                flex-direction: column;
+                text-align: center;
+            }
+        }
+
+        /* Large screen optimizations */
+        @media (min-width: 1200px) {
+            body {
+                padding: 20px;
+            }
+            
+            main {
+                gap: 25px;
+            }
         }
     </style>
 </head>
@@ -243,8 +305,6 @@
     </div>
 </div>
 
-    </div>
-    
     <div class="tagline">
         SMART PLAY • WIN • STAY CONNECTED
     </div>
@@ -263,7 +323,7 @@
         </section>
 
         <section class="section-card">
-            <i class="fa-brands fa-whatsapp fa-3x"></i>
+            <i class="fa-brands fa-whatsapp"></i>
             <h2>WhatsApp Link</h2>
             <a href="https://wa.me/2347074069417" target="_blank">
                 <button class="btn">Contact Us on WhatsApp</button>
