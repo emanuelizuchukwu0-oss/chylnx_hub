@@ -396,32 +396,56 @@ def handle_join(data):
 
 @socketio.on("message")
 def handle_message(data):
-    print("📨 Message received:", data)
+    try:
+        print("📨 Message received (raw):", data)
 
-    # Extract sender info
-    text = (data.get("text") or "").strip()
-    username = data.get("from", "User")
-    user_id = data.get("user_id", None)  # optional if you track IDs
+        # Find sender by request.sid (authoritative)
+        username = None
+        user_id = None
+        for u, info in connected_users.items():
+            if info["sid"] == request.sid:
+                username = u
+                user_id = info.get("user_id")
+                break
 
-    if not text:
-        return  # don't process empty messages
+        # Fall back to data['from'] only if not found (defensive)
+        if not username:
+            username = data.get("from")
+        if not username:
+            # Can't determine sender — ignore to be safe
+            print("⚠️ Could not determine message sender for sid:", request.sid)
+            return
 
-    # Save to DB
-    if user_id:  # only save if user_id exists
-        execute_query(
-            "INSERT INTO messages (user_id, username, message) VALUES (%s, %s, %s)",
-            (user_id, username, text)
-        )
+        text = (data.get("text") or "").strip()
+        if not text:
+            # ignore empty messages
+            return
 
-    # Build message object
-    msg = {
-        "from": username,
-        "text": text,
-        "timestamp": datetime.utcnow().isoformat()
-    }
+        # Save to DB if we know user_id (optional if you want all messages saved)
+        if user_id:
+            execute_query(
+                "INSERT INTO messages (user_id, username, message) VALUES (%s, %s, %s)",
+                (user_id, username, text)
+            )
 
-    # ✅ Broadcast same event to ALL clients
-    emit("message", msg, broadcast=True)
+        # Build canonical message object
+        msg = {
+            "from": username,
+            "text": text,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+        # Broadcast to other clients but NOT to the sender (sender already added locally)
+        # include_self=False prevents sender from receiving the broadcast back
+        emit("message", msg, broadcast=True, include_self=False)
+
+        # (Optional) still send an ack to sender if you want server-validated message id
+        # emit("message_ack", {"status": "ok", "timestamp": msg["timestamp"]}, to=request.sid)
+
+    except Exception as e:
+        print("❌ handle_message error:", e)
+        traceback.print_exc()
+
 
 @socketio.on("disconnect")
 def handle_disconnect():
