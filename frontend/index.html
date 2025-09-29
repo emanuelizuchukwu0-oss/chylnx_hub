@@ -367,59 +367,43 @@
 
     // Initialize Socket.io connection
     function initializeSocket() {
-    socket = io();
-    
-    // Listen for timer updates from server
-    socket.on('timer_update', function(data) {
-        console.log('📡 Received timer update from server:', data);
+        socket = io();
         
-        // Clear any existing timer first
-        clearInterval(timerInterval);
-        
-        if (data.is_running && data.remaining_seconds > 0) {
-            // Use the server-provided time
-            totalSeconds = data.remaining_seconds;
-            console.log('⏰ Syncing with server timer:', totalSeconds, 'seconds remaining');
+        // Listen for timer updates from server
+        socket.on('timer_update', function(data) {
+            console.log('📡 Received timer update from server:', data);
             
-            // Start counting down immediately
-            updateTimer();
-            timerInterval = setInterval(updateTimer, 1000);
-        } else {
-            // No active timer
-            console.log('⏰ No active timer on server');
-            totalSeconds = 0;
-            document.getElementById('countdown').textContent = "00:00";
-        }
-    });
-    
-    socket.on('timer_error', function(data) {
-        alert('Timer error: ' + data.message);
-    });
-    
-    // The server now automatically sends timer state on connect
-    // No need to manually request it
-    
-    // Handle connection issues
-    socket.on('connect_error', function(error) {
-        console.error('❌ Connection error:', error);
-        // Show connection error to user
-        document.getElementById('countdown').textContent = "Connecting...";
-    });
-}
-        // Request current timer state when connected
-        socket.on('connect', function() {
-            console.log('🔗 Connected to server, requesting timer state');
-            socket.emit('get_timer');
+            // Clear any existing timer first
+            clearInterval(timerInterval);
+            
+            if (data.is_running && data.remaining_seconds > 0) {
+                // Use the server-provided time
+                totalSeconds = data.remaining_seconds;
+                console.log('⏰ Syncing with server timer:', totalSeconds, 'seconds remaining');
+                
+                // Start counting down immediately
+                updateTimer();
+                timerInterval = setInterval(updateTimer, 1000);
+            } else {
+                // No active timer
+                console.log('⏰ No active timer on server');
+                totalSeconds = 0;
+                document.getElementById('countdown').textContent = "00:00";
+            }
         });
         
-        // Handle connection errors
+        socket.on('timer_error', function(data) {
+            alert('Timer error: ' + data.message);
+        });
+        
+        // The server now automatically sends timer state on connect
+        // No need to manually request it
+        
+        // Handle connection issues
         socket.on('connect_error', function(error) {
             console.error('❌ Connection error:', error);
-            // Fallback to local timer
-            if (totalSeconds === 0) {
-                totalSeconds = 300; // Default 5 minutes
-                timerInterval = setInterval(updateTimer, 1000);
-            }
+            // Show connection error to user
+            document.getElementById('countdown').textContent = "Connecting...";
         });
     }
 
@@ -470,15 +454,43 @@
         alert(`Timer set to ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
     }
     
-    // Password protection functionality
+    // Password protection functionality - FIXED VERSION
     function checkPassword() {
-        const password = document.getElementById('passwordInput').value;
+        console.log('🔑 Checking password...');
+        const passwordInput = document.getElementById('passwordInput');
+        const password = passwordInput.value;
+        
+        console.log('Password entered:', password);
+        
         if (password === '12345') {
+            console.log('✅ Password correct - unlocking timer controls');
             document.getElementById('passwordSection').classList.add('hidden');
             document.getElementById('timerControl').classList.remove('hidden');
         } else {
+            console.log('❌ Password incorrect');
             alert('Incorrect password! Please try again.');
-            document.getElementById('passwordInput').value = '';
+            passwordInput.value = '';
+            passwordInput.focus();
+        }
+    }
+    
+    // Add event listener for Enter key in password field
+    function setupPasswordEnterKey() {
+        const passwordInput = document.getElementById('passwordInput');
+        if (passwordInput) {
+            passwordInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    checkPassword();
+                }
+            });
+        }
+    }
+    
+    // Add click event listener to unlock button (as backup)
+    function setupUnlockButton() {
+        const unlockButton = document.querySelector('.unlock-btn');
+        if (unlockButton) {
+            unlockButton.addEventListener('click', checkPassword);
         }
     }
     
@@ -513,8 +525,18 @@
         // Initialize Socket.io
         initializeSocket();
         
+        // Setup password functionality
+        setupPasswordEnterKey();
+        setupUnlockButton();
+        
         // Check for icons after load
         setTimeout(showFallbackIcons, 500);
+        
+        // Debug: Check if elements exist
+        console.log('Password input exists:', !!document.getElementById('passwordInput'));
+        console.log('Unlock button exists:', !!document.querySelector('.unlock-btn'));
+        console.log('Password section exists:', !!document.getElementById('passwordSection'));
+        console.log('Timer control exists:', !!document.getElementById('timerControl'));
     });
 </script>
 </body>
