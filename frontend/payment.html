@@ -258,23 +258,22 @@
         // Show loading state
         document.getElementById('loading').style.display = 'block';
         
-        let handler = PaystackPop.setup({
-            key: "pk_test_17014f2dc60b93d64e7625f6158f9f3724f4ecd4",
-            email: email,
-            amount: 500 * 100,
-            currency: "NGN",
-            ref: "CHYLNX_" + Math.floor((Math.random() * 1000000000) + 1),
-            callback: function(response){
-                // Send payment verification to server
-                verifyPayment(response.reference, email);
-            },
-            onClose: function(){
-                document.getElementById('loading').style.display = 'none';
-                alert("Payment cancelled.");
-            }
-        });
-        handler.openIframe();
+      let handler = PaystackPop.setup({
+    key: PAYSTACK_PUBLIC_KEY,
+    email: email,
+    amount: 500 * 100,
+    currency: "NGN",
+    ref: "CHYLNX_" + Math.floor((Math.random() * 1000000000) + 1),
+    callback: function(response){
+        verifyPayment(response.reference, email);
+    },
+    onClose: function(){
+        document.getElementById('loading').style.display = 'none';
+        alert("Payment cancelled.");
     }
+});
+handler.openIframe();
+
 
     function verifyPayment(reference, email) {
         // Send verification request to your backend
