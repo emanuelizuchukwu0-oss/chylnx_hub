@@ -465,7 +465,7 @@ import requests
 # Add this after your other routes, before Socket.IO section
 # ---------------- Payment Routes ----------------
 
-PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY", "sk_test_...")
+PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY", "sk_test_107facc81937e32222049c1e2cdf1de58ca1259e")
 
 @app.route("/initialize_payment", methods=["POST"])
 def initialize_payment():
