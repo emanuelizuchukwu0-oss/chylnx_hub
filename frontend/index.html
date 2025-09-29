@@ -367,32 +367,45 @@
 
     // Initialize Socket.io connection
     function initializeSocket() {
-        socket = io();
+    socket = io();
+    
+    // Listen for timer updates from server
+    socket.on('timer_update', function(data) {
+        console.log('📡 Received timer update from server:', data);
         
-        // Listen for timer updates from server
-        socket.on('timer_update', function(data) {
-            console.log('📡 Received timer update:', data);
+        // Clear any existing timer first
+        clearInterval(timerInterval);
+        
+        if (data.is_running && data.remaining_seconds > 0) {
+            // Use the server-provided time
+            totalSeconds = data.remaining_seconds;
+            console.log('⏰ Syncing with server timer:', totalSeconds, 'seconds remaining');
             
-            // Clear any existing timer
-            clearInterval(timerInterval);
-            
-            if (data.is_running && data.remaining_seconds > 0) {
-                totalSeconds = data.remaining_seconds;
-                console.log('⏰ Starting timer with:', totalSeconds, 'seconds');
-                updateTimer(); // Update immediately
-                timerInterval = setInterval(updateTimer, 1000);
-            } else {
-                // No active timer
-                console.log('⏰ No active timer');
-                totalSeconds = 0;
-                document.getElementById('countdown').textContent = "00:00";
-            }
-        });
-        
-        socket.on('timer_error', function(data) {
-            alert('Timer error: ' + data.message);
-        });
-        
+            // Start counting down immediately
+            updateTimer();
+            timerInterval = setInterval(updateTimer, 1000);
+        } else {
+            // No active timer
+            console.log('⏰ No active timer on server');
+            totalSeconds = 0;
+            document.getElementById('countdown').textContent = "00:00";
+        }
+    });
+    
+    socket.on('timer_error', function(data) {
+        alert('Timer error: ' + data.message);
+    });
+    
+    // The server now automatically sends timer state on connect
+    // No need to manually request it
+    
+    // Handle connection issues
+    socket.on('connect_error', function(error) {
+        console.error('❌ Connection error:', error);
+        // Show connection error to user
+        document.getElementById('countdown').textContent = "Connecting...";
+    });
+}
         // Request current timer state when connected
         socket.on('connect', function() {
             console.log('🔗 Connected to server, requesting timer state');
