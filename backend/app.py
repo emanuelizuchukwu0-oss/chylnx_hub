@@ -437,7 +437,8 @@ def handle_message(data):
 
         # Broadcast to other clients but NOT to the sender (sender already added locally)
         # include_self=False prevents sender from receiving the broadcast back
-        emit("message", msg, broadcast=True, include_self=False)
+        emit("message", msg, broadcast=True, include_self=True)
+
 
         # (Optional) still send an ack to sender if you want server-validated message id
         # emit("message_ack", {"status": "ok", "timestamp": msg["timestamp"]}, to=request.sid)
@@ -465,7 +466,7 @@ import requests
 # Add this after your other routes, before Socket.IO section
 # ---------------- Payment Routes ----------------
 
-PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY", "sk_test_107facc81937e32222049c1e2cdf1de58ca1259e")
+PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY", "sk_test_...")
 
 @app.route("/initialize_payment", methods=["POST"])
 def initialize_payment():

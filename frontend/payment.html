@@ -258,8 +258,8 @@
         // Show loading state
         document.getElementById('loading').style.display = 'block';
         
-      let handler = PaystackPop.setup({
-    key: PAYSTACK_PUBLIC_KEY,
+     let handler = PaystackPop.setup({
+    key: "pk_test_17014f2dc60b93d64e7625f6158f9f3724f4ecd4", // your public key here
     email: email,
     amount: 500 * 100,
     currency: "NGN",
@@ -272,6 +272,7 @@
         alert("Payment cancelled.");
     }
 });
+
 handler.openIframe();
 
 
@@ -327,7 +328,7 @@ handler.openIframe();
     
     function redirectToIndex() {
         // Redirect to the index page
-        window.location.href = "/";
+        window.location.href = "/index";
     }
     
     function redirectNow() {
