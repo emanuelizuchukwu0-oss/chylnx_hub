@@ -156,8 +156,8 @@ def set_timer(minutes, seconds):
     total_seconds = (minutes * 60) + seconds
     end_time = datetime.now() + timedelta(seconds=total_seconds)
     
-    # Deactivate any existing timers
-    execute_query("UPDATE game_timer SET is_running = FALSE WHERE is_running = TRUE")
+    # Clear ALL existing timers first
+    execute_query("DELETE FROM game_timer")
     
     # Create new timer
     execute_query(
@@ -177,8 +177,8 @@ def get_remaining_time():
     now = datetime.now()
     
     if now >= end_time:
-        # Timer expired, deactivate it
-        execute_query("UPDATE game_timer SET is_running = FALSE WHERE id = %s", (timer['id'],))
+        # Timer expired, delete it
+        execute_query("DELETE FROM game_timer WHERE id = %s", (timer['id'],))
         return 0
     
     remaining = (end_time - now).total_seconds()
@@ -196,8 +196,6 @@ def internal_error(e):
 # ---------------- Routes ----------------
 @app.route("/")
 def index():
-    # Get current timer state for the frontend
-    remaining = get_remaining_time()
     return render_template("index.html")
 
 @app.route("/payment")
@@ -315,14 +313,17 @@ connected_users = {}
 def handle_connect():
     """Send current timer state when client connects"""
     remaining = get_remaining_time()
-    if remaining is not None:
+    print(f"🔔 Client connected. Remaining time: {remaining}")
+    
+    if remaining is not None and remaining > 0:
         emit('timer_update', {
             'remaining_seconds': remaining,
             'is_running': True
         })
     else:
+        # No active timer or timer expired
         emit('timer_update', {
-            'remaining_seconds': 300,  # Default 5 minutes
+            'remaining_seconds': 0,
             'is_running': False
         })
 
@@ -337,8 +338,11 @@ def handle_set_timer(data):
             emit('timer_error', {'message': 'Please set a valid timer duration'})
             return
         
+        print(f"⏰ Setting timer: {minutes}m {seconds}s")
         end_time = set_timer(minutes, seconds)
         remaining = get_remaining_time()
+        
+        print(f"✅ Timer set. End time: {end_time}, Remaining: {remaining}s")
         
         # Broadcast to all clients
         emit('timer_update', {
@@ -347,20 +351,23 @@ def handle_set_timer(data):
         }, broadcast=True)
         
     except Exception as e:
+        print(f"❌ Timer setting error: {e}")
         emit('timer_error', {'message': str(e)})
 
 @socketio.on("get_timer")
 def handle_get_timer():
     """Send current timer state to requesting client"""
     remaining = get_remaining_time()
-    if remaining is not None:
+    print(f"📡 Sending timer state: {remaining}s")
+    
+    if remaining is not None and remaining > 0:
         emit('timer_update', {
             'remaining_seconds': remaining,
             'is_running': True
         })
     else:
         emit('timer_update', {
-            'remaining_seconds': 300,
+            'remaining_seconds': 0,
             'is_running': False
         })
 

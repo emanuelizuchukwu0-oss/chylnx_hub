@@ -362,7 +362,7 @@
 <script>
     // Timer functionality
     let timerInterval;
-    let totalSeconds = 300; // Default 5 minutes
+    let totalSeconds = 0; // Start with 0, will be set by server
     let socket = null;
 
     // Initialize Socket.io connection
@@ -371,13 +371,20 @@
         
         // Listen for timer updates from server
         socket.on('timer_update', function(data) {
+            console.log('📡 Received timer update:', data);
+            
+            // Clear any existing timer
+            clearInterval(timerInterval);
+            
             if (data.is_running && data.remaining_seconds > 0) {
                 totalSeconds = data.remaining_seconds;
-                clearInterval(timerInterval);
+                console.log('⏰ Starting timer with:', totalSeconds, 'seconds');
                 updateTimer(); // Update immediately
                 timerInterval = setInterval(updateTimer, 1000);
-            } else if (!data.is_running) {
-                clearInterval(timerInterval);
+            } else {
+                // No active timer
+                console.log('⏰ No active timer');
+                totalSeconds = 0;
                 document.getElementById('countdown').textContent = "00:00";
             }
         });
@@ -388,7 +395,18 @@
         
         // Request current timer state when connected
         socket.on('connect', function() {
+            console.log('🔗 Connected to server, requesting timer state');
             socket.emit('get_timer');
+        });
+        
+        // Handle connection errors
+        socket.on('connect_error', function(error) {
+            console.error('❌ Connection error:', error);
+            // Fallback to local timer
+            if (totalSeconds === 0) {
+                totalSeconds = 300; // Default 5 minutes
+                timerInterval = setInterval(updateTimer, 1000);
+            }
         });
     }
 
@@ -423,6 +441,7 @@
         
         // Send timer to server
         if (socket) {
+            console.log('⏰ Sending timer to server:', minutes, 'minutes', seconds, 'seconds');
             socket.emit('set_timer', {
                 minutes: minutes,
                 seconds: seconds
@@ -473,11 +492,13 @@
 
     // Initialize everything when page loads
     window.addEventListener('load', function() {
+        console.log('🚀 Page loaded, initializing...');
+        
+        // Start with default display
+        document.getElementById('countdown').textContent = "00:00";
+        
         // Initialize Socket.io
         initializeSocket();
-        
-        // Start with default timer (will be overridden by server if active)
-        timerInterval = setInterval(updateTimer, 1000);
         
         // Check for icons after load
         setTimeout(showFallbackIcons, 500);
