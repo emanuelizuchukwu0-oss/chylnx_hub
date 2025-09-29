@@ -435,6 +435,142 @@ def handle_disconnect():
         emit("message", {"from": "System", "text": f"{username} left"}, broadcast=True)
         emit("user_count_update", {"count": len(connected_users)}, broadcast=True)
 
+# Add this import at the top with other imports
+import requests
+
+# Add this after your other routes, before Socket.IO section
+# ---------------- Payment Routes ----------------
+
+PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY", "sk_test_...")
+
+@app.route("/initialize_payment", methods=["POST"])
+def initialize_payment():
+    """Initialize payment with Paystack"""
+    try:
+        # Get user info from session
+        user_id = session.get("user_id")
+        username = session.get("username")
+        
+        if not user_id:
+            return jsonify({"error": "User not logged in"}), 401
+        
+        # Generate unique reference
+        reference = str(uuid.uuid4())
+        amount = 50000  # 500 Naira in kobo
+        
+        # Initialize payment with Paystack
+        headers = {
+            "Authorization": f"Bearer {PAYSTACK_SECRET_KEY}",
+            "Content-Type": "application/json"
+        }
+        
+        data = {
+            "email": f"{username}@chylnx.com",  # Use username as email base
+            "amount": amount,
+            "reference": reference,
+            "callback_url": f"{request.host_url}payment_verify",
+            "metadata": {
+                "user_id": user_id,
+                "username": username
+            }
+        }
+        
+        response = requests.post(
+            "https://api.paystack.co/transaction/initialize",
+            headers=headers,
+            json=data
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            # Store payment reference in session or database
+            session['payment_reference'] = reference
+            
+            return jsonify({
+                "authorization_url": result['data']['authorization_url'],
+                "reference": reference
+            })
+        else:
+            return jsonify({"error": "Payment initialization failed"}), 400
+            
+    except Exception as e:
+        print(f"❌ Payment initialization error: {e}")
+        return jsonify({"error": "Payment initialization failed"}), 500
+
+@app.route("/payment_verify")
+def payment_verify():
+    """Verify payment after Paystack redirect"""
+    try:
+        reference = request.args.get('reference')
+        trxref = request.args.get('trxref')
+        
+        # Use the reference from URL or session
+        payment_ref = reference or trxref or session.get('payment_reference')
+        
+        if not payment_ref:
+            flash("Payment verification failed: No reference found", "error")
+            return redirect(url_for("payment"))
+        
+        # Verify payment with Paystack
+        headers = {
+            "Authorization": f"Bearer {PAYSTACK_SECRET_KEY}",
+            "Content-Type": "application/json"
+        }
+        
+        response = requests.get(
+            f"https://api.paystack.co/transaction/verify/{payment_ref}",
+            headers=headers
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            
+            if result['data']['status'] == 'success':
+                # Payment successful
+                user_id = session.get("user_id")
+                amount = result['data']['amount'] / 100  # Convert from kobo to Naira
+                
+                # Store payment in database
+                execute_query(
+                    "INSERT INTO payments (user_id, reference, amount, status) VALUES (%s, %s, %s, %s)",
+                    (user_id, payment_ref, amount, 'success')
+                )
+                
+                # Unlock chat for user
+                session['paid'] = True
+                flash("Payment successful! You can now access the chat.", "success")
+                return redirect(url_for("chat"))
+            else:
+                flash("Payment verification failed. Please try again or contact support.", "error")
+                return redirect(url_for("payment"))
+        else:
+            flash("Payment verification failed. Please try again or contact support.", "error")
+            return redirect(url_for("payment"))
+            
+    except Exception as e:
+        print(f"❌ Payment verification error: {e}")
+        flash("Payment verification failed. Please try again or contact support.", "error")
+        return redirect(url_for("payment"))
+
+@app.route("/check_payment_status")
+def check_payment_status():
+    """Check if current user has paid"""
+    user_id = session.get("user_id")
+    if not user_id:
+        return jsonify({"paid": False})
+    
+    # Check if user has a successful payment
+    payment = execute_query(
+        "SELECT * FROM payments WHERE user_id = %s AND status = 'success' LIMIT 1",
+        (user_id,), fetch=True
+    )
+    
+    if payment:
+        session['paid'] = True
+        return jsonify({"paid": True})
+    else:
+        return jsonify({"paid": False})
+
 # ---------------- Run ----------------
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
