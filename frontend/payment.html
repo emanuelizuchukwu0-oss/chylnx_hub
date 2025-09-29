@@ -229,119 +229,117 @@
   </div>
 
  <script>
-    // Connect to Socket.IO
-    const socket = io();
-    
-    // Listen for session reset events
-    socket.on('session_reset', function(data) {
-        console.log("Session reset received on payment page");
-        showSessionNotice();
-    });
-    
-    function showSessionNotice() {
-        document.getElementById('sessionNotice').style.display = 'block';
-    }
-    
-    function payWithPaystack() {
-        const email = document.getElementById('email').value;
-        
-        // Validate email
-        if (!email || !email.includes('@')) {
-            alert('Please enter a valid email address');
-            return;
-        }
-        
-        // Hide any previous error messages
-        document.getElementById('errorMessage').style.display = 'none';
-        document.getElementById('sessionNotice').style.display = 'none';
-        
-        // Show loading state
-        document.getElementById('loading').style.display = 'block';
-        
-     let handler = PaystackPop.setup({
-    key: "pk_test_17014f2dc60b93d64e7625f6158f9f3724f4ecd4", // your public key here
-    email: email,
-    amount: 500 * 100,
-    currency: "NGN",
-    ref: "CHYLNX_" + Math.floor((Math.random() * 1000000000) + 1),
-    callback: function(response){
-        verifyPayment(response.reference, email);
-    },
-    onClose: function(){
-        document.getElementById('loading').style.display = 'none';
-        alert("Payment cancelled.");
-    }
-});
+  // Connect to Socket.IO
+  const socket = io();
 
-handler.openIframe();
+  // Listen for session reset events
+  socket.on('session_reset', function(data) {
+      console.log("Session reset received on payment page");
+      showSessionNotice();
+  });
 
+  function showSessionNotice() {
+      document.getElementById('sessionNotice').style.display = 'block';
+  }
 
-    function verifyPayment(reference, email) {
-        // Send verification request to your backend
-        fetch(`/verify/${reference}`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === "success") {
-                document.getElementById('loading').style.display = 'none';
-                showSuccessOverlay();
-                
-                // Notify server to update user's payment status
-                socket.emit('payment_completed', { 
-                    reference: reference,
-                    email: email 
-                });
-            } else {
-                // Show error message
-                document.getElementById('errorMessage').style.display = 'block';
-                document.getElementById('loading').style.display = 'none';
-            }
-        })
-        .catch(error => {
-            document.getElementById('loading').style.display = 'none';
-            document.getElementById('errorMessage').style.display = 'block';
-        });
-    } 
+  function payWithPaystack() {
+      const email = document.getElementById('email').value;
 
-    function showSuccessOverlay() {
-        const overlay = document.getElementById('successOverlay');
-        overlay.classList.add('active');
-        
-        // Start countdown
-        let seconds = 3;
-        const countdownElement = document.getElementById('countdown');
-        
-        const countdownInterval = setInterval(function() {
-            seconds--;
-            countdownElement.textContent = seconds;
-            
-            if (seconds <= 0) {
-                clearInterval(countdownInterval);
-                redirectToIndex(); // CHANGED: Goes to index instead of chat
-            }
-        }, 1000);
-    }
-    
-    function redirectToIndex() {
-        // Redirect to the index page
-        window.location.href = "/index";
-    }
-    
-    function redirectNow() {
-        // Immediately redirect when button is clicked
-        redirectToIndex();
-    }
+      // Validate email
+      if (!email || !email.includes('@')) {
+          alert('Please enter a valid email address');
+          return;
+      }
 
-    // Allow pressing Enter to submit
-    document.getElementById('email').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            payWithPaystack();
-        }
-    });
+      // Hide any previous error messages
+      document.getElementById('errorMessage').style.display = 'none';
+      document.getElementById('sessionNotice').style.display = 'none';
+
+      // Show loading state
+      document.getElementById('loading').style.display = 'block';
+
+      let handler = PaystackPop.setup({
+          key: "pk_test_17014f2dc60b93d64e7625f6158f9f3724f4ecd4", // ✅ your public test key
+          email: email,
+          amount: 500 * 100,
+          currency: "NGN",
+          ref: "CHYLNX_" + Math.floor((Math.random() * 1000000000) + 1),
+          callback: function(response) {
+              verifyPayment(response.reference, email); // ✅ now this works
+          },
+          onClose: function() {
+              document.getElementById('loading').style.display = 'none';
+              alert("Payment cancelled.");
+          }
+      });
+
+      handler.openIframe();
+  }
+
+  // ✅ FIX: verifyPayment moved outside payWithPaystack
+  function verifyPayment(reference, email) {
+      fetch(`/verify/${reference}`, {
+          method: 'GET',
+          headers: {
+              'Content-Type': 'application/json',
+          }
+      })
+      .then(response => response.json())
+      .then(data => {
+          if (data.status === "success") {
+              document.getElementById('loading').style.display = 'none';
+              showSuccessOverlay();
+
+              // Notify server to update user's payment status
+              socket.emit('payment_completed', { 
+                  reference: reference,
+                  email: email 
+              });
+          } else {
+              document.getElementById('errorMessage').style.display = 'block';
+              document.getElementById('loading').style.display = 'none';
+          }
+      })
+      .catch(error => {
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('errorMessage').style.display = 'block';
+      });
+  }
+
+  function showSuccessOverlay() {
+      const overlay = document.getElementById('successOverlay');
+      overlay.classList.add('active');
+
+      // Start countdown
+      let seconds = 3;
+      const countdownElement = document.getElementById('countdown');
+
+      const countdownInterval = setInterval(function() {
+          seconds--;
+          countdownElement.textContent = seconds;
+
+          if (seconds <= 0) {
+              clearInterval(countdownInterval);
+              redirectToIndex();
+          }
+      }, 1000);
+  }
+
+  function redirectToIndex() {
+      window.location.href = "/index";
+  }
+
+  function redirectNow() {
+      redirectToIndex();
+  }
+
+  // Allow pressing Enter to trigger payment
+  document.getElementById('email').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+          payWithPaystack();
+      }
+  });
 </script>
+
 </body>
 </html>
