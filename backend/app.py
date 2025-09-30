@@ -625,48 +625,53 @@ def handle_disconnect_short():
     # Broadcast updated user count
     socketio.emit("user_count_update", {"count": len(connected_users)})
 
-@app.route("/announce_winner", methods=["POST"])
-def announce_winner():
-    """Announce one or more winners to all users (admin only)"""
+# Add this with your other Socket.IO event handlers
+@socketio.on("announce_winner")
+def handle_announce_winner(data):
+    """Handle winner announcement and broadcast to all clients"""
     try:
-        data = request.get_json()
-        passcode = data.get("passcode")
-        winners = data.get("winners")  # can be a string or list
-
-        if passcode != os.getenv("ADMIN_PASSCODE", "letmein123"):
-            return jsonify({"error": "Invalid passcode"}), 403
-
+        winners = data.get("winners")
         if not winners:
-            return jsonify({"error": "Winner(s) required"}), 400
-
-        # Normalize winners list
-        if isinstance(winners, str):
-            winners = [winners]
-        elif not isinstance(winners, list):
-            return jsonify({"error": "Invalid winners format"}), 400
-
-        winners_text = ", ".join(winners)
-        announcement = f"🎉 Winners: {winners_text}! 🎉"
-
-        # Save as system message (optional: so history records it)
-        execute_query(
-            "INSERT INTO messages (user_id, username, message) VALUES (%s, %s, %s)",
-            (None, "SYSTEM", announcement)
+            return
+            
+        print(f"🎉 Broadcasting winner announcement: {winners}")
+        
+        # Broadcast to ALL connected clients
+        emit(
+            "winner_announced", 
+            {"winners": winners}, 
+            broadcast=True,  # This sends to all connected clients
+            include_self=True  # Also send to the user who triggered it
         )
-
-        # Emit to all connected users (one event only)
-        socketio.emit(
-            "winner_announcement",
-            {"winners": winners},
-            broadcast=True
-        )
-
-        print("✅ Winners announced:", winners_text)
-        return jsonify({"success": True, "winners": winners})
-
+        
+        print("✅ Winner announcement broadcasted to all users")
+        
     except Exception as e:
-        print("❌ Error announcing winners:", e)
-        return jsonify({"error": "Failed to announce winners"}), 500
+        print(f"❌ Error in handle_announce_winner: {e}")
+        traceback.print_exc()
+
+@socketio.on("announce_winner")
+def handle_announce_winner(data):
+    """Handle winner announcement and broadcast to all clients"""
+    try:
+        winners = data.get("winners")
+        if not winners:
+            return
+            
+        print(f"🎉 Broadcasting winner announcement: {winners}")
+        
+        # Broadcast to ALL connected clients
+        emit(
+            "winner_announced", 
+            {"winners": winners}, 
+            broadcast=True,
+            include_self=True
+        )
+        
+        print("✅ Winner announcement broadcasted to all users")
+        
+    except Exception as e:
+        print(f"❌ Error in handle_announce_winner: {e}")        
 
 
 # ---------------- Run ----------------
