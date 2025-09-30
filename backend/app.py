@@ -596,17 +596,37 @@ def check_payment_status():
     else:
         return jsonify({"paid": False})
 
-online_users = set()  # keep track of all connected session IDs
+connected_users = {}  # username -> sid
 
-@socketio.on("connect")
-def handle_connect():
-    online_users.add(request.sid)
-    emit("online_count", {"count": len(online_users)}, broadcast=True)
+@socketio.on("join_chat")
+def handle_join(data):
+    username = data.get("username")
+    if not username:
+        return
+
+    # Save username + sid
+    connected_users[username] = request.sid
+    print(f"✅ {username} joined, total users: {len(connected_users)}")
+
+    # Broadcast updated user count
+    socketio.emit("user_count_update", {"count": len(connected_users)})
+
 
 @socketio.on("disconnect")
 def handle_disconnect():
-    online_users.discard(request.sid)
-    emit("online_count", {"count": len(online_users)}, broadcast=True)
+    # Find user by sid
+    username_to_remove = None
+    for username, sid in list(connected_users.items()):
+        if sid == request.sid:
+            username_to_remove = username
+            break
+
+    if username_to_remove:
+        del connected_users[username_to_remove]
+        print(f"❌ {username_to_remove} left, total users: {len(connected_users)}")
+
+    # Broadcast updated user count
+    socketio.emit("user_count_update", {"count": len(connected_users)})
 
 
 # ---------------- Run ----------------
