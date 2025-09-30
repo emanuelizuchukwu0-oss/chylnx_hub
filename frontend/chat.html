@@ -618,6 +618,17 @@ function announceWinner() {
     closeWinnerModal();
 }
 
+// Winner announced from server
+socket.on("winner_announced", function(data) {
+    const winners = Array.isArray(data.winners) ? data.winners.join(", ") : data.winners;
+    document.getElementById("winnerName").textContent = winners;
+    document.getElementById("winnerModal").style.display = "flex";
+
+    // Disable chat input
+    document.getElementById("chatInput").disabled = true;
+    document.getElementById("sendBtn").disabled = true;
+});
+
     </script>
 </body>
 </html>

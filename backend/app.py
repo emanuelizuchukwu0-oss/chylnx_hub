@@ -656,14 +656,11 @@ def announce_winner():
 
         # Emit to all connected users
         socketio.emit(
-            "new_message",
-            {
-                "from": "SYSTEM",
-                "text": announcement,
-                "timestamp": datetime.utcnow().isoformat()
-            },
-            broadcast=True
-        )
+    "winner_announced",
+    {"winners": winners},
+    broadcast=True
+)
+
 
         print("✅ Winners announced:", winners_text)
         return jsonify({"success": True, "winners": winners})
