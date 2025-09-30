@@ -596,6 +596,19 @@ def check_payment_status():
     else:
         return jsonify({"paid": False})
 
+online_users = set()  # keep track of all connected session IDs
+
+@socketio.on("connect")
+def handle_connect():
+    online_users.add(request.sid)
+    emit("online_count", {"count": len(online_users)}, broadcast=True)
+
+@socketio.on("disconnect")
+def handle_disconnect():
+    online_users.discard(request.sid)
+    emit("online_count", {"count": len(online_users)}, broadcast=True)
+
+
 # ---------------- Run ----------------
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
