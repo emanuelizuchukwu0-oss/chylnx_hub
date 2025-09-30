@@ -332,51 +332,18 @@ def handle_get_timer():
 
 connected_users = {}  # {username: {sid, user_id}}
 
-@socketio.on("join_chat")
+@socketio.on("join")
 def handle_join(data):
-    try:
-        username = data.get("username")
-        if not username:
-            return
+    username = data.get("username")
+    room = data.get("room")
 
-        # Lookup user in DB
-        user = execute_query(
-            "SELECT id FROM users WHERE username=%s LIMIT 1",
-            (username,), fetch=True
-        )
-        if not user:
-            # create user as fallback
-            execute_query("INSERT INTO users (username) VALUES (%s)", (username,))
-            user = execute_query(
-                "SELECT id FROM users WHERE username=%s LIMIT 1",
-                (username,), fetch=True
-            )
-            if not user:
-                print("❌ Could not create/fetch user", username)
-                return
+    join_room(room)
 
-        user_id = user[0]["id"]
+    # load history for this room
+    history = load_chat_history(room)
 
-        # Save in memory
-        connected_users[username] = {"sid": request.sid, "user_id": user_id}
-        print(f"✅ {username} joined, total users: {len(connected_users)}")
-
-        # Send chat history only to this user
-        history = execute_query("""
-            SELECT u.username AS "from", m.message AS text, m.created_at AS timestamp
-            FROM messages m
-            JOIN users u ON m.user_id = u.id
-            ORDER BY m.created_at ASC
-            LIMIT 500
-        """, fetch=True) or []
-        emit("chat_history", history, to=request.sid)
-
-        # Update everyone with the new count
-        socketio.emit("user_count_update", {"count": len(connected_users)}, broadcast=True)
-
-    except Exception as e:
-        print("❌ join_chat error:", e)
-        traceback.print_exc()
+    # safer emit
+    emit("chat_history", history, room=request.sid)
 
 
 @socketio.on("send_message")
