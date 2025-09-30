@@ -572,6 +572,29 @@
 
             socket = io(); // connect to server
 
+        // Add this with your other socket.on listeners in initializeChat()
+socket.on('winner_announced', function(data) {
+    console.log('🎉 Received winner announcement:', data);
+    
+    const winners = Array.isArray(data.winners) ? data.winners.join(", ") : data.winners;
+    
+    // Show the announcement overlay for EVERY user
+    showWinnerAnnouncement(winners);
+    
+    // Also add system message to chat
+    addSystemMessage(`🏆 WINNER ANNOUNCEMENT: ${winners}! Congratulations! 🎉`);
+    
+    // Optional: Disable chat input temporarily
+    document.getElementById("chatInput").disabled = true;
+    document.getElementById("sendBtn").disabled = true;
+    
+    // Re-enable after overlay closes (optional)
+    setTimeout(() => {
+        document.getElementById("chatInput").disabled = false;
+        document.getElementById("sendBtn").disabled = false;
+    }, 10000);
+});    
+
             // Join chat
             socket.emit('join_chat', { username: myUsername });
 
@@ -691,27 +714,25 @@
         }
 
         function announceWinner() {
-            if (!selectedWinner) return alert("Select a winner by clicking their name!");
-            
-            // Ask for passcode
-            const entered = prompt("Enter passcode to announce the winner:");
-            if (entered !== ANNOUNCE_PASSCODE) {
-                alert("❌ Wrong passcode! You are not allowed to announce.");
-                return;
-            }
+    if (!selectedWinner) return alert("Select a winner by clicking their name!");
+    
+    // Ask for passcode
+    const entered = prompt("Enter passcode to announce the winner:");
+    if (entered !== ANNOUNCE_PASSCODE) {
+        alert("❌ Wrong passcode! You are not allowed to announce.");
+        return;
+    }
 
-            // Show the announcement overlay immediately
-            showWinnerAnnouncement(selectedWinner);
-            
-            // Emit to server (broadcast to all users)
-            socket.emit('announce_winner', { winners: [selectedWinner] });
+    // Emit to server - this will broadcast to ALL users
+    socket.emit('announce_winner', { winners: [selectedWinner] });
 
-            // Reset selection
-            selectedWinner = null;
-            closeWinnerModal();
-        }
-
-        window.addEventListener('DOMContentLoaded', initApp);
+    // Show overlay immediately for the admin too
+    showWinnerAnnouncement(selectedWinner);
+    
+    // Reset selection
+    selectedWinner = null;
+    closeWinnerModal();
+}
     </script>
 </body>
 </html>
