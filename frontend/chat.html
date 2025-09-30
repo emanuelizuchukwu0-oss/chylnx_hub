@@ -1,156 +1,296 @@
-<!-- Winner Modal -->
-<div id="winnerModal">
-  <div class="winner-modal-content">
-    <h2>🎉 Winner Selected! 🎉</h2>
-    <p id="winnerMessage">THE WINNER IS: <span id="winnerName"></span></p>
-    <button onclick="closeWinnerModal()">Close</button>
-  </div>
-</div>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chylnx Hub Chat</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        /* (your original styles unchanged) */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Helvetica, Arial, sans-serif; height: 100vh; background: #e5ddd5; display:flex; flex-direction:column; overflow:hidden; }
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
-<script>
-  let myUsername = "";
-  let socket = null;
-  let selectedWinner = null;
-  const ANNOUNCE_PASSCODE = "1234"; // change to your secret
+        header { background:#25D366; color:white; padding:clamp(8px,2vw,10px) clamp(12px,3vw,16px); display:flex; justify-content:space-between; align-items:center; box-shadow:0 1px 3px rgba(0,0,0,0.1); z-index:100; position:fixed; top:0; left:0; right:0; height:clamp(50px,12vw,60px); }
+        .header-info { display:flex; align-items:center; gap:clamp(10px,2vw,15px); }
+        .header-actions { display:flex; gap:clamp(15px,3vw,20px); font-size:clamp(16px,4vw,18px); }
 
-  // Initialize app
-  function initApp() {
-    document.getElementById('sendBtn').addEventListener('click', sendMessage);
-    document.getElementById('chatInput').addEventListener('keypress', handleKeyPress);
-    document.getElementById('bell').addEventListener('click', announceWinner);
-    document.getElementById('usernameInput').addEventListener('keypress', function(e) {
-      if (e.key === 'Enter') setUsername();
-    });
-    document.getElementById('usernameOverlay').style.display = 'flex';
-    document.getElementById('usernameInput').focus();
-  }
+        #chatContainer { flex:1; display:flex; flex-direction:column; background-image:url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" opacity="0.05"><path fill="%23007bff" d="M30,30 Q50,10 70,30 Q90,50 70,70 Q50,90 30,70 Q10,50 30,30 Z"/></svg>'); background-color:#e5ddd5; margin-top:clamp(50px,12vw,60px); margin-bottom:clamp(60px,15vw,70px); height:calc(100vh - clamp(50px,12vw,60px) - clamp(60px,15vw,70px)); }
+        #chatWindow { flex:1; padding:clamp(15px,3vw,20px); overflow-y:auto; display:flex; flex-direction:column; gap:clamp(6px,2vw,8px); height:100%; }
 
-  // Set username
-  function setUsername() {
-    const usernameInput = document.getElementById('usernameInput');
-    const username = usernameInput.value.trim();
-    if (!username) return alert("Please enter a username");
+        .message { max-width:min(70%,400px); padding:clamp(6px,2vw,8px) clamp(10px,2vw,12px); border-radius:7.5px; position:relative; word-wrap:break-word; animation:fadeIn 0.3s ease-in; }
+        @keyframes fadeIn { from { opacity:0; transform:translateY(10px);} to { opacity:1; transform:translateY(0);} }
+        .message.sent { align-self:flex-end; background:#dcf8c6; border-top-right-radius:0; }
+        .message.received { align-self:flex-start; background:white; border-top-left-radius:0; box-shadow:0 1px 0.5px rgba(0,0,0,0.1); }
+        .message-content { margin-bottom:2px; line-height:1.4; font-size:clamp(14px,3vw,16px); word-break:break-word; }
+        .message-time { font-size:clamp(10px,2vw,11px); color:#667781; text-align:right; margin-top:2px; }
+        .message.received .message-time { text-align:left; }
+        .sender-name { font-weight:600; color:#25D366; font-size:clamp(11px,2.5vw,13px); margin-bottom:2px; cursor:pointer; }
+        .sender-name:hover { text-decoration:underline; }
 
-    myUsername = username;
-    document.getElementById('usernameOverlay').style.display = 'none';
-    initializeChat();
-  }
+        #inputArea { background:#f0f0f0; padding:clamp(8px,2vw,10px) clamp(12px,3vw,16px); display:flex; align-items:center; gap:clamp(8px,2vw,10px); border-top:1px solid #d1d7db; position:fixed; bottom:0; left:0; right:0; height:clamp(60px,15vw,70px); z-index:100; }
+        #chatInput { flex:1; padding:clamp(10px,2vw,12px) clamp(12px,3vw,16px); border:none; border-radius:20px; outline:none; font-size:clamp(14px,3vw,15px); background:white; min-width:0; }
+        #sendBtn { background:#25D366; border:none; border-radius:50%; width:clamp(35px,10vw,40px); height:clamp(35px,10vw,40px); color:white; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background 0.2s; font-size:clamp(14px,3vw,16px); flex-shrink:0; }
+        #sendBtn:hover { background:#20bd5a; }
+        #sendBtn:disabled { background:#a0a0a0; cursor:not-allowed; }
 
-  // Initialize Socket.IO chat
-  function initializeChat() {
-    document.getElementById('chatInput').disabled = false;
-    document.getElementById('sendBtn').disabled = false;
+        .system-msg { text-align:center; color:#667781; font-size:clamp(12px,2.5vw,13px); margin:clamp(8px,2vw,10px) 0; font-style:italic; }
 
-    socket = io();
+        /* winner modal styles kept intact */
+        #winnerModal { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.8); display:none; justify-content:center; align-items:center; z-index:3000; }
+        .winner-modal-content { background:white; padding:clamp(20px,5vw,30px); border-radius:15px; text-align:center; max-width:min(400px,90vw); margin:20px; }
+        .winner-modal-content h2 { font-size:clamp(18px,4vw,22px); margin-bottom:15px; }
+        .winner-modal-content p { font-size:clamp(14px,3vw,16px); margin-bottom:20px; }
+        .winner-modal-content button { padding:clamp(8px,2vw,10px) clamp(15px,3vw,20px); background:#25D366; color:white; border:none; border-radius:5px; cursor:pointer; font-size:clamp(14px,3vw,16px); }
 
-    socket.emit('join_chat', { username: myUsername });
+        /* winner overlay (centered) */
+        #winnerOverlay {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg,#ffd700,#ff8c00);
+            color: #000;
+            font-size: 1.6rem;
+            font-weight: 800;
+            text-align: center;
+            padding: 24px 30px;
+            border-radius: 12px;
+            z-index: 99999;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+            max-width: 90%;
+            word-break: break-word;
+        }
 
-    socket.on('chat_history', function(history) {
-      const chatWindow = document.getElementById('chatWindow');
-      chatWindow.innerHTML = '<div class="system-msg">Welcome to the chat!</div>';
-      history.forEach(msg => addMessage(msg, msg.from === myUsername));
-    });
+        html, body { max-width:100%; overflow-x:hidden; }
+    </style>
+</head>
+<body data-paid="false">
+    <!-- Username Form Overlay -->
+    <div id="usernameOverlay">
+        <div id="usernameForm">
+            <h3>Join the Chat</h3>
+            <input type="text" id="usernameInput" placeholder="Enter your username" autocomplete="off">
+            <button onclick="setUsername()">Start Chatting</button>
+            <div class="form-note">Choose a cool name to get started!</div>
+        </div>
+    </div>
 
-    socket.on('message', function(msg) {
-      addMessage(msg, msg.from === myUsername);
-    });
+    <!-- Fixed Header -->
+    <header>
+        <div class="header-info">
+            <h2>💬 Chylnx Chat</h2>
+           <span id="onlineCount">Loading...</span>
+        </div>
+        <div class="header-actions">
+            <span id="bell" title="Announce Winner">🔔</span>
+        </div>
+    </header>
 
-    socket.on('user_count_update', function(data) {
-      document.getElementById('onlineCount').textContent = data.count + ' online';
-    });
+    <!-- Chat Container -->
+    <div id="chatContainer">
+        <div id="chatWindow">
+            <div class="system-msg">Welcome to the chat! Type a message to begin.</div>
+        </div>
+    </div>
 
-    socket.on('announcement', function(data) {
-      addSystemMessage(data.text);
-    });
+    <!-- Fixed Input Area -->
+    <div id="inputArea">
+        <input id="chatInput" type="text" placeholder="Type a message..." disabled>
+        <button id="sendBtn" disabled>➤</button>
+    </div>
 
-    // 🔥 Winner announcement (modal popup for all users)
-    socket.on("winner_announced", function(data) {
-      const winners = Array.isArray(data.winners) ? data.winners.join(", ") : data.winners;
-      document.getElementById("winnerName").textContent = winners;
-      document.getElementById("winnerModal").style.display = "flex";
+    <!-- Winner Modal -->
+    <div id="winnerModal">
+        <div class="winner-modal-content">
+            <h2>🎉 Winner Selected! 🎉</h2>
+            <p id="winnerMessage">THE WINNER IS: <span id="winnerName"></span></p>
+            <button onclick="closeWinnerModal()">Close</button>
+        </div>
+    </div>
 
-      // Disable chat input after winner announced
-      document.getElementById("chatInput").disabled = true;
-      document.getElementById("sendBtn").disabled = true;
-    });
+    <!-- Centered winner overlay (will be shown when server announces) -->
+    <div id="winnerOverlay"></div>
 
-    addSystemMessage(`Welcome, ${myUsername}! Start chatting below.`);
-    document.getElementById('chatInput').focus();
-  }
+    <!-- Load Socket.IO once -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
 
-  // Send message
-  function sendMessage() {
-    const input = document.getElementById('chatInput');
-    const text = input.value.trim();
-    if (!text || !socket) return;
+    <script>
+        let myUsername = "";
+        let socket = null;
+        let selectedWinner = null;
 
-    socket.emit('message', { from: myUsername, text: text });
-    input.value = '';
-    input.focus();
-  }
+        // passcode constant (keeps your earlier behavior)
+        const ANNOUNCE_PASSCODE = "1234";
 
-  function handleKeyPress(e) {
-    if (e.key === 'Enter') sendMessage();
-  }
+        // Initialize app
+        function initApp() {
+            document.getElementById('sendBtn').addEventListener('click', sendMessage);
+            document.getElementById('chatInput').addEventListener('keypress', handleKeyPress);
+            document.getElementById('bell').addEventListener('click', announceWinner);
+            document.getElementById('usernameInput').addEventListener('keypress', function(e) { if (e.key === 'Enter') setUsername(); });
 
-  function addMessage(msg, isSent) {
-    const chatWindow = document.getElementById('chatWindow');
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${isSent ? 'sent' : 'received'}`;
+            document.getElementById('usernameOverlay').style.display = 'flex';
+            document.getElementById('usernameInput').focus();
+        }
 
-    const time = new Date(msg.timestamp).toLocaleTimeString([], { 
-      hour: '2-digit', minute: '2-digit', hour12: true 
-    });
+        // Set username
+        function setUsername() {
+            const usernameInput = document.getElementById('usernameInput');
+            const username = usernameInput.value.trim();
+            if (!username) return alert("Please enter a username");
+            myUsername = username;
+            document.getElementById('usernameOverlay').style.display = 'none';
+            initializeChat();
+        }
 
-    messageDiv.innerHTML = `
-      ${!isSent ? `<div class="sender-name" onclick="selectWinner('${msg.from}')">${msg.from}</div>` : ''}
-      <div class="message-content">${msg.text}</div>
-      <div class="message-time">${time}</div>
-    `;
+        // Initialize Socket.IO chat
+        function initializeChat() {
+            document.getElementById('chatInput').disabled = false;
+            document.getElementById('sendBtn').disabled = false;
 
-    chatWindow.appendChild(messageDiv);
-    chatWindow.scrollTop = chatWindow.scrollHeight;
-  }
+            socket = io(); // connect to server
 
-  function addSystemMessage(text) {
-    const chatWindow = document.getElementById('chatWindow');
-    const div = document.createElement('div');
-    div.className = 'system-msg';
-    div.textContent = text;
-    chatWindow.appendChild(div);
-    chatWindow.scrollTop = chatWindow.scrollHeight;
-  }
+            // Join chat
+            socket.emit('join_chat', { username: myUsername });
 
-  // Winner selection
-  function selectWinner(username) {
-    if (username === myUsername) return alert("You can't select yourself!");
-    selectedWinner = username;
-    showWinnerModal(username);
-  }
+            // Attach listeners AFTER socket exists
+            socket.on('chat_history', function(history) {
+                const chatWindow = document.getElementById('chatWindow');
+                chatWindow.innerHTML = '<div class="system-msg">Welcome to the chat!</div>';
+                history.forEach(msg => addMessage(msg, msg.from === myUsername));
+            });
 
-  function showWinnerModal(username) {
-    document.getElementById('winnerName').textContent = username;
-    document.getElementById('winnerModal').style.display = 'flex';
-  }
+            socket.on('message', function(msg) {
+                addMessage(msg, msg.from === myUsername);
+            });
 
-  function closeWinnerModal() {
-    document.getElementById('winnerModal').style.display = 'none';
-  }
+            socket.on('user_count_update', function(data) {
+                document.getElementById('onlineCount').textContent = data.count + ' online';
+            });
 
-  function announceWinner() {
-    if (!selectedWinner) return alert("Select a winner by clicking their name!");
+            socket.on('announcement', function(data) {
+                addSystemMessage(data.text);
+            });
 
-    const entered = prompt("Enter passcode to announce the winner:");
-    if (entered !== ANNOUNCE_PASSCODE) {
-      alert("❌ Wrong passcode!");
-      return;
-    }
+            // CORE: listen for winner announcements (support both event names)
+            const winnerHandler = function(data) {
+                // server may send winners as array or single string
+                let winners = data && data.winners ? data.winners : data;
+                if (!Array.isArray(winners)) {
+                    if (typeof winners === 'string') winners = [winners];
+                    else winners = [];
+                }
+                if (winners.length === 0) return;
 
-    socket.emit('announce_winner', { winners: [selectedWinner] });
-    selectedWinner = null;
-    closeWinnerModal();
-  }
+                showWinnerOverlay(winners);
 
-  window.addEventListener('DOMContentLoaded', initApp);
-</script>
+                // also add a system message in chat history if you want:
+                addSystemMessage(`🏆 WINNER ANNOUNCEMENT: ${winners.join(", ")} 🎉`);
+            };
+            socket.on('winner_announcement', winnerHandler);
+            socket.on('winner_announced', winnerHandler);
+
+            addSystemMessage(`Welcome, ${myUsername}! Start chatting below.`);
+            document.getElementById('chatInput').focus();
+        }
+
+        // Handle Enter key in input
+        function handleKeyPress(e) {
+            if (e.key === 'Enter') sendMessage();
+        }
+
+        // Send message
+        function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const text = input.value.trim();
+            if (!text || !socket) return;
+            socket.emit('message', { from: myUsername, text: text });
+            input.value = '';
+            input.focus();
+        }
+
+        // Add message to chat window
+        function addMessage(msg, isSent) {
+            const chatWindow = document.getElementById('chatWindow');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isSent ? 'sent' : 'received'}`;
+
+            const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+
+            messageDiv.innerHTML = `
+                ${!isSent ? `<div class="sender-name" onclick="selectWinner('${msg.from}')">${msg.from}</div>` : ''}
+                <div class="message-content">${msg.text}</div>
+                <div class="message-time">${time}</div>
+            `;
+
+            chatWindow.appendChild(messageDiv);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        // System messages
+        function addSystemMessage(text) {
+            const chatWindow = document.getElementById('chatWindow');
+            const div = document.createElement('div');
+            div.className = 'system-msg';
+            div.textContent = text;
+            chatWindow.appendChild(div);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        // Winner selection (click username)
+        function selectWinner(username) {
+            if (username === myUsername) return alert("You can't select yourself as winner!");
+            selectedWinner = username;
+            showWinnerModal(username);
+        }
+
+        function showWinnerModal(username) {
+            document.getElementById('winnerName').textContent = username;
+            document.getElementById('winnerModal').style.display = 'flex';
+        }
+
+        function closeWinnerModal() {
+            document.getElementById('winnerModal').style.display = 'none';
+        }
+
+        // single announceWinner (passcode + emit) - only one definition kept
+        function announceWinner() {
+            if (!selectedWinner) return alert("Select a winner by clicking their name!");
+            const entered = prompt("Enter passcode to announce the winner:");
+            if (entered !== ANNOUNCE_PASSCODE) {
+                alert("❌ Wrong passcode! You are not allowed to announce.");
+                return;
+            }
+
+            // Emit to server (server should broadcast to everyone)
+            socket.emit('announce_winner', { winners: [selectedWinner] });
+
+            // Add system message locally (server broadcast will also trigger overlay)
+            addSystemMessage(`🏆 WINNER ANNOUNCEMENT: ${selectedWinner}! Congratulations! 🎉`);
+
+            selectedWinner = null;
+            closeWinnerModal();
+        }
+
+        // Show the centered overlay to ALL users when server announces winners
+        function showWinnerOverlay(winners) {
+            const overlay = document.getElementById('winnerOverlay');
+            overlay.innerText = `🎉 Winner(s): ${winners.join(", ")} 🎉`;
+            overlay.style.display = 'block';
+
+            // Disable chat input & send button while overlay is visible
+            document.getElementById('chatInput').disabled = true;
+            document.getElementById('sendBtn').disabled = true;
+
+            // Auto-hide overlay after 10s and re-enable chat
+            setTimeout(() => {
+                overlay.style.display = 'none';
+                document.getElementById('chatInput').disabled = false;
+                document.getElementById('sendBtn').disabled = false;
+                document.getElementById('chatInput').focus();
+            }, 10000);
+        }
+
+        window.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>
