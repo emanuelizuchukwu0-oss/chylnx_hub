@@ -7,6 +7,7 @@ from flask_socketio import SocketIO, emit
 from werkzeug.security import generate_password_hash, check_password_hash
 import psycopg2
 import psycopg2.extras
+import requests
 
 # ---------------- Paths ----------------
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # chylnx_backend
@@ -109,14 +110,15 @@ def init_db():
                 )
             """)
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS payments (
-                    id SERIAL PRIMARY KEY,
-                    user_id INT REFERENCES users(id),
-                    reference VARCHAR(255),
-                    amount NUMERIC(10,2),
-                    status VARCHAR(20) CHECK (status IN ('success','failed','pending')),
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
+               CREATE TABLE IF NOT EXISTS payments (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    reference VARCHAR(255) UNIQUE NOT NULL,
+    amount NUMERIC(10,2) NOT NULL,
+    status VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
             """)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS game_timer (
@@ -382,7 +384,7 @@ def handle_join(data):
 
     # Save username + sid
     connected_users[username] = request.sid
-    print(f"✅ {username} joined, total users: {len(connected_users)}")
+    print("✅ {} joined, total users: {}".format(username, len(connected_users)))
 
     # Send chat history only to this user
     history = execute_query("""
@@ -392,6 +394,12 @@ def handle_join(data):
         ORDER BY m.created_at ASC
         LIMIT 500
     """, fetch=True) or []
+
+    # --- convert timestamps -> iso so Socket.IO can JSON encode safely ----
+    for h in history:
+        if h.get("timestamp") is not None and isinstance(h["timestamp"], datetime):
+            h["timestamp"] = h["timestamp"].isoformat()
+    # --------------------------------------------------------------------
 
     emit("chat_history", history, to=request.sid)
 
@@ -403,53 +411,45 @@ def handle_message(data):
     try:
         print("📨 Message received (raw):", data)
 
-        # Find sender by request.sid (authoritative)
+        # Find sender by sid
         username = None
-        user_id = None
-        for u, info in connected_users.items():
-            if info["sid"] == request.sid:
+        for u, sid in connected_users.items():
+            if sid == request.sid:
                 username = u
-                user_id = info.get("user_id")
                 break
 
-        # Fall back to data['from'] only if not found (defensive)
         if not username:
             username = data.get("from")
         if not username:
-            # Can't determine sender — ignore to be safe
             print("⚠️ Could not determine message sender for sid:", request.sid)
             return
 
         text = (data.get("text") or "").strip()
         if not text:
-            # ignore empty messages
             return
 
-        # Save to DB if we know user_id (optional if you want all messages saved)
-        if user_id:
+        # Save to DB
+        user = execute_query("SELECT id FROM users WHERE username=%s LIMIT 1", (username,), fetch=True)
+        if user:
+            user_id = user[0]["id"]
             execute_query(
                 "INSERT INTO messages (user_id, username, message) VALUES (%s, %s, %s)",
                 (user_id, username, text)
             )
 
-        # Build canonical message object
         msg = {
             "from": username,
             "text": text,
             "timestamp": datetime.utcnow().isoformat()
         }
 
-        # Broadcast to other clients but NOT to the sender (sender already added locally)
-        # include_self=False prevents sender from receiving the broadcast back
-        emit("message", msg, broadcast=True, include_self=True)
-
-
-        # (Optional) still send an ack to sender if you want server-validated message id
-        # emit("message_ack", {"status": "ok", "timestamp": msg["timestamp"]}, to=request.sid)
+        # Broadcast to everyone
+        emit("message", msg, broadcast=True)
 
     except Exception as e:
         print("❌ handle_message error:", e)
         traceback.print_exc()
+
 
 
 @socketio.on("disconnect")
@@ -463,10 +463,11 @@ def handle_disconnect():
 
     if username_to_remove:
         del connected_users[username_to_remove]
-        print(f"❌ {username_to_remove} left, total users: {len(connected_users)}")
+        print("❌ {} left, total users: {}".format(username_to_remove, len(connected_users)))
 
     # Broadcast updated user count
     socketio.emit("user_count_update", {"count": len(connected_users)})
+
 # Add this after your other routes, before Socket.IO section
 # ---------------- Payment Routes ----------------
 
@@ -476,110 +477,104 @@ PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY", "sk_test_...")
 def initialize_payment():
     """Initialize payment with Paystack"""
     try:
-        # Get user info from session
         user_id = session.get("user_id")
         username = session.get("username")
-        
-        if not user_id:
+
+        if not user_id or not username:
             return jsonify({"error": "User not logged in"}), 401
-        
+
         # Generate unique reference
         reference = str(uuid.uuid4())
-        amount = 50000  # 500 Naira in kobo
-        
-        # Initialize payment with Paystack
+        amount_naira = 500  # charge 500 Naira
+        amount_kobo = amount_naira * 100
+
         headers = {
             "Authorization": f"Bearer {PAYSTACK_SECRET_KEY}",
             "Content-Type": "application/json"
         }
-        
+
         data = {
-            "email": f"{username}@chylnx.com",  # Use username as email base
-            "amount": amount,
+            "email": f"{username}@chylnx.com",
+            "amount": amount_kobo,
             "reference": reference,
-            "callback_url": f"{request.host_url}payment_verify",
+            "callback_url": f"{request.host_url}payment_verify",  # make sure host_url is HTTPS in prod
             "metadata": {
                 "user_id": user_id,
                 "username": username
             }
         }
-        
+
         response = requests.post(
             "https://api.paystack.co/transaction/initialize",
             headers=headers,
             json=data
         )
-        
+
         if response.status_code == 200:
             result = response.json()
-            # Store payment reference in session or database
             session['payment_reference'] = reference
-            
             return jsonify({
                 "authorization_url": result['data']['authorization_url'],
                 "reference": reference
             })
         else:
+            print("❌ Paystack init error:", response.text)
             return jsonify({"error": "Payment initialization failed"}), 400
-            
+
     except Exception as e:
         print(f"❌ Payment initialization error: {e}")
         return jsonify({"error": "Payment initialization failed"}), 500
+
 
 @app.route("/payment_verify")
 def payment_verify():
     """Verify payment after Paystack redirect"""
     try:
-        reference = request.args.get('reference')
-        trxref = request.args.get('trxref')
-        
-        # Use the reference from URL or session
-        payment_ref = reference or trxref or session.get('payment_reference')
-        
+        reference = request.args.get('reference') or request.args.get('trxref')
+        payment_ref = reference or session.get('payment_reference')
+
         if not payment_ref:
             flash("Payment verification failed: No reference found", "error")
             return redirect(url_for("payment"))
-        
-        # Verify payment with Paystack
+
         headers = {
             "Authorization": f"Bearer {PAYSTACK_SECRET_KEY}",
             "Content-Type": "application/json"
         }
-        
+
         response = requests.get(
             f"https://api.paystack.co/transaction/verify/{payment_ref}",
             headers=headers
         )
-        
+
         if response.status_code == 200:
             result = response.json()
-            
             if result['data']['status'] == 'success':
-                # Payment successful
                 user_id = session.get("user_id")
-                amount = result['data']['amount'] / 100  # Convert from kobo to Naira
-                
-                # Store payment in database
+                amount = result['data']['amount'] / 100  # convert kobo → naira
+
+                # Save payment in DB
                 execute_query(
-                    "INSERT INTO payments (user_id, reference, amount, status) VALUES (%s, %s, %s, %s)",
+                    "INSERT INTO payments (user_id, reference, amount, status) VALUES (%s, %s, %s, %s) ON CONFLICT (reference) DO NOTHING",
                     (user_id, payment_ref, amount, 'success')
                 )
-                
-                # Unlock chat for user
+
                 session['paid'] = True
                 flash("Payment successful! You can now access the chat.", "success")
                 return redirect(url_for("chat"))
             else:
-                flash("Payment verification failed. Please try again or contact support.", "error")
+                flash("Payment verification failed. Please try again.", "error")
                 return redirect(url_for("payment"))
         else:
-            flash("Payment verification failed. Please try again or contact support.", "error")
+            print("❌ Paystack verify error:", response.text)
+            flash("Payment verification failed. Please try again.", "error")
             return redirect(url_for("payment"))
-            
+
     except Exception as e:
         print(f"❌ Payment verification error: {e}")
-        flash("Payment verification failed. Please try again or contact support.", "error")
+        flash("Payment verification failed. Please try again.", "error")
         return redirect(url_for("payment"))
+
 
 @app.route("/check_payment_status")
 def check_payment_status():
@@ -587,37 +582,35 @@ def check_payment_status():
     user_id = session.get("user_id")
     if not user_id:
         return jsonify({"paid": False})
-    
-    # Check if user has a successful payment
+
     payment = execute_query(
         "SELECT * FROM payments WHERE user_id = %s AND status = 'success' LIMIT 1",
         (user_id,), fetch=True
     )
-    
+
     if payment:
         session['paid'] = True
         return jsonify({"paid": True})
     else:
         return jsonify({"paid": False})
 
-connected_users = {}  # username -> sid
-
+# Final join/disconnect definitions (keep them if you use them elsewhere)
 @socketio.on("join_chat")
-def handle_join(data):
+def handle_join_short(data):
     username = data.get("username")
     if not username:
         return
 
     # Save username + sid
     connected_users[username] = request.sid
-    print(f"✅ {username} joined, total users: {len(connected_users)}")
+    print("✅ {} joined, total users: {}".format(username, len(connected_users)))
 
     # Broadcast updated user count
     socketio.emit("user_count_update", {"count": len(connected_users)})
 
 
 @socketio.on("disconnect")
-def handle_disconnect():
+def handle_disconnect_short():
     # Find user by sid
     username_to_remove = None
     for username, sid in list(connected_users.items()):
@@ -627,7 +620,7 @@ def handle_disconnect():
 
     if username_to_remove:
         del connected_users[username_to_remove]
-        print(f"❌ {username_to_remove} left, total users: {len(connected_users)}")
+        print("❌ {} left, total users: {}".format(username_to_remove, len(connected_users)))
 
     # Broadcast updated user count
     socketio.emit("user_count_update", {"count": len(connected_users)})
