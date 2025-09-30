@@ -625,16 +625,43 @@ def handle_disconnect_short():
     # Broadcast updated user count
     socketio.emit("user_count_update", {"count": len(connected_users)})
 
-@socketio.on("announce_winner")
-def handle_announce_winner(data):
-    winners = data.get("winners", [])
-    if not winners:
-        return
-    
-    for winner in winners:
-        socketio.emit("announcement", {
-            "text": f"🏆 WINNER ANNOUNCEMENT: {winner}! Congratulations! 🎉"
-        }, broadcast=True)
+@app.route("/announce_winner", methods=["POST"])
+def announce_winner():
+    """Announce a winner to all users (passcode protected)"""
+    try:
+        data = request.get_json()
+        passcode = data.get("passcode")
+        winner_username = data.get("winner")
+
+        if passcode != os.getenv("ADMIN_PASSCODE", "letmein123"):
+            return jsonify({"error": "Invalid passcode"}), 403
+
+        if not winner_username:
+            return jsonify({"error": "Winner username required"}), 400
+
+        # Save announcement in DB (optional)
+        execute_query(
+            "INSERT INTO messages (user_id, username, message) VALUES (%s, %s, %s)",
+            (None, "SYSTEM", f"🎉 Winner: {winner_username} 🎉")
+        )
+
+        # Emit system message to everyone
+        socketio.emit(
+            "new_message",
+            {
+                "from": "SYSTEM",
+                "text": f"🎉 Winner is {winner_username}! 🎉",
+                "timestamp": datetime.utcnow().isoformat()
+            },
+            broadcast=True
+        )
+
+        return jsonify({"success": True, "winner": winner_username})
+
+    except Exception as e:
+        print("❌ Error announcing winner:", e)
+        return jsonify({"error": "Failed to announce winner"}), 500
+
 
 
 # ---------------- Run ----------------
