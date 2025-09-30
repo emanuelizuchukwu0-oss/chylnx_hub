@@ -332,6 +332,8 @@ def handle_get_timer():
     else:
         emit('timer_update', {'remaining_seconds': 0, 'is_running': False})
 
+connected_users = {}  # {username: {sid, user_id}}
+
 @socketio.on("join_chat")
 def handle_join(data):
     try:
@@ -339,20 +341,29 @@ def handle_join(data):
         if not username:
             return
 
-        user = execute_query("SELECT id FROM users WHERE username=%s LIMIT 1", (username,), fetch=True)
+        # Lookup user in DB
+        user = execute_query(
+            "SELECT id FROM users WHERE username=%s LIMIT 1",
+            (username,), fetch=True
+        )
         if not user:
             # create user as fallback
             execute_query("INSERT INTO users (username) VALUES (%s)", (username,))
-            user = execute_query("SELECT id FROM users WHERE username=%s LIMIT 1", (username,), fetch=True)
+            user = execute_query(
+                "SELECT id FROM users WHERE username=%s LIMIT 1",
+                (username,), fetch=True
+            )
             if not user:
                 print("❌ Could not create/fetch user", username)
                 return
 
         user_id = user[0]["id"]
+
+        # Save in memory
         connected_users[username] = {"sid": request.sid, "user_id": user_id}
         print(f"✅ {username} joined, total users: {len(connected_users)}")
 
-        # Send chat history to this user
+        # Send chat history only to this user
         history = execute_query("""
             SELECT u.username AS "from", m.message AS text, m.created_at AS timestamp
             FROM messages m
@@ -362,25 +373,24 @@ def handle_join(data):
         """, fetch=True) or []
         emit("chat_history", history, to=request.sid)
 
-        # Notify others
-        emit("message", {"from": "System", "text": f"{username} joined!"}, broadcast=True)
+        # Update everyone with the new count
         socketio.emit("user_count_update", {"count": len(connected_users)}, broadcast=True)
+
     except Exception as e:
         print("❌ join_chat error:", e)
         traceback.print_exc()
 
-@socketio.on("message")
+
+@socketio.on("send_message")
 def handle_message(data):
     try:
         print("📨 Message received (raw):", data)
 
-        # Determine sender by sid
-        username = None
-        user_id = None
+        # Find sender
+        username, user_id = None, None
         for u, info in connected_users.items():
             if info.get("sid") == request.sid:
-                username = u
-                user_id = info.get("user_id")
+                username, user_id = u, info.get("user_id")
                 break
 
         if not username:
@@ -393,7 +403,7 @@ def handle_message(data):
         if not text:
             return
 
-        # Save to DB if user_id known
+        # Save to DB
         if user_id:
             execute_query(
                 "INSERT INTO messages (user_id, username, message) VALUES (%s, %s, %s)",
@@ -406,12 +416,13 @@ def handle_message(data):
             "timestamp": datetime.utcnow().isoformat()
         }
 
-        # Broadcast to all OTHER clients. Sender should add locally to avoid duplicates.
-        emit("message", msg, broadcast=True, include_self=False)
+        # Broadcast to all clients (including sender for simplicity)
+        emit("receive_message", msg, broadcast=True)
 
     except Exception as e:
         print("❌ handle_message error:", e)
         traceback.print_exc()
+
 
 @socketio.on("disconnect")
 def handle_disconnect():
@@ -420,10 +431,12 @@ def handle_disconnect():
         if info.get("sid") == request.sid:
             username_to_remove = username
             break
+
     if username_to_remove:
         del connected_users[username_to_remove]
         print(f"❌ {username_to_remove} left, total users: {len(connected_users)}")
-        emit("message", {"from": "System", "text": f"{username_to_remove} left"}, broadcast=True)
+
+        # Just update the count (no system messages)
         socketio.emit("user_count_update", {"count": len(connected_users)}, broadcast=True)
 
 # ---------------- Payment Routes ----------------
