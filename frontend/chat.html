@@ -423,7 +423,6 @@
         <div class="header-info">
             <h2>💬 Chylnx Chat</h2>
            <span id="onlineCount">Loading...</span>
-
         </div>
         <div class="header-actions">
             <span id="bell" title="Announce Winner">🔔</span>
@@ -595,6 +594,30 @@
         }
 
         window.addEventListener('DOMContentLoaded', initApp);
+
+        // Define your secret passcode here
+const ANNOUNCE_PASSCODE = "1234"; // you can change this to anything
+
+function announceWinner() {
+    if (!selectedWinner) {
+        return alert("Select a winner by clicking their name!");
+    }
+
+    // Ask for passcode
+    const entered = prompt("Enter passcode to announce the winner:");
+    if (entered !== ANNOUNCE_PASSCODE) {
+        alert("❌ Wrong passcode! You are not allowed to announce.");
+        return;
+    }
+
+    // Emit to server (broadcast to all users)
+    socket.emit('announce_winner', { winners: [selectedWinner] });
+
+    // Reset selection
+    selectedWinner = null;
+    closeWinnerModal();
+}
+
     </script>
 </body>
 </html>

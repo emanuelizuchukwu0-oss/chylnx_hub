@@ -625,6 +625,17 @@ def handle_disconnect_short():
     # Broadcast updated user count
     socketio.emit("user_count_update", {"count": len(connected_users)})
 
+@socketio.on("announce_winner")
+def handle_announce_winner(data):
+    winners = data.get("winners", [])
+    if not winners:
+        return
+    
+    for winner in winners:
+        socketio.emit("announcement", {
+            "text": f"🏆 WINNER ANNOUNCEMENT: {winner}! Congratulations! 🎉"
+        }, broadcast=True)
+
 
 # ---------------- Run ----------------
 if __name__ == "__main__":
