@@ -566,39 +566,36 @@
         }
 
         // Initialize Socket.IO chat
-       function initializeChat() {
-    document.getElementById('chatInput').disabled = false;
-    document.getElementById('sendBtn').disabled = false;
+        function initializeChat() {
+            document.getElementById('chatInput').disabled = false;
+            document.getElementById('sendBtn').disabled = false;
 
-    socket = io(); // connect to server
+            socket = io(); // connect to server    
 
-    // ... your other existing socket listeners (chat_history, message, user_count_update) ...
+        // Add this with your other socket.on listeners in initializeChat()
+socket.on('winner_announced', function(data) {
+    console.log('🎉 Received winner announcement:', data);
+    
+    const winners = Array.isArray(data.winners) ? data.winners.join(", ") : data.winners;
+    
+    // Show the announcement overlay for EVERY user
+    showWinnerAnnouncement(winners);
+    
+    // Also add system message to chat
+    addSystemMessage(`🏆 WINNER ANNOUNCEMENT: ${winners}! Congratulations! 🎉`);
+    
+    // Optional: Disable chat input temporarily
+    document.getElementById("chatInput").disabled = true;
+    document.getElementById("sendBtn").disabled = true;
+    
+    // Re-enable after overlay closes (optional)
+    setTimeout(() => {
+        document.getElementById("chatInput").disabled = false;
+        document.getElementById("sendBtn").disabled = false;
+    }, 10000);
+});    
 
-    // Winner Announcement Listener - ONLY THIS ONE IS NEEDED
-    socket.on('winner_announced', function(data) {
-        console.log('🎉 Received winner announcement:', data);
-        
-        const winners = Array.isArray(data.winners) ? data.winners.join(", ") : data.winners;
-        
-        // Show the announcement overlay for EVERY user
-        showWinnerAnnouncement(winners);
-        
-        // Also add system message to chat
-        addSystemMessage(`🏆 WINNER ANNOUNCEMENT: ${winners}! Congratulations! 🎉`);
-        
-        // Optional: Disable chat input temporarily
-        document.getElementById("chatInput").disabled = true;
-        document.getElementById("sendBtn").disabled = true;
-        
-        // Re-enable after overlay closes
-        setTimeout(() => {
-            document.getElementById("chatInput").disabled = false;
-            document.getElementById("sendBtn").disabled = false;
-        }, 10000);
-    });
 
-    // ... rest of your initializeChat code ...
-}
 
             // Join chat
             socket.emit('join_chat', { username: myUsername });
@@ -638,6 +635,7 @@
             
             // Focus on chat input
             document.getElementById('chatInput').focus();
+        }
 
         // Handle Enter key in input
         function handleKeyPress(e) {

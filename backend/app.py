@@ -650,29 +650,6 @@ def handle_announce_winner(data):
         print(f"❌ Error in handle_announce_winner: {e}")
         traceback.print_exc()
 
-@socketio.on("announce_winner")
-def handle_announce_winner(data):
-    """Handle winner announcement and broadcast to all clients"""
-    try:
-        winners = data.get("winners")
-        if not winners:
-            return
-            
-        print(f"🎉 Broadcasting winner announcement: {winners}")
-        
-        # Broadcast to ALL connected clients
-        emit(
-            "winner_announced", 
-            {"winners": winners}, 
-            broadcast=True,
-            include_self=True
-        )
-        
-        print("✅ Winner announcement broadcasted to all users")
-        
-    except Exception as e:
-        print(f"❌ Error in handle_announce_winner: {e}")        
-
 
 # ---------------- Run ----------------
 if __name__ == "__main__":
