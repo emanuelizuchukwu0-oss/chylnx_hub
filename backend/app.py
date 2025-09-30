@@ -144,8 +144,6 @@ def init_db():
     finally:
         conn.close()
 
-init_db()
-
 # ---------------- Timer Functions ----------------
 def get_current_timer():
     result = execute_query(
