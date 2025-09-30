@@ -648,19 +648,18 @@ def announce_winner():
         winners_text = ", ".join(winners)
         announcement = f"🎉 Winners: {winners_text}! 🎉"
 
-        # Save as system message
+        # Save as system message (optional: so history records it)
         execute_query(
             "INSERT INTO messages (user_id, username, message) VALUES (%s, %s, %s)",
             (None, "SYSTEM", announcement)
         )
 
-        # Emit to all connected users
+        # Emit to all connected users (one event only)
         socketio.emit(
-    "winner_announced",
-    {"winners": winners},
-    broadcast=True
-)
-
+            "winner_announcement",
+            {"winners": winners},
+            broadcast=True
+        )
 
         print("✅ Winners announced:", winners_text)
         return jsonify({"success": True, "winners": winners})
