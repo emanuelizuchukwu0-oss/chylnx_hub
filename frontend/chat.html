@@ -714,25 +714,27 @@ socket.on('winner_announced', function(data) {
         }
 
         function announceWinner() {
-    if (!selectedWinner) return alert("Select a winner by clicking their name!");
-    
-    // Ask for passcode
-    const entered = prompt("Enter passcode to announce the winner:");
-    if (entered !== ANNOUNCE_PASSCODE) {
-        alert("❌ Wrong passcode! You are not allowed to announce.");
-        return;
-    }
+            if (!selectedWinner) return alert("Select a winner by clicking their name!");
+            
+            // Ask for passcode
+            const entered = prompt("Enter passcode to announce the winner:");
+            if (entered !== ANNOUNCE_PASSCODE) {
+                alert("❌ Wrong passcode! You are not allowed to announce.");
+                return;
+            }
 
-    // Emit to server - this will broadcast to ALL users
-    socket.emit('announce_winner', { winners: [selectedWinner] });
+            // Show the announcement overlay immediately
+            showWinnerAnnouncement(selectedWinner);
+            
+            // Emit to server (broadcast to all users)
+            socket.emit('announce_winner', { winners: [selectedWinner] });
 
-    // Show overlay immediately for the admin too
-    showWinnerAnnouncement(selectedWinner);
-    
-    // Reset selection
-    selectedWinner = null;
-    closeWinnerModal();
-}
+            // Reset selection
+            selectedWinner = null;
+            closeWinnerModal();
+        }
+
+        window.addEventListener('DOMContentLoaded', initApp);
     </script>
 </body>
 </html>
