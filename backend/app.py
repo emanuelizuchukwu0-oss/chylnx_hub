@@ -793,6 +793,15 @@ def check_payment_status():
         return jsonify({"paid": True})
     else:
         return jsonify({"paid": False})
+    
+@app.route("/admin_login", methods=["GET", "POST"])
+def admin_login():
+    if request.method == "POST":
+        if request.form.get("passcode") == "12345":
+            session["admin_logged_in"] = True
+            return redirect(url_for("admin_dashboard"))
+        flash("Wrong passcode", "error")
+    return render_template("admin_login.html")
 
 # ---------------- Run ----------------
 
