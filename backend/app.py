@@ -11,7 +11,8 @@ import psycopg2.extras
 import requests
 
 # ---------------- Paths ----------------
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(_file_)))  # chylnx_backend
+# FIX: Change _file_ to __file__ and _name_ to __name__
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # chylnx_backend
 TEMPLATE_DIR = os.path.join(BASE_DIR, "frontend")
 STATIC_DIR = os.path.join(TEMPLATE_DIR, "static")
 
@@ -34,22 +35,25 @@ except Exception as e:
     print("⚠ Error listing template/static:", e)
 
 # ---------------- Flask ----------------
+
+# FIX: In Flask app initialization
 app = Flask(
-    _name_,
+    __name__,
     template_folder=TEMPLATE_DIR,
     static_folder=STATIC_DIR
 )
 app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "secret123")
 app.config['SESSION_TYPE'] = 'filesystem'
-
+app.config['SESSION_PERMANENT'] = False  # Add this line
 # ---------------- Socket.IO (with optional Redis) ----------------
 REDIS_URL = os.getenv("REDIS_URL")
+# FIX: Set manage_session based on your session type
+# Since you're using server-side sessions, set manage_session=False
 if REDIS_URL:
     print("🔑 Using Redis:", REDIS_URL)
     socketio = SocketIO(app, cors_allowed_origins="*", message_queue=REDIS_URL, manage_session=False)
 else:
     socketio = SocketIO(app, cors_allowed_origins="*", manage_session=False)
-
 # ---------------- Database ----------------
 DATABASE_URL = os.getenv("DATABASE_URL")
 
@@ -60,6 +64,7 @@ def get_db_connection():
         print(f"❌ DB connection failed: {e}")
         return None
 
+# FIX: Improve database connection handling
 def execute_query(query, params=None, fetch=False):
     conn = get_db_connection()
     if not conn:
@@ -69,21 +74,17 @@ def execute_query(query, params=None, fetch=False):
             cursor.execute(query, params or ())
             if fetch:
                 result = cursor.fetchall()
-                conn.commit()
-                return result
+            else:
+                result = True
             conn.commit()
-            return True
+            return result
     except Exception as e:
         print(f"❌ Query failed: {e}")
         traceback.print_exc()
-        try:
-            conn.rollback()
-        except:
-            pass
+        conn.rollback()
         return None
     finally:
         conn.close()
-
 # ---------------- Initialize DB ----------------
 def init_db():
     conn = get_db_connection()
@@ -176,12 +177,17 @@ def get_remaining_time():
     if not timer:
         return None
     
+    # FIX: Ensure end_time is timezone-aware or both are naive
     end_time = timer['end_time']
     now = datetime.now()
     
+    # If end_time is timezone-aware and now is naive, make now aware
+    if end_time.tzinfo is not None and now.tzinfo is None:
+        now = datetime.now(end_time.tzinfo)
+    
     if now >= end_time:
-        # Timer expired, delete it
-        execute_query("DELETE FROM game_timer WHERE id = %s", (timer['id'],))
+        # Timer expired, update instead of delete to maintain structure
+        execute_query("UPDATE game_timer SET is_running = FALSE WHERE id = %s", (timer['id'],))
         return 0
     
     remaining = (end_time - now).total_seconds()
@@ -222,15 +228,23 @@ def set_username():
             flash("Username required", "error")
             return redirect(url_for("set_username"))
 
+        # FIX: Add proper transaction handling
         existing = execute_query("SELECT * FROM users WHERE username=%s LIMIT 1", (username,), fetch=True)
         if not existing:
-            execute_query("INSERT INTO users (username) VALUES (%s)", (username,))
-            existing = execute_query("SELECT * FROM users WHERE username=%s LIMIT 1", (username,), fetch=True)
+            # FIX: Use proper user creation with error handling
+            success = execute_query("INSERT INTO users (username) VALUES (%s)", (username,))
+            if success:
+                existing = execute_query("SELECT * FROM users WHERE username=%s LIMIT 1", (username,), fetch=True)
+            else:
+                flash("Error creating user account", "error")
+                return redirect(url_for("set_username"))
 
         if existing:
             user = existing[0]
             session["user_id"] = user["id"]
             session["username"] = user["username"]
+            # FIX: Mark session as modified for immediate persistence
+            session.modified = True
             flash("Username set!", "success")
             return redirect(url_for("chat"))
 
@@ -713,8 +727,9 @@ def payment_verify():
     """Verify payment after Paystack redirect"""
     try:
         reference = request.args.get('reference') or request.args.get('trxref')
+        # FIX: Use session reference as fallback, not primary
         payment_ref = reference or session.get('payment_reference')
-
+        
         if not payment_ref:
             flash("Payment verification failed: No reference found", "error")
             return redirect(url_for("payment"))
@@ -731,19 +746,23 @@ def payment_verify():
 
         if response.status_code == 200:
             result = response.json()
-            if result['data']['status'] == 'success':
+            if result.get('data') and result['data']['status'] == 'success':  # FIX: Added safety check
                 user_id = session.get("user_id")
-                amount = result['data']['amount'] / 100  # convert kobo → naira
+                amount = result['data']['amount'] / 100
 
-                # Save payment in DB
-                execute_query(
-                    "INSERT INTO payments (user_id, reference, amount, status) VALUES (%s, %s, %s, %s) ON CONFLICT (reference) DO NOTHING",
+                # FIX: Add proper error handling for payment recording
+                success = execute_query(
+                    "INSERT INTO payments (user_id, reference, amount, status) VALUES (%s, %s, %s, %s)",
                     (user_id, payment_ref, amount, 'success')
                 )
-
-                session['paid'] = True
-                flash("Payment successful! You can now access the chat.", "success")
-                return redirect(url_for("chat"))
+                
+                if success:
+                    session['paid'] = True
+                    flash("Payment successful! You can now access the chat.", "success")
+                    return redirect(url_for("chat"))
+                else:
+                    flash("Payment recorded failed. Please contact support.", "error")
+                    return redirect(url_for("payment"))
             else:
                 flash("Payment verification failed. Please try again.", "error")
                 return redirect(url_for("payment"))
@@ -776,7 +795,9 @@ def check_payment_status():
         return jsonify({"paid": False})
 
 # ---------------- Run ----------------
-if _name_ == "_main_":
+
+# FIX: In the main block
+if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
     debug = os.getenv("DEBUG", "false").lower() == "true"
     socketio.run(app, host="0.0.0.0", port=port, debug=debug)
