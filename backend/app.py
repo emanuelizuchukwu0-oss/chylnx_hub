@@ -732,8 +732,7 @@ def payment_verify():
         
         if not payment_ref:
             flash("Payment verification failed: No reference found", "error")
-            return redirect(url_for("payment"))
-
+            return redirect(url_for("index"))
         headers = {
             "Authorization": f"Bearer {PAYSTACK_SECRET_KEY}",
             "Content-Type": "application/json"
@@ -759,7 +758,7 @@ def payment_verify():
                 if success:
                     session['paid'] = True
                     flash("Payment successful! You can now access the chat.", "success")
-                    return redirect(url_for("chat"))
+                    return redirect(url_for("index"))
                 else:
                     flash("Payment recorded failed. Please contact support.", "error")
                     return redirect(url_for("payment"))
