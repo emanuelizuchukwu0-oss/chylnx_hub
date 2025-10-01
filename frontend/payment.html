@@ -275,36 +275,33 @@
 
       handler.openIframe();
   }
+// ✅ FIX: verifyPayment moved outside payWithPaystack
+function verifyPayment(reference, email) {
+    // Correct Flask route
+    fetch(`/payment_verify?reference=${reference}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === "success") {
+                document.getElementById('loading').style.display = 'none';
+                showSuccessOverlay();
 
-  // ✅ FIX: verifyPayment moved outside payWithPaystack
-  function verifyPayment(reference, email) {
-      fetch(`/verify/${reference}`, {
-          method: 'GET',
-          headers: {
-              'Content-Type': 'application/json',
-          }
-      })
-      .then(response => response.json())
-      .then(data => {
-          if (data.status === "success") {
-              document.getElementById('loading').style.display = 'none';
-              showSuccessOverlay();
+                // Notify server to update user's payment status
+                socket.emit('payment_completed', { 
+                    reference: reference,
+                    email: email 
+                });
+            } else {
+                document.getElementById('errorMessage').style.display = 'block';
+                document.getElementById('loading').style.display = 'none';
+            }
+        })
+        .catch(error => {
+            console.error("Payment verification failed:", error);
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('errorMessage').style.display = 'block';
+        });
+}
 
-              // Notify server to update user's payment status
-              socket.emit('payment_completed', { 
-                  reference: reference,
-                  email: email 
-              });
-          } else {
-              document.getElementById('errorMessage').style.display = 'block';
-              document.getElementById('loading').style.display = 'none';
-          }
-      })
-      .catch(error => {
-          document.getElementById('loading').style.display = 'none';
-          document.getElementById('errorMessage').style.display = 'block';
-      });
-  }
 
   function showSuccessOverlay() {
       const overlay = document.getElementById('successOverlay');
