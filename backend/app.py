@@ -731,7 +731,11 @@ def payment_verify():
         
         if not payment_ref:
             print("❌ No payment reference found")
-            return jsonify({"status": "error", "message": "No reference found"}), 400
+            if request.is_json or request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return jsonify({"status": "error", "message": "No reference found"}), 400
+            else:
+                flash("Payment verification failed: No reference found", "error")
+                return redirect(url_for("payment"))
 
         headers = {
             "Authorization": f"Bearer {PAYSTACK_SECRET_KEY}",
@@ -757,19 +761,40 @@ def payment_verify():
                 if success:
                     session['paid'] = True
                     print("✅ Payment successful:", payment_ref)
-                    return jsonify({"status": "success", "reference": payment_ref})
+
+                    if request.is_json or request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                        return jsonify({"status": "success", "reference": payment_ref})
+                    else:
+                        flash("Payment successful! You can now access the chat.", "success")
+                        return redirect(url_for("index"))
+
                 else:
-                    return jsonify({"status": "error", "message": "Payment record failed"}), 500
+                    if request.is_json:
+                        return jsonify({"status": "error", "message": "Payment record failed"}), 500
+                    else:
+                        flash("Payment recorded failed. Please contact support.", "error")
+                        return redirect(url_for("payment"))
             else:
-                return jsonify({"status": "failed", "message": "Verification failed"}), 400
+                if request.is_json:
+                    return jsonify({"status": "failed", "message": "Verification failed"}), 400
+                else:
+                    flash("Payment verification failed. Please try again.", "error")
+                    return redirect(url_for("payment"))
         else:
             print("❌ Paystack verify error:", response.text)
-            return jsonify({"status": "error", "message": "Paystack API error"}), 500
+            if request.is_json:
+                return jsonify({"status": "error", "message": "Paystack API error"}), 500
+            else:
+                flash("Payment verification failed. Please try again.", "error")
+                return redirect(url_for("payment"))
 
     except Exception as e:
         print(f"❌ Payment verification error: {e}")
-        return jsonify({"status": "error", "message": "Exception occurred"}), 500
-
+        if request.is_json:
+            return jsonify({"status": "error", "message": "Exception occurred"}), 500
+        else:
+            flash("Payment verification failed. Please try again.", "error")
+            return redirect(url_for("payment"))
 
 @app.route("/check_payment_status")
 def check_payment_status():
