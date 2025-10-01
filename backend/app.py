@@ -1,5 +1,6 @@
 import os
 import uuid
+import time
 import traceback
 from datetime import datetime, timedelta
 from flask import Flask, render_template, session, request, redirect, url_for, jsonify, flash
@@ -10,7 +11,7 @@ import psycopg2.extras
 import requests
 
 # ---------------- Paths ----------------
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # chylnx_backend
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(_file_)))  # chylnx_backend
 TEMPLATE_DIR = os.path.join(BASE_DIR, "frontend")
 STATIC_DIR = os.path.join(TEMPLATE_DIR, "static")
 
@@ -30,11 +31,11 @@ try:
     else:
         print("❌ Static folder not found at", STATIC_DIR)
 except Exception as e:
-    print("⚠️ Error listing template/static:", e)
+    print("⚠ Error listing template/static:", e)
 
 # ---------------- Flask ----------------
 app = Flask(
-    __name__,
+    _name_,
     template_folder=TEMPLATE_DIR,
     static_folder=STATIC_DIR
 )
@@ -189,6 +190,11 @@ def get_remaining_time():
 # ---------------- App Logic ----------------
 chat_locked = True
 
+# Global variables to track online users
+online_users = {}  # username -> {'user_id': id, 'connected_at': timestamp, 'sid': socket_id}
+user_activity = {}  # username -> last_activity_timestamp
+connected_users = {}  # username -> sid
+
 @app.errorhandler(500)
 def internal_error(e):
     print("❌ Internal Error:", e)
@@ -308,8 +314,146 @@ def toggle_chat_lock():
     chat_locked = not chat_locked
     return redirect(url_for("admin_dashboard"))
 
-# ---------------- Socket.IO ----------------
-connected_users = {}
+# ---------------- Session Management Routes ----------------
+
+@app.route('/get_session_info')
+def get_session_info():
+    """Get current session information for admin panel"""
+    try:
+        # Count online users (users with active Socket.IO connections)
+        online_count = len(online_users)
+        
+        # Count paid users from database
+        paid_users_result = execute_query(
+            "SELECT COUNT(DISTINCT user_id) as count FROM payments WHERE status = 'success'",
+            fetch=True
+        )
+        paid_users = paid_users_result[0]['count'] if paid_users_result else 0
+        
+        # Count total users
+        total_users_result = execute_query(
+            "SELECT COUNT(*) as count FROM users",
+            fetch=True
+        )
+        total_users = total_users_result[0]['count'] if total_users_result else 0
+        
+        # Generate session code based on timestamp
+        session_code = f"SESSION_{int(time.time())}"
+        
+        return jsonify({
+            'session_code': session_code,
+            'paid_users': paid_users,
+            'total_users': total_users,
+            'online_users': online_count
+        })
+    except Exception as e:
+        print(f"❌ Error getting session info: {e}")
+        return jsonify({'error': 'Failed to get session info'}), 500
+
+@app.route('/start_new_session', methods=['POST'])
+def start_new_session():
+    """Reset chat session and require new payments"""
+    try:
+        # Clear all payment records (or mark them as expired)
+        execute_query("UPDATE payments SET status = 'expired' WHERE status = 'success'")
+        
+        # Clear online users tracking
+        online_users.clear()
+        user_activity.clear()
+        
+        # Broadcast session reset to all connected clients
+        socketio.emit('session_reset', {
+            'message': 'Chat session has been reset. Payment required to continue.',
+            'reset_by': session.get('username', 'Admin'),
+            'timestamp': datetime.utcnow().isoformat()
+        }, broadcast=True)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Session reset successfully',
+            'session_code': f"SESSION_{int(time.time())}"
+        })
+    except Exception as e:
+        print(f"❌ Error resetting session: {e}")
+        return jsonify({'error': 'Failed to reset session'}), 500
+
+@app.route('/get_online_users')
+def get_online_users():
+    """Get list of currently online users"""
+    try:
+        online_list = []
+        current_time = time.time()
+        
+        # Clean up inactive users (more than 5 minutes since last activity)
+        inactive_users = []
+        for username, last_active in user_activity.items():
+            if current_time - last_active > 300:  # 5 minutes
+                inactive_users.append(username)
+        
+        for username in inactive_users:
+            user_activity.pop(username, None)
+            online_users.pop(username, None)
+        
+        # Prepare online users list
+        for username, user_info in online_users.items():
+            online_list.append({
+                'username': username,
+                'user_id': user_info.get('user_id'),
+                'connected_since': user_info.get('connected_at'),
+                'last_activity': user_activity.get(username, 'Unknown')
+            })
+        
+        return jsonify({'online_users': online_list})
+    except Exception as e:
+        print(f"❌ Error getting online users: {e}")
+        return jsonify({'online_users': []})
+
+@app.route('/get_payment_stats')
+def get_payment_stats():
+    """Get payment statistics for admin panel"""
+    try:
+        # Get today's payments
+        today_payments = execute_query("""
+            SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total 
+            FROM payments 
+            WHERE status = 'success' 
+            AND DATE(created_at) = CURRENT_DATE
+        """, fetch=True)
+        
+        # Get total payments
+        total_payments = execute_query("""
+            SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total 
+            FROM payments 
+            WHERE status = 'success'
+        """, fetch=True)
+        
+        # Get recent payments (last 24 hours)
+        recent_payments = execute_query("""
+            SELECT p.*, u.username 
+            FROM payments p 
+            JOIN users u ON p.user_id = u.id 
+            WHERE p.status = 'success' 
+            AND p.created_at >= NOW() - INTERVAL '24 hours'
+            ORDER BY p.created_at DESC
+            LIMIT 50
+        """, fetch=True) or []
+        
+        return jsonify({
+            'today': {
+                'count': today_payments[0]['count'] if today_payments else 0,
+                'total_amount': float(today_payments[0]['total']) if today_payments else 0
+            },
+            'total': {
+                'count': total_payments[0]['count'] if total_payments else 0,
+                'total_amount': float(total_payments[0]['total']) if total_payments else 0
+            },
+            'recent_payments': recent_payments
+        })
+    except Exception as e:
+        print(f"❌ Error getting payment stats: {e}")
+        return jsonify({'error': 'Failed to get payment stats'}), 500
+
+# ---------------- Socket.IO Event Handlers ----------------
 
 @socketio.on("connect")
 def handle_connect():
@@ -373,17 +517,27 @@ def handle_get_timer():
             'is_running': False
         })
 
-# ---------------- Socket.IO ----------------
-connected_users = {}  # username -> sid
-
 @socketio.on("join_chat")
 def handle_join(data):
+    """Handle user joining the chat"""
     username = data.get("username")
     if not username:
         return
 
-    # Save username + sid
+    # Save user to online tracking
+    user = execute_query("SELECT id FROM users WHERE username=%s LIMIT 1", (username,), fetch=True)
+    if user:
+        user_id = user[0]["id"]
+        online_users[username] = {
+            'user_id': user_id,
+            'connected_at': datetime.utcnow().isoformat(),
+            'sid': request.sid
+        }
+        user_activity[username] = time.time()
+
+    # Save username + sid for chat functionality
     connected_users[username] = request.sid
+
     print("✅ {} joined, total users: {}".format(username, len(connected_users)))
 
     # Send chat history only to this user
@@ -395,11 +549,10 @@ def handle_join(data):
         LIMIT 500
     """, fetch=True) or []
 
-    # --- convert timestamps -> iso so Socket.IO can JSON encode safely ----
+    # Convert timestamps -> iso so Socket.IO can JSON encode safely
     for h in history:
         if h.get("timestamp") is not None and isinstance(h["timestamp"], datetime):
             h["timestamp"] = h["timestamp"].isoformat()
-    # --------------------------------------------------------------------
 
     emit("chat_history", history, to=request.sid)
 
@@ -408,6 +561,7 @@ def handle_join(data):
 
 @socketio.on("message")
 def handle_message(data):
+    """Handle chat messages"""
     try:
         print("📨 Message received (raw):", data)
 
@@ -421,12 +575,16 @@ def handle_message(data):
         if not username:
             username = data.get("from")
         if not username:
-            print("⚠️ Could not determine message sender for sid:", request.sid)
+            print("⚠ Could not determine message sender for sid:", request.sid)
             return
 
         text = (data.get("text") or "").strip()
         if not text:
             return
+
+        # Update user activity
+        if username in user_activity:
+            user_activity[username] = time.time()
 
         # Save to DB
         user = execute_query("SELECT id FROM users WHERE username=%s LIMIT 1", (username,), fetch=True)
@@ -450,10 +608,9 @@ def handle_message(data):
         print("❌ handle_message error:", e)
         traceback.print_exc()
 
-
-
 @socketio.on("disconnect")
 def handle_disconnect():
+    """Handle user disconnection"""
     # Find user by sid
     username_to_remove = None
     for username, sid in list(connected_users.items()):
@@ -463,12 +620,38 @@ def handle_disconnect():
 
     if username_to_remove:
         del connected_users[username_to_remove]
+        # Also remove from online_users tracking
+        online_users.pop(username_to_remove, None)
+        user_activity.pop(username_to_remove, None)
         print("❌ {} left, total users: {}".format(username_to_remove, len(connected_users)))
 
     # Broadcast updated user count
     socketio.emit("user_count_update", {"count": len(connected_users)})
 
-# Add this after your other routes, before Socket.IO section
+@socketio.on("announce_winner")
+def handle_announce_winner(data):
+    """Handle winner announcement and broadcast to all clients"""
+    try:
+        winners = data.get("winners")
+        if not winners:
+            return
+            
+        print(f"🎉 Broadcasting winner announcement: {winners}")
+        
+        # Broadcast to ALL connected clients
+        emit(
+            "winner_announced", 
+            {"winners": winners}, 
+            broadcast=True,
+            include_self=True
+        )
+        
+        print("✅ Winner announcement broadcasted to all users")
+        
+    except Exception as e:
+        print(f"❌ Error in handle_announce_winner: {e}")
+        traceback.print_exc()
+
 # ---------------- Payment Routes ----------------
 
 PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY", "sk_test_...")
@@ -497,7 +680,7 @@ def initialize_payment():
             "email": f"{username}@chylnx.com",
             "amount": amount_kobo,
             "reference": reference,
-            "callback_url": f"{request.host_url}payment_verify",  # make sure host_url is HTTPS in prod
+            "callback_url": f"{request.host_url}payment_verify",
             "metadata": {
                 "user_id": user_id,
                 "username": username
@@ -524,7 +707,6 @@ def initialize_payment():
     except Exception as e:
         print(f"❌ Payment initialization error: {e}")
         return jsonify({"error": "Payment initialization failed"}), 500
-
 
 @app.route("/payment_verify")
 def payment_verify():
@@ -575,7 +757,6 @@ def payment_verify():
         flash("Payment verification failed. Please try again.", "error")
         return redirect(url_for("payment"))
 
-
 @app.route("/check_payment_status")
 def check_payment_status():
     """Check if current user has paid"""
@@ -594,65 +775,8 @@ def check_payment_status():
     else:
         return jsonify({"paid": False})
 
-# Final join/disconnect definitions (keep them if you use them elsewhere)
-@socketio.on("join_chat")
-def handle_join_short(data):
-    username = data.get("username")
-    if not username:
-        return
-
-    # Save username + sid
-    connected_users[username] = request.sid
-    print("✅ {} joined, total users: {}".format(username, len(connected_users)))
-
-    # Broadcast updated user count
-    socketio.emit("user_count_update", {"count": len(connected_users)})
-
-
-@socketio.on("disconnect")
-def handle_disconnect_short():
-    # Find user by sid
-    username_to_remove = None
-    for username, sid in list(connected_users.items()):
-        if sid == request.sid:
-            username_to_remove = username
-            break
-
-    if username_to_remove:
-        del connected_users[username_to_remove]
-        print("❌ {} left, total users: {}".format(username_to_remove, len(connected_users)))
-
-    # Broadcast updated user count
-    socketio.emit("user_count_update", {"count": len(connected_users)})
-
-# Add this with your other Socket.IO event handlers
-@socketio.on("announce_winner")
-def handle_announce_winner(data):
-    """Handle winner announcement and broadcast to all clients"""
-    try:
-        winners = data.get("winners")
-        if not winners:
-            return
-            
-        print(f"🎉 Broadcasting winner announcement: {winners}")
-        
-        # Broadcast to ALL connected clients
-        emit(
-            "winner_announced", 
-            {"winners": winners}, 
-            broadcast=True,  # This sends to all connected clients
-            include_self=True  # Also send to the user who triggered it
-        )
-        
-        print("✅ Winner announcement broadcasted to all users")
-        
-    except Exception as e:
-        print(f"❌ Error in handle_announce_winner: {e}")
-        traceback.print_exc()
-
-
 # ---------------- Run ----------------
-if __name__ == "__main__":
+if _name_ == "_main_":
     port = int(os.getenv("PORT", 5000))
     debug = os.getenv("DEBUG", "false").lower() == "true"
     socketio.run(app, host="0.0.0.0", port=port, debug=debug)
