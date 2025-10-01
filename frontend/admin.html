@@ -189,89 +189,90 @@
         const socket = io();
         
         // Load current session info
-        function loadSessionInfo() {
-            fetch('/get_session_info')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.session_code) {
-                        document.getElementById('sessionCode').textContent = data.session_code;
-                        document.getElementById('paidUsers').textContent = data.paid_users;
-                        document.getElementById('totalUsers').textContent = data.total_users;
-                    }
-                })
-                .catch(error => {
-                    console.error('Error loading session info:', error);
-                });
-        }
-        
-        // Reset confirmation modal
-        function showResetConfirm() {
-            document.getElementById('resetModal').style.display = 'flex';
-        }
-        
-        function hideResetConfirm() {
-            document.getElementById('resetModal').style.display = 'none';
-        }
-        
-        // Reset chat session function
-        function resetChatSession() {
-            const resetBtn = document.querySelector('.reset-btn');
-            resetBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> RESETTING...';
-            resetBtn.disabled = true;
+       // Enhanced admin panel functionality
+function loadEnhancedStats() {
+    // Load online users
+    fetch('/get_online_users')
+        .then(response => response.json())
+        .then(data => {
+            const onlineList = document.getElementById('onlineUsersList');
+            onlineList.innerHTML = '';
             
-            fetch('/start_new_session', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    hideResetConfirm();
-                    
-                    // Update session info
-                    document.getElementById('sessionCode').textContent = data.session_code;
-                    document.getElementById('paidUsers').textContent = '0';
-                    
-                    // Show success message
-                    document.getElementById('resetSuccess').style.display = 'block';
-                    
-                    // Reset button state
-                    resetBtn.innerHTML = '<i class="fas fa-sync-alt"></i> RESET CHAT SESSION';
-                    resetBtn.disabled = false;
-                    
-                    // Hide success message after 5 seconds
-                    setTimeout(() => {
-                        document.getElementById('resetSuccess').style.display = 'none';
-                    }, 5000);
-                    
-                    console.log('Session reset successfully:', data.message);
-                } else {
-                    alert('Error: ' + data.error);
-                    resetBtn.innerHTML = '<i class="fas fa-sync-alt"></i> RESET CHAT SESSION';
-                    resetBtn.disabled = false;
-                }
-            })
-            .catch(error => {
-                alert('Error resetting session: ' + error);
-                resetBtn.innerHTML = '<i class="fas fa-sync-alt"></i> RESET CHAT SESSION';
-                resetBtn.disabled = false;
-            });
-        }
-        
-        // Listen for session reset events (in case another admin resets)
-        socket.on("session_reset", function(data) {
-            alert('Session was reset by another admin!');
-            loadSessionInfo(); // Refresh the session info
+            if (data.online_users && data.online_users.length > 0) {
+                data.online_users.forEach(user => {
+                    const userDiv = document.createElement('div');
+                    userDiv.style.padding = '5px 0';
+                    userDiv.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
+                    userDiv.textContent = user.username;
+                    onlineList.appendChild(userDiv);
+                });
+            } else {
+                onlineList.innerHTML = '<p style="color: #888;">No users online</p>';
+            }
         });
-        
-        // Initialize
-        window.onload = function() {
-            loadSessionInfo();
-            // Refresh session info every 30 seconds
-            setInterval(loadSessionInfo, 30000);
-        };
+    
+    // Load payment statistics
+    fetch('/get_payment_stats')
+        .then(response => response.json())
+        .then(data => {
+            if (!data.error) {
+                document.getElementById('todayPayments').textContent = data.today.count;
+                document.getElementById('totalRevenue').textContent = `₦${data.total.total_amount.toLocaleString()}`;
+                
+                const recentPayments = document.getElementById('recentPayments');
+                recentPayments.innerHTML = '';
+                
+                if (data.recent_payments && data.recent_payments.length > 0) {
+                    data.recent_payments.forEach(payment => {
+                        const paymentDiv = document.createElement('div');
+                        paymentDiv.style.padding = '5px 0';
+                        paymentDiv.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
+                        paymentDiv.innerHTML = `
+                            <strong>${payment.username}</strong><br>
+                            ₦${payment.amount} - ${new Date(payment.created_at).toLocaleTimeString()}
+                        `;
+                        recentPayments.appendChild(paymentDiv);
+                    });
+                } else {
+                    recentPayments.innerHTML = '<p style="color: #888;">No recent payments</p>';
+                }
+            }
+        });
+}
+
+// Listen for real-time user count updates
+socket.on("user_count_update", function(data) {
+    document.getElementById('onlineNow').textContent = data.count;
+    document.getElementById('totalUsers').textContent = data.count; // Update total users display
+    
+    // Update online users list
+    const onlineList = document.getElementById('onlineUsersList');
+    onlineList.innerHTML = '';
+    
+    if (data.online_users && data.online_users.length > 0) {
+        data.online_users.forEach(username => {
+            const userDiv = document.createElement('div');
+            userDiv.style.padding = '5px 0';
+            userDiv.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
+            userDiv.textContent = username;
+            onlineList.appendChild(userDiv);
+        });
+    } else {
+        onlineList.innerHTML = '<p style="color: #888;">No users online</p>';
+    }
+});
+
+// Update initialization to load enhanced stats
+window.onload = function() {
+    loadSessionInfo();
+    loadEnhancedStats();
+    
+    // Refresh all data every 10 seconds
+    setInterval(() => {
+        loadSessionInfo();
+        loadEnhancedStats();
+    }, 10000);
+};
     </script>
 </body>
 </html>
