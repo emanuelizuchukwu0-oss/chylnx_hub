@@ -702,25 +702,25 @@ function initApp() {
     document.getElementById('usernameInput').focus();
 }
 
-// Check timer status from server
+// Check timer status from server (ONLY checks original game timer)
 function checkTimerStatus() {
     // Create a temporary socket connection to check timer status
     const tempSocket = io();
     
     tempSocket.on('connect', function() {
-        console.log('⏰ Checking timer status...');
-        // Request current timer state
+        console.log('⏰ Checking game timer status...');
+        // Request current game timer state (NOT weekly challenge)
         tempSocket.emit('get_timer');
     });
     
     tempSocket.on('timer_update', function(data) {
-        console.log('📡 Timer status received:', data);
+        console.log('📡 Game timer status received:', data);
         
         if (data.is_running && data.remaining_seconds > 0) {
-            // Timer is still running - block username entry
+            // Game timer is still running - block username entry
             showTimerBlockMessage(data.remaining_seconds);
         } else {
-            // Timer has stopped - allow username entry
+            // Game timer has stopped - allow username entry
             isGameStarted = true;
             enableUsernameEntry();
         }
@@ -744,7 +744,6 @@ function checkTimerStatus() {
         enableUsernameEntry();
     });
 }
-
 // Show message when timer is still running
 function showTimerBlockMessage(remainingSeconds) {
     const usernameForm = document.getElementById('usernameForm');
