@@ -214,7 +214,36 @@ def set_day_timer(days, hours, minutes, seconds):
     )
     return end_time
 
+# ---------------- Persistent Day Timer Functions ----------------
+def get_current_day_timer():
+    """Get the active day timer from database"""
+    result = execute_query(
+        "SELECT * FROM day_timer WHERE is_running = TRUE ORDER BY created_at DESC LIMIT 1",
+        fetch=True
+    )
+    if result:
+        return result[0]
+    return None
+
+def set_day_timer(days, hours, minutes, seconds):
+    """Set a new day timer in the database - completely persistent"""
+    total_seconds = (days * 24 * 60 * 60) + (hours * 60 * 60) + (minutes * 60) + seconds
+    end_time = datetime.now() + timedelta(seconds=total_seconds)
+    
+    # Clear ALL existing day timers first
+    execute_query("DELETE FROM day_timer")
+    
+    # Create new day timer
+    execute_query(
+        "INSERT INTO day_timer (end_time, is_running) VALUES (%s, %s)",
+        (end_time, True)
+    )
+    
+    print(f"✅ Day timer set to expire at: {end_time}")
+    return end_time
+
 def get_day_remaining_time():
+    """Calculate remaining time for active day timer - always accurate"""
     timer = get_current_day_timer()
     if not timer:
         return None
@@ -222,15 +251,48 @@ def get_day_remaining_time():
     end_time = timer['end_time']
     now = datetime.now()
     
+    # Handle timezone differences
     if end_time.tzinfo is not None and now.tzinfo is None:
         now = datetime.now(end_time.tzinfo)
     
     if now >= end_time:
+        # Timer expired, update database
         execute_query("UPDATE day_timer SET is_running = FALSE WHERE id = %s", (timer['id'],))
         return 0
     
     remaining = (end_time - now).total_seconds()
     return max(0, int(remaining))
+
+def check_day_timer_expired():
+    """Check if day timer has expired and handle it"""
+    timer = get_current_day_timer()
+    if not timer:
+        return False
+    
+    remaining = get_day_remaining_time()
+    if remaining <= 0:
+        # Timer expired, update database
+        execute_query("UPDATE day_timer SET is_running = FALSE WHERE id = %s", (timer['id'],))
+        print("🎉 Day timer expired automatically")
+        return True
+    return False
+def check_and_broadcast_day_timer_status():
+    """Check day timer status and broadcast if expired"""
+    timer = get_current_day_timer()
+    if not timer:
+        # No active day timer
+        return False
+    
+    remaining = get_day_remaining_time()
+    if remaining <= 0:
+        # Day timer expired, broadcast completion
+        execute_query("UPDATE day_timer SET is_running = FALSE WHERE is_running = TRUE")
+        emit('day_timer_complete', {
+            'message': 'DAY TIMER COMPLETE',
+            'timestamp': datetime.utcnow().isoformat()
+        }, broadcast=True)
+        return True
+    return False
 
 def get_current_weekly_challenge():
     result = execute_query(
@@ -526,20 +588,29 @@ def get_payment_stats():
 # ---------------- Socket.IO Event Handlers ----------------
 @socketio.on("connect")
 def handle_connect():
+    """Send current timer states when client connects"""
+    print("🔔 Client connected")
+    
+    # Check game timer status
     if check_and_broadcast_timer_status():
         return
     
+    # Send current game timer state
     remaining = get_remaining_time()
-    print(f"🔔 Client connected. Remaining time: {remaining}")
-    
     if remaining is not None and remaining > 0:
         emit('timer_update', {
             'remaining_seconds': remaining,
             'is_running': True
         })
     else:
-        check_and_broadcast_timer_status()
-
+        emit('timer_update', {
+            'remaining_seconds': 0,
+            'is_running': False
+        })
+    
+    # ALWAYS send the current ACTUAL day timer state from database
+    # This ensures it's always accurate regardless of page refreshes
+    handle_get_day_timer()
 @socketio.on("set_timer")
 def handle_set_timer(data):
     try:
@@ -583,6 +654,7 @@ def handle_get_timer():
 
 @socketio.on("set_day_timer")
 def handle_set_day_timer(data):
+    """Handle day timer setting from admin - completely persistent"""
     try:
         days = int(data.get('days', 0))
         hours = int(data.get('hours', 0))
@@ -595,20 +667,98 @@ def handle_set_day_timer(data):
             emit('day_timer_error', {'message': 'Please set a valid timer duration'})
             return
         
-        print(f"📅 Setting day timer: {days}d {hours}h {minutes}m {seconds}s")
+        print(f"📅 Setting persistent day timer: {days}d {hours}h {minutes}m {seconds}s")
         end_time = set_day_timer(days, hours, minutes, seconds)
         remaining = get_day_remaining_time()
         
-        print(f"✅ Day timer set. End time: {end_time}, Remaining: {remaining}s")
+        print(f"✅ Persistent day timer set. Will expire at: {end_time}")
         
+        # Broadcast to all connected clients
         emit('day_timer_update', {
             'remaining_seconds': remaining,
-            'is_running': True
+            'is_running': True,
+            'message': f'Day timer set for {days}d {hours}h {minutes}m {seconds}s'
         }, broadcast=True)
         
     except Exception as e:
         print(f"❌ Day timer setting error: {e}")
         emit('day_timer_error', {'message': str(e)})
+
+@socketio.on("get_day_timer")
+def handle_get_day_timer():
+    """Send current ACTUAL day timer state from database"""
+    # First check if timer expired
+    check_day_timer_expired()
+    
+    timer = get_current_day_timer()
+    if timer:
+        remaining = get_day_remaining_time()
+        if remaining > 0:
+            # Convert to readable format
+            days = remaining // (24 * 3600)
+            hours = (remaining % (24 * 3600)) // 3600
+            minutes = (remaining % 3600) // 60
+            seconds = remaining % 60
+            
+            emit('day_timer_update', {
+                'remaining_seconds': remaining,
+                'is_running': True,
+                'readable_time': f'{days}d {hours}h {minutes}m {seconds}s',
+                'message': f'Day timer active: {days}d {hours}h {minutes}m {seconds}s remaining'
+            })
+        else:
+            emit('day_timer_update', {
+                'remaining_seconds': 0,
+                'is_running': False,
+                'message': 'Day timer completed'
+            })
+    else:
+        emit('day_timer_update', {
+            'remaining_seconds': 0,
+            'is_running': False,
+            'message': 'No active day timer'
+        })
+
+@socketio.on("stop_day_timer")
+def handle_stop_day_timer():
+    """Stop the current day timer"""
+    try:
+        timer = get_current_day_timer()
+        if timer:
+            execute_query("UPDATE day_timer SET is_running = FALSE WHERE id = %s", (timer['id'],))
+            print("⏹️ Day timer stopped manually")
+        
+        emit('day_timer_update', {
+            'remaining_seconds': 0,
+            'is_running': False,
+            'message': 'Day timer stopped'
+        }, broadcast=True)
+        
+    except Exception as e:
+        print(f"❌ Error stopping day timer: {e}")
+        emit('day_timer_error', {'message': str(e)})
+
+@socketio.on("get_day_timer")
+def handle_get_day_timer():
+    """Send current day timer state to requesting client"""
+    remaining = get_day_remaining_time()
+    timer = get_current_day_timer()
+    end_time = timer['end_time'].isoformat() if timer and timer.get('end_time') else None
+    
+    print(f"📡 Sending day timer state: {remaining}s")
+    
+    if remaining is not None and remaining > 0:
+        emit('day_timer_update', {
+            'remaining_seconds': remaining,
+            'is_running': True,
+            'end_time': end_time
+        })
+    else:
+        emit('day_timer_update', {
+            'remaining_seconds': 0,
+            'is_running': False,
+            'end_time': None
+        })
 
 @socketio.on("get_day_timer")
 def handle_get_day_timer():
@@ -809,17 +959,19 @@ def handle_timer_finished():
 
 @socketio.on("day_timer_finished")
 def handle_day_timer_finished():
+    """Handle day timer completion - only called when timer actually expires"""
     try:
-        print("🎉 Day timer finished - broadcasting DAY TIMER COMPLETE")
-        
-        execute_query("UPDATE day_timer SET is_running = FALSE WHERE is_running = TRUE")
-        
-        emit('day_timer_complete', {
-            'message': 'DAY TIMER COMPLETE',
-            'timestamp': datetime.utcnow().isoformat()
-        }, broadcast=True)
-        
-        print("✅ Day timer complete announcement broadcasted to all users")
+        # Double check it's actually expired
+        if check_day_timer_expired():
+            print("🎉 Day timer finished - broadcasting completion")
+            
+            # Broadcast to ALL connected clients
+            emit('day_timer_complete', {
+                'message': 'DAY TIMER COMPLETED',
+                'timestamp': datetime.utcnow().isoformat()
+            }, broadcast=True)
+            
+            print("✅ Day timer completion broadcasted to all users")
         
     except Exception as e:
         print(f"❌ Error in handle_day_timer_finished: {e}")
