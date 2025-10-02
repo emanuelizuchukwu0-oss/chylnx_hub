@@ -755,34 +755,30 @@ window.addEventListener('load', function() {
         console.log('Password section exists:', !!document.getElementById('passwordSection'));
         console.log('Timer control exists:', !!document.getElementById('timerControl'));
     });
-    // Day Timer functionality
+    // Day Timer functionality - UPDATED VERSION
 let dayTimerInterval;
 let dayTotalSeconds = 0;
 let dayGameStartedState = false;
 
-// Initialize Day Timer Socket.io
+// Initialize Day Timer Socket.io - UPDATED
 function initializeDayTimerSocket() {
     // Listen for day timer updates from server
     socket.on('day_timer_update', function(data) {
         console.log('📡 Received day timer update from server:', data);
-        
-        // Clear any existing day timer first
+        // Clear any existing client-side interval
         clearInterval(dayTimerInterval);
-        dayGameStartedState = false;
         
         if (data.is_running && data.remaining_seconds > 0) {
-            // Use the server-provided time
-            dayTotalSeconds = data.remaining_seconds;
-            console.log('📅 Syncing with server day timer:', dayTotalSeconds, 'seconds remaining');
+            // Server says timer is active - display server's time
+            updateDayTimerDisplay(data.remaining_seconds);
             
-            // Reset display style
+            // Set up a sync interval to get fresh data from server periodically
+            dayTimerInterval = setInterval(requestDayTimerUpdate, 30000); // Sync every 30 seconds
+            
+            // Reset display to active state
             resetDayTimerDisplay();
-            
-            // Start counting down immediately
-            updateDayTimerDisplay();
-            dayTimerInterval = setInterval(updateDayTimer, 1000);
         } else {
-            // No active day timer, show complete
+            // Server says timer is complete
             showDayTimerCompleteState();
         }
     });
@@ -796,34 +792,31 @@ function initializeDayTimerSocket() {
     socket.on('day_timer_error', function(data) {
         alert('Day timer error: ' + data.message);
     });
-}
-
-function updateDayTimer() {
-    if (dayTotalSeconds <= 0) {
-        clearInterval(dayTimerInterval);
-        showDayTimerCompleteState();
-        
-        // Notify server that day timer finished
-        if (socket) {
-            socket.emit('day_timer_finished');
-        }
-        return;
-    }
     
-    dayTotalSeconds--;
-    updateDayTimerDisplay();
+    // Request the current state immediately
+    requestDayTimerUpdate();
 }
 
-function updateDayTimerDisplay() {
-    const days = Math.floor(dayTotalSeconds / (24 * 60 * 60));
-    const hours = Math.floor((dayTotalSeconds % (24 * 60 * 60)) / (60 * 60));
-    const minutes = Math.floor((dayTotalSeconds % (60 * 60)) / 60);
-    const seconds = dayTotalSeconds % 60;
+// Request update from server - NEW FUNCTION
+function requestDayTimerUpdate() {
+    if (socket) {
+        socket.emit('get_day_timer');
+    }
+}
+
+// Update display based on server-provided seconds - UPDATED
+function updateDayTimerDisplay(totalSeconds) {
+    const days = Math.floor(totalSeconds / (24 * 60 * 60));
+    const hours = Math.floor((totalSeconds % (24 * 60 * 60)) / (60 * 60));
+    const minutes = Math.floor((totalSeconds % (60 * 60)) / 60);
+    const seconds = totalSeconds % 60;
     
     document.getElementById('dayCountdown').textContent = 
         `${days.toString().padStart(2, '0')}d ${hours.toString().padStart(2, '0')}h ${minutes.toString().padStart(2, '0')}m ${seconds.toString().padStart(2, '0')}s`;
 }
 
+// The rest of your functions (showDayTimerCompleteState, resetDayTimerDisplay, setCustomDayTimer) 
+// can remain the same as in your current code
 function showDayTimerCompleteState() {
     clearInterval(dayTimerInterval);
     dayGameStartedState = true;

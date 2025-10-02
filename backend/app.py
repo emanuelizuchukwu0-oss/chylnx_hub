@@ -195,25 +195,6 @@ def get_remaining_time():
     remaining = (end_time - now).total_seconds()
     return max(0, int(remaining))
 
-def get_current_day_timer():
-    result = execute_query(
-        "SELECT * FROM day_timer WHERE is_running = TRUE ORDER BY created_at DESC LIMIT 1",
-        fetch=True
-    )
-    if result:
-        return result[0]
-    return None
-
-def set_day_timer(days, hours, minutes, seconds):
-    total_seconds = (days * 24 * 60 * 60) + (hours * 60 * 60) + (minutes * 60) + seconds
-    end_time = datetime.now() + timedelta(seconds=total_seconds)
-    execute_query("DELETE FROM day_timer")
-    execute_query(
-        "INSERT INTO day_timer (end_time, is_running) VALUES (%s, %s)",
-        (end_time, True)
-    )
-    return end_time
-
 # ---------------- Persistent Day Timer Functions ----------------
 def get_current_day_timer():
     """Get the active day timer from database"""
@@ -243,7 +224,7 @@ def set_day_timer(days, hours, minutes, seconds):
     return end_time
 
 def get_day_remaining_time():
-    """Calculate remaining time for active day timer - always accurate"""
+    """Calculate remaining time for active day timer - ALWAYS accurate"""
     timer = get_current_day_timer()
     if not timer:
         return None
@@ -251,7 +232,7 @@ def get_day_remaining_time():
     end_time = timer['end_time']
     now = datetime.now()
     
-    # Handle timezone differences
+    # Handle timezone differences if necessary
     if end_time.tzinfo is not None and now.tzinfo is None:
         now = datetime.now(end_time.tzinfo)
     
@@ -264,36 +245,26 @@ def get_day_remaining_time():
     return max(0, int(remaining))
 
 def check_day_timer_expired():
-    """Check if day timer has expired and handle it"""
+    """Check if day timer has expired and handle it - call this periodically"""
     timer = get_current_day_timer()
     if not timer:
         return False
     
     remaining = get_day_remaining_time()
     if remaining <= 0:
-        # Timer expired, update database
+        # Timer expired, update database and broadcast
         execute_query("UPDATE day_timer SET is_running = FALSE WHERE id = %s", (timer['id'],))
         print("🎉 Day timer expired automatically")
-        return True
-    return False
-def check_and_broadcast_day_timer_status():
-    """Check day timer status and broadcast if expired"""
-    timer = get_current_day_timer()
-    if not timer:
-        # No active day timer
-        return False
-    
-    remaining = get_day_remaining_time()
-    if remaining <= 0:
-        # Day timer expired, broadcast completion
-        execute_query("UPDATE day_timer SET is_running = FALSE WHERE is_running = TRUE")
-        emit('day_timer_complete', {
-            'message': 'DAY TIMER COMPLETE',
+        
+        # Broadcast to all connected clients
+        socketio.emit('day_timer_complete', {
+            'message': 'DAY TIMER COMPLETED',
             'timestamp': datetime.utcnow().isoformat()
         }, broadcast=True)
         return True
     return False
 
+# ---------------- Weekly Challenge Functions ----------------
 def get_current_weekly_challenge():
     result = execute_query(
         "SELECT * FROM weekly_challenge WHERE is_active = TRUE ORDER BY created_at DESC LIMIT 1",
