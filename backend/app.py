@@ -112,65 +112,6 @@ def init_db():
                 )
             """)
             cursor.execute("""
-               CREATE TABLE IF NOT EXISTS payments (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL,
-    reference VARCHAR(255) UNIQUE NOT NULL,
-    amount NUMERIC(10,2) NOT NULL,
-    status VARCHAR(50) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-            """)
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS game_timer (
-                    id SERIAL PRIMARY KEY,
-                    end_time TIMESTAMP NOT NULL,
-                    is_running BOOLEAN DEFAULT TRUE,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-        conn.commit()
-        print("✅ Tables initialized")
-    except Exception as e:
-        print("❌ DB init failed:", e)
-        traceback.print_exc()
-        try:
-            conn.rollback()
-        except:
-            pass
-    finally:
-        conn.close()
-
-init_db()
-
-def init_db():
-    conn = get_db_connection()
-    if not conn:
-        print("❌ init_db: no DB connection")
-        return
-    try:
-        with conn.cursor() as cursor:
-            # ... your existing table creations ...
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS users (
-                    id SERIAL PRIMARY KEY,
-                    username VARCHAR(255) UNIQUE NOT NULL,
-                    email VARCHAR(255) UNIQUE,
-                    password VARCHAR(255),
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS messages (
-                    id SERIAL PRIMARY KEY,
-                    user_id INT REFERENCES users(id) ON DELETE CASCADE,
-                    username VARCHAR(255),
-                    message TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS payments (
                     id SERIAL PRIMARY KEY,
                     user_id INTEGER NOT NULL,
@@ -218,7 +159,6 @@ def init_db():
             pass
     finally:
         conn.close()
-# ---------------- Timer Functions ----------------
 def get_current_timer():
     """Get the active timer from database"""
     result = execute_query(
