@@ -330,6 +330,35 @@
     margin-top: 5px;
     text-align: center;
 }
+/* Day Timer Styles */
+.day-timer {
+    background: rgba(0, 0, 0, 0.7);
+    padding: clamp(12px, 3vw, 15px);
+    text-align: center;
+    border-radius: 12px;
+    margin: 0 auto clamp(15px, 4vw, 25px);
+    font-weight: bold;
+    font-size: clamp(1rem, 4vw, 1.4rem);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    max-width: min(500px, 90%);
+    border: 1px solid rgba(255, 165, 0, 0.3);
+    width: 100%;
+}
+
+.day-timer span {
+    color: #ffa500;
+    font-size: clamp(1.2rem, 4vw, 1.5rem);
+}
+
+.day-timer-complete {
+    background: linear-gradient(135deg, #ff8c00, #ff4500);
+    border-color: #ff4500;
+}
+
+.day-timer-complete span {
+    color: #fff;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
     </style>
 </head>
 <body>
@@ -394,6 +423,21 @@
                 </div>
                 <button class="timer-btn" onclick="setCustomTimer()">Set Timer</button>
             </div>
+            <!-- Day Timer Control Section (hidden by default) -->
+<div class="timer-control hidden" id="dayTimerControl">
+    <h3>Set Day Timer</h3>
+    <div class="timer-input">
+        <input type="number" id="dayDays" min="0" value="0" placeholder="Days">
+        <span>d</span>
+        <input type="number" id="dayHours" min="0" max="23" value="0" placeholder="Hours">
+        <span>h</span>
+        <input type="number" id="dayMinutes" min="0" max="59" value="0" placeholder="Min">
+        <span>m</span>
+        <input type="number" id="daySeconds" min="0" max="59" value="0" placeholder="Sec">
+        <span>s</span>
+    </div>
+    <button class="timer-btn" onclick="setCustomDayTimer()">Set Day Timer</button>
+</div>
         </section>
     </main>
 
@@ -590,9 +634,11 @@ window.addEventListener('load', function() {
     
     // Start with default display
     document.getElementById('countdown').textContent = "00:00";
+    document.getElementById('dayCountdown').textContent = "00d 00h 00m 00s";
     
     // Initialize Socket.io
     initializeSocket();
+    initializeDayTimerSocket(); // Initialize day timer
     
     // Setup password functionality
     setupPasswordEnterKey();
@@ -607,6 +653,167 @@ window.addEventListener('load', function() {
         console.log('Password section exists:', !!document.getElementById('passwordSection'));
         console.log('Timer control exists:', !!document.getElementById('timerControl'));
     });
+    // Day Timer functionality
+let dayTimerInterval;
+let dayTotalSeconds = 0;
+let dayGameStartedState = false;
+
+// Initialize Day Timer Socket.io
+function initializeDayTimerSocket() {
+    // Listen for day timer updates from server
+    socket.on('day_timer_update', function(data) {
+        console.log('📡 Received day timer update from server:', data);
+        
+        // Clear any existing day timer first
+        clearInterval(dayTimerInterval);
+        dayGameStartedState = false;
+        
+        if (data.is_running && data.remaining_seconds > 0) {
+            // Use the server-provided time
+            dayTotalSeconds = data.remaining_seconds;
+            console.log('📅 Syncing with server day timer:', dayTotalSeconds, 'seconds remaining');
+            
+            // Reset display style
+            resetDayTimerDisplay();
+            
+            // Start counting down immediately
+            updateDayTimerDisplay();
+            dayTimerInterval = setInterval(updateDayTimer, 1000);
+        } else {
+            // No active day timer, show complete
+            showDayTimerCompleteState();
+        }
+    });
+    
+    // Listen for day timer complete event
+    socket.on('day_timer_complete', function(data) {
+        console.log('🎉 Day timer complete received:', data);
+        showDayTimerCompleteState();
+    });
+    
+    socket.on('day_timer_error', function(data) {
+        alert('Day timer error: ' + data.message);
+    });
+}
+
+function updateDayTimer() {
+    if (dayTotalSeconds <= 0) {
+        clearInterval(dayTimerInterval);
+        showDayTimerCompleteState();
+        
+        // Notify server that day timer finished
+        if (socket) {
+            socket.emit('day_timer_finished');
+        }
+        return;
+    }
+    
+    dayTotalSeconds--;
+    updateDayTimerDisplay();
+}
+
+function updateDayTimerDisplay() {
+    const days = Math.floor(dayTotalSeconds / (24 * 60 * 60));
+    const hours = Math.floor((dayTotalSeconds % (24 * 60 * 60)) / (60 * 60));
+    const minutes = Math.floor((dayTotalSeconds % (60 * 60)) / 60);
+    const seconds = dayTotalSeconds % 60;
+    
+    document.getElementById('dayCountdown').textContent = 
+        `${days.toString().padStart(2, '0')}d ${hours.toString().padStart(2, '0')}h ${minutes.toString().padStart(2, '0')}m ${seconds.toString().padStart(2, '0')}s`;
+}
+
+function showDayTimerCompleteState() {
+    clearInterval(dayTimerInterval);
+    dayGameStartedState = true;
+    
+    const dayCountdownElement = document.getElementById('dayCountdown');
+    dayCountdownElement.textContent = "EVENT ENDED";
+    
+    // Add visual effects
+    const dayTimerElement = document.querySelector('.day-timer');
+    dayTimerElement.classList.add('day-timer-complete');
+    dayCountdownElement.style.color = '#fff';
+    dayCountdownElement.style.textShadow = '0 0 10px #fff, 0 0 20px #fff';
+    dayCountdownElement.style.fontSize = 'clamp(1.2rem, 4vw, 1.5rem)';
+    dayCountdownElement.style.fontWeight = 'bold';
+    
+    console.log('🔄 Day timer complete state activated');
+}
+
+function resetDayTimerDisplay() {
+    const dayCountdownElement = document.getElementById('dayCountdown');
+    const dayTimerElement = document.querySelector('.day-timer');
+    
+    dayTimerElement.classList.remove('day-timer-complete');
+    dayCountdownElement.style.color = '#ffa500';
+    dayCountdownElement.style.textShadow = '0 0 10px rgba(255, 165, 0, 0.7)';
+    dayCountdownElement.style.fontSize = 'clamp(1.2rem, 4vw, 1.5rem)';
+    dayCountdownElement.style.fontWeight = 'bold';
+    dayCountdownElement.style.animation = 'none';
+}
+
+function setCustomDayTimer() {
+    const days = parseInt(document.getElementById('dayDays').value) || 0;
+    const hours = parseInt(document.getElementById('dayHours').value) || 0;
+    const minutes = parseInt(document.getElementById('dayMinutes').value) || 0;
+    const seconds = parseInt(document.getElementById('daySeconds').value) || 0;
+    
+    const totalSeconds = (days * 24 * 60 * 60) + (hours * 60 * 60) + (minutes * 60) + seconds;
+    
+    if (totalSeconds <= 0) {
+        alert('Please set a valid day timer duration');
+        return;
+    }
+    
+    // Send day timer to server
+    if (socket) {
+        console.log('📅 Sending day timer to server:', days, 'days', hours, 'hours', minutes, 'minutes', seconds, 'seconds');
+        socket.emit('set_day_timer', {
+            days: days,
+            hours: hours,
+            minutes: minutes,
+            seconds: seconds
+        });
+        
+        // Reset the input fields to default after setting timer
+        document.getElementById('dayDays').value = '0';
+        document.getElementById('dayHours').value = '0';
+        document.getElementById('dayMinutes').value = '0';
+        document.getElementById('daySeconds').value = '0';
+    } else {
+        alert('Not connected to server. Using local day timer only.');
+        dayTotalSeconds = totalSeconds;
+        dayGameStartedState = false;
+        clearInterval(dayTimerInterval);
+        resetDayTimerDisplay();
+        updateDayTimerDisplay();
+        dayTimerInterval = setInterval(updateDayTimer, 1000);
+    }
+    
+    alert(`Day timer set to ${days}d ${hours}h ${minutes}m ${seconds}s`);
+}
+
+// Update your password check function to show both timers
+function checkPassword() {
+    console.log('🔑 Checking password...');
+    const passwordInput = document.getElementById('passwordInput');
+    const password = passwordInput.value;
+    
+    console.log('Password entered:', password ? '***' : 'empty');
+    
+    if (password === '12345') {
+        console.log('✅ Password correct - unlocking timer controls');
+        document.getElementById('passwordSection').classList.add('hidden');
+        document.getElementById('timerControl').classList.remove('hidden');
+        document.getElementById('dayTimerControl').classList.remove('hidden'); // Show day timer controls
+        passwordInput.value = ''; // Clear the password field after successful unlock
+    } else {
+        console.log('❌ Password incorrect');
+        alert('Incorrect password! Please try again.');
+        passwordInput.value = '';
+        passwordInput.focus();
+    }
+}
 </script>
 </body>
 </html>
