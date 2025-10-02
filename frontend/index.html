@@ -425,6 +425,16 @@ body {
     </style>
 </head>
 <body>
+    <!-- Rest of your existing code remains the same -->
+    <div class="head">
+        <p>CHYLNX HUB</p>
+        <div class="icons" id="iconContainer">
+            <img src="{{ url_for('static', filename='images/earth.png') }}" alt="Earth Icon" class="icon-img">
+            <img src="{{ url_for('static', filename='images/note.png') }}" alt="Note Icon" class="icon-img">
+            <img src="{{ url_for('static', filename='images/king.png') }}" alt="King Icon" class="icon-img">
+        </div>
+    </div>
+    
     <!-- Weekly Challenge Display - MOVED TO TOP -->
     <div class="weekly-challenge">
         WEEKLY CHALLENGE: <span id="weeklyStatus">ACTIVE</span>
@@ -440,15 +450,7 @@ body {
         EVENT ENDS IN: <span id="dayCountdown">00d 00h 00m 00s</span>
     </div>
 
-    <!-- Rest of your existing code remains the same -->
-    <div class="head">
-        <p>CHYLNX HUB</p>
-        <div class="icons" id="iconContainer">
-            <img src="{{ url_for('static', filename='images/earth.png') }}" alt="Earth Icon" class="icon-img">
-            <img src="{{ url_for('static', filename='images/note.png') }}" alt="Note Icon" class="icon-img">
-            <img src="{{ url_for('static', filename='images/king.png') }}" alt="King Icon" class="icon-img">
-        </div>
-    </div>
+    
 
     <!-- ... rest of your code ... -->
     <div class="tagline">
