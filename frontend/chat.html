@@ -563,6 +563,36 @@
     padding: 2px 6px;
     border-radius: 12px;
 }
+/* Timer Block Message Styles */
+#usernameForm .timer-display {
+    font-size: 2rem;
+    color: #25D366;
+    font-weight: bold;
+    margin: 10px 0;
+    text-shadow: 0 0 10px rgba(37, 211, 102, 0.5);
+}
+
+#usernameForm .waiting-message {
+    color: #666;
+    margin: 15px 0;
+    line-height: 1.4;
+}
+
+#usernameForm .refresh-btn {
+    width: 100%;
+    padding: 12px;
+    background: #25D366;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background 0.3s;
+}
+
+#usernameForm .refresh-btn:hover {
+    background: #20bd5a;
+}
     </style>
 <head>
     <!-- Your existing head content (title, styles, etc.) -->
@@ -641,10 +671,11 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
     <script>
-     let myUsername = "";
+let myUsername = "";
 let socket = null;
-let selectedWinners = []; // Changed to array for multiple selection
-let onlineUsers = []; // Store online users
+let selectedWinners = [];
+let onlineUsers = [];
+let isGameStarted = false; // Track if game has started
 const ANNOUNCE_PASSCODE = "1234";
 
 // Initialize app
@@ -663,14 +694,112 @@ function initApp() {
         }
     });
 
+    // Show username overlay immediately but check timer status
     document.getElementById('usernameOverlay').style.display = 'flex';
+    checkTimerStatus();
     
     // Focus on username input
     document.getElementById('usernameInput').focus();
 }
 
+// Check timer status from server
+function checkTimerStatus() {
+    // Create a temporary socket connection to check timer status
+    const tempSocket = io();
+    
+    tempSocket.on('connect', function() {
+        console.log('⏰ Checking timer status...');
+        // Request current timer state
+        tempSocket.emit('get_timer');
+    });
+    
+    tempSocket.on('timer_update', function(data) {
+        console.log('📡 Timer status received:', data);
+        
+        if (data.is_running && data.remaining_seconds > 0) {
+            // Timer is still running - block username entry
+            showTimerBlockMessage(data.remaining_seconds);
+        } else {
+            // Timer has stopped - allow username entry
+            isGameStarted = true;
+            enableUsernameEntry();
+        }
+        
+        // Close temporary connection
+        tempSocket.disconnect();
+    });
+    
+    tempSocket.on('game_started', function(data) {
+        console.log('🎉 Game started - allowing username entry');
+        isGameStarted = true;
+        enableUsernameEntry();
+        tempSocket.disconnect();
+    });
+    
+    // Handle connection errors
+    tempSocket.on('connect_error', function(error) {
+        console.error('❌ Connection error:', error);
+        // If we can't connect to timer, assume game has started
+        isGameStarted = true;
+        enableUsernameEntry();
+    });
+}
+
+// Show message when timer is still running
+function showTimerBlockMessage(remainingSeconds) {
+    const usernameForm = document.getElementById('usernameForm');
+    const minutes = Math.floor(remainingSeconds / 60);
+    const seconds = remainingSeconds % 60;
+    
+    usernameForm.innerHTML = `
+        <h3>⏰ Game Starting Soon</h3>
+        <div style="text-align: center; margin: 20px 0;">
+            <div style="font-size: 2rem; color: #25D366; font-weight: bold; margin: 10px 0;">
+                ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}
+            </div>
+            <p style="color: #666; margin: 15px 0;">
+                Please wait for the timer to finish before joining the chat.
+            </p>
+            <p style="color: #888; font-size: 0.9rem;">
+                Game will start automatically when timer reaches zero.
+            </p>
+        </div>
+        <button onclick="checkTimerStatus()" style="width: 100%; padding: 12px; background: #25D366; color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 16px;">
+            Refresh Status
+        </button>
+        <div class="form-note">
+            You'll be able to join when the game starts
+        </div>
+    `;
+}
+
+// Enable username entry when game starts
+function enableUsernameEntry() {
+    const usernameForm = document.getElementById('usernameForm');
+    usernameForm.innerHTML = `
+        <h3>Join the Chat</h3>
+        <input type="text" id="usernameInput" placeholder="Enter your username" autocomplete="off">
+        <button onclick="setUsername()">Start Chatting</button>
+        <div class="form-note">
+            Choose a cool name to get started!
+        </div>
+    `;
+    
+    // Re-attach event listeners
+    document.getElementById('usernameInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') setUsername();
+    });
+    
+    document.getElementById('usernameInput').focus();
+}
+
 // Set username
 function setUsername() {
+    if (!isGameStarted) {
+        alert("Please wait for the game to start before joining the chat.");
+        return;
+    }
+    
     const usernameInput = document.getElementById('usernameInput');
     const username = usernameInput.value.trim();
     if (!username) return alert("Please enter a username");
@@ -736,6 +865,23 @@ function initializeChat() {
             document.getElementById("chatInput").disabled = false;
             document.getElementById("sendBtn").disabled = false;
         }, 10000);
+    });
+
+    // Listen for game started events in case admin starts new timer
+    socket.on('game_started', function(data) {
+        console.log('🎉 Game started event received in chat');
+        isGameStarted = true;
+    });
+
+    // Listen for timer updates in case admin sets new timer
+    socket.on('timer_update', function(data) {
+        if (data.is_running && data.remaining_seconds > 0) {
+            // Timer started again - block new users from joining
+            isGameStarted = false;
+        } else {
+            // Timer stopped - allow new users
+            isGameStarted = true;
+        }
     });
 
     addSystemMessage(`Welcome, ${myUsername}! Start chatting below.`);
