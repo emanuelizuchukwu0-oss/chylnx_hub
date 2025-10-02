@@ -144,6 +144,80 @@ def init_db():
 
 init_db()
 
+def init_db():
+    conn = get_db_connection()
+    if not conn:
+        print("❌ init_db: no DB connection")
+        return
+    try:
+        with conn.cursor() as cursor:
+            # ... your existing table creations ...
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id SERIAL PRIMARY KEY,
+                    username VARCHAR(255) UNIQUE NOT NULL,
+                    email VARCHAR(255) UNIQUE,
+                    password VARCHAR(255),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS messages (
+                    id SERIAL PRIMARY KEY,
+                    user_id INT REFERENCES users(id) ON DELETE CASCADE,
+                    username VARCHAR(255),
+                    message TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS payments (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER NOT NULL,
+                    reference VARCHAR(255) UNIQUE NOT NULL,
+                    amount NUMERIC(10,2) NOT NULL,
+                    status VARCHAR(50) NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS game_timer (
+                    id SERIAL PRIMARY KEY,
+                    end_time TIMESTAMP NOT NULL,
+                    is_running BOOLEAN DEFAULT TRUE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS day_timer (
+                    id SERIAL PRIMARY KEY,
+                    end_time TIMESTAMP NOT NULL,
+                    is_running BOOLEAN DEFAULT TRUE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            # ADD THIS NEW TABLE FOR WEEKLY CHALLENGE
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS weekly_challenge (
+                    id SERIAL PRIMARY KEY,
+                    end_time TIMESTAMP,
+                    is_active BOOLEAN DEFAULT FALSE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+        conn.commit()
+        print("✅ All tables initialized (including weekly_challenge)")
+    except Exception as e:
+        print("❌ DB init failed:", e)
+        traceback.print_exc()
+        try:
+            conn.rollback()
+        except:
+            pass
+    finally:
+        conn.close()
 # ---------------- Timer Functions ----------------
 def get_current_timer():
     """Get the active timer from database"""
@@ -1026,6 +1100,228 @@ def init_db():
             pass
     finally:
         conn.close()
+
+# Add these new functions for weekly challenge
+def get_current_weekly_challenge():
+    """Get the active weekly challenge from database"""
+    result = execute_query(
+        "SELECT * FROM weekly_challenge WHERE is_active = TRUE ORDER BY created_at DESC LIMIT 1",
+        fetch=True
+    )
+    if result:
+        return result[0]
+    return None
+
+def set_weekly_challenge(days, action):
+    """Set or stop weekly challenge"""
+    if action == 'stop':
+        # Stop all weekly challenges
+        execute_query("UPDATE weekly_challenge SET is_active = FALSE")
+        return None
+    
+    # Start new weekly challenge
+    total_seconds = days * 24 * 60 * 60
+    end_time = datetime.now() + timedelta(seconds=total_seconds)
+    
+    # Deactivate all existing challenges
+    execute_query("UPDATE weekly_challenge SET is_active = FALSE")
+    
+    # Create new challenge
+    execute_query(
+        "INSERT INTO weekly_challenge (end_time, is_active) VALUES (%s, %s)",
+        (end_time, True)
+    )
+    
+    return end_time
+
+def get_weekly_remaining_time():
+    """Calculate remaining time for active weekly challenge"""
+    challenge = get_current_weekly_challenge()
+    if not challenge:
+        return 0
+    
+    end_time = challenge['end_time']
+    now = datetime.now()
+    
+    # If end_time is timezone-aware and now is naive, make now aware
+    if end_time.tzinfo is not None and now.tzinfo is None:
+        now = datetime.now(end_time.tzinfo)
+    
+    if now >= end_time:
+        # Challenge expired, update instead of delete to maintain structure
+        execute_query("UPDATE weekly_challenge SET is_active = FALSE WHERE id = %s", (challenge['id'],))
+        return 0
+    
+    remaining = (end_time - now).total_seconds()
+    return max(0, int(remaining))
+
+# Add these new Socket.IO event handlers
+@socketio.on("set_weekly_challenge")
+def handle_set_weekly_challenge(data):
+    """Handle weekly challenge setting from admin"""
+    try:
+        days = int(data.get('days', 7))
+        action = data.get('action', 'start')
+        
+        if action == 'start' and days <= 0:
+            emit('weekly_challenge_error', {'message': 'Please set a valid duration for weekly challenge'})
+            return
+        
+        print(f"📅 Setting weekly challenge: {action}, {days} days")
+        
+        if action == 'start':
+            end_time = set_weekly_challenge(days, action)
+            remaining = get_weekly_remaining_time()
+            is_active = True
+        else:
+            set_weekly_challenge(days, action)
+            remaining = 0
+            is_active = False
+        
+        print(f"✅ Weekly challenge {action}. Remaining: {remaining}s")
+        
+        # Broadcast to all clients
+        emit('weekly_challenge_update', {
+            'remaining_seconds': remaining,
+            'is_active': is_active
+        }, broadcast=True)
+        
+    except Exception as e:
+        print(f"❌ Weekly challenge setting error: {e}")
+        emit('weekly_challenge_error', {'message': str(e)})
+
+@socketio.on("get_weekly_challenge")
+def handle_get_weekly_challenge():
+    """Send current weekly challenge state to requesting client"""
+    challenge = get_current_weekly_challenge()
+    if challenge:
+        remaining = get_weekly_remaining_time()
+        emit('weekly_challenge_update', {
+            'remaining_seconds': remaining,
+            'is_active': True
+        })
+    else:
+        emit('weekly_challenge_update', {
+            'remaining_seconds': 0,
+            'is_active': False
+        })
+
+@socketio.on("weekly_challenge_finished")
+def handle_weekly_challenge_finished():
+    """Handle weekly challenge completion and broadcast to all clients"""
+    try:
+        print("🎉 Weekly challenge finished - broadcasting completion")
+        
+        # Update database to mark challenge as completed
+        execute_query("UPDATE weekly_challenge SET is_active = FALSE WHERE is_active = TRUE")
+        
+        # Broadcast to ALL connected clients
+        emit('weekly_challenge_complete', {
+            'message': 'WEEKLY CHALLENGE COMPLETED',
+            'timestamp': datetime.utcnow().isoformat()
+        }, broadcast=True)
+        
+        print("✅ Weekly challenge completion broadcasted to all users")
+        
+    except Exception as e:
+        print(f"❌ Error in handle_weekly_challenge_finished: {e}")
+        traceback.print_exc()
+
+# Add these day timer functions if missing
+def get_current_day_timer():
+    """Get the active day timer from database"""
+    result = execute_query(
+        "SELECT * FROM day_timer WHERE is_running = TRUE ORDER BY created_at DESC LIMIT 1",
+        fetch=True
+    )
+    if result:
+        return result[0]
+    return None
+
+def set_day_timer(days, hours, minutes, seconds):
+    """Set a new day timer in the database"""
+    total_seconds = (days * 24 * 60 * 60) + (hours * 60 * 60) + (minutes * 60) + seconds
+    end_time = datetime.now() + timedelta(seconds=total_seconds)
+    
+    # Clear ALL existing day timers first
+    execute_query("DELETE FROM day_timer")
+    
+    # Create new day timer
+    execute_query(
+        "INSERT INTO day_timer (end_time, is_running) VALUES (%s, %s)",
+        (end_time, True)
+    )
+    
+    return end_time
+
+def get_day_remaining_time():
+    """Calculate remaining time for active day timer"""
+    timer = get_current_day_timer()
+    if not timer:
+        return None
+    
+    end_time = timer['end_time']
+    now = datetime.now()
+    
+    # If end_time is timezone-aware and now is naive, make now aware
+    if end_time.tzinfo is not None and now.tzinfo is None:
+        now = datetime.now(end_time.tzinfo)
+    
+    if now >= end_time:
+        # Timer expired, update instead of delete to maintain structure
+        execute_query("UPDATE day_timer SET is_running = FALSE WHERE id = %s", (timer['id'],))
+        return 0
+    
+    remaining = (end_time - now).total_seconds()
+    return max(0, int(remaining))
+
+@socketio.on("set_day_timer")
+def handle_set_day_timer(data):
+    """Handle day timer setting from admin"""
+    try:
+        days = int(data.get('days', 0))
+        hours = int(data.get('hours', 0))
+        minutes = int(data.get('minutes', 0))
+        seconds = int(data.get('seconds', 0))
+        
+        total_seconds = (days * 24 * 60 * 60) + (hours * 60 * 60) + (minutes * 60) + seconds
+        
+        if total_seconds <= 0:
+            emit('day_timer_error', {'message': 'Please set a valid timer duration'})
+            return
+        
+        print(f"📅 Setting day timer: {days}d {hours}h {minutes}m {seconds}s")
+        end_time = set_day_timer(days, hours, minutes, seconds)
+        remaining = get_day_remaining_time()
+        
+        print(f"✅ Day timer set. End time: {end_time}, Remaining: {remaining}s")
+        
+        # Broadcast to all clients
+        emit('day_timer_update', {
+            'remaining_seconds': remaining,
+            'is_running': True
+        }, broadcast=True)
+        
+    except Exception as e:
+        print(f"❌ Day timer setting error: {e}")
+        emit('day_timer_error', {'message': str(e)})
+
+@socketio.on("get_day_timer")
+def handle_get_day_timer():
+    """Send current day timer state to requesting client"""
+    remaining = get_day_remaining_time()
+    print(f"📡 Sending day timer state: {remaining}s")
+    
+    if remaining is not None and remaining > 0:
+        emit('day_timer_update', {
+            'remaining_seconds': remaining,
+            'is_running': True
+        })
+    else:
+        emit('day_timer_update', {
+            'remaining_seconds': 0,
+            'is_running': False
+        })
 
 # Add these new functions for weekly challenge
 def get_current_weekly_challenge():
