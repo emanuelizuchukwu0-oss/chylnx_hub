@@ -11,8 +11,7 @@ import psycopg2.extras
 import requests
 
 # ---------------- Paths ----------------
-# FIX: Change _file_ to __file__ and _name_ to __name__
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # chylnx_backend
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEMPLATE_DIR = os.path.join(BASE_DIR, "frontend")
 STATIC_DIR = os.path.join(TEMPLATE_DIR, "static")
 
@@ -35,8 +34,6 @@ except Exception as e:
     print("⚠ Error listing template/static:", e)
 
 # ---------------- Flask ----------------
-
-# FIX: In Flask app initialization
 app = Flask(
     __name__,
     template_folder=TEMPLATE_DIR,
@@ -44,16 +41,16 @@ app = Flask(
 )
 app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "secret123")
 app.config['SESSION_TYPE'] = 'filesystem'
-app.config['SESSION_PERMANENT'] = False  # Add this line
-# ---------------- Socket.IO (with optional Redis) ----------------
+app.config['SESSION_PERMANENT'] = False
+
+# ---------------- Socket.IO ----------------
 REDIS_URL = os.getenv("REDIS_URL")
-# FIX: Set manage_session based on your session type
-# Since you're using server-side sessions, set manage_session=False
 if REDIS_URL:
     print("🔑 Using Redis:", REDIS_URL)
     socketio = SocketIO(app, cors_allowed_origins="*", message_queue=REDIS_URL, manage_session=False)
 else:
     socketio = SocketIO(app, cors_allowed_origins="*", manage_session=False)
+
 # ---------------- Database ----------------
 DATABASE_URL = os.getenv("DATABASE_URL")
 
@@ -64,7 +61,6 @@ def get_db_connection():
         print(f"❌ DB connection failed: {e}")
         return None
 
-# FIX: Improve database connection handling
 def execute_query(query, params=None, fetch=False):
     conn = get_db_connection()
     if not conn:
@@ -85,6 +81,7 @@ def execute_query(query, params=None, fetch=False):
         return None
     finally:
         conn.close()
+
 # ---------------- Initialize DB ----------------
 def init_db():
     conn = get_db_connection()
@@ -137,8 +134,6 @@ def init_db():
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
-            
-            # ADD THIS NEW TABLE FOR WEEKLY CHALLENGE
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS weekly_challenge (
                     id SERIAL PRIMARY KEY,
@@ -147,7 +142,6 @@ def init_db():
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
-            
         conn.commit()
         print("✅ All tables initialized (including weekly_challenge)")
     except Exception as e:
@@ -159,8 +153,12 @@ def init_db():
             pass
     finally:
         conn.close()
+
+# Initialize database when app starts
+init_db()
+
+# ---------------- Timer Functions ----------------
 def get_current_timer():
-    """Get the active timer from database"""
     result = execute_query(
         "SELECT * FROM game_timer WHERE is_running = TRUE ORDER BY created_at DESC LIMIT 1",
         fetch=True
@@ -170,38 +168,106 @@ def get_current_timer():
     return None
 
 def set_timer(minutes, seconds):
-    """Set a new timer in the database"""
     total_seconds = (minutes * 60) + seconds
     end_time = datetime.now() + timedelta(seconds=total_seconds)
-    
-    # Clear ALL existing timers first
     execute_query("DELETE FROM game_timer")
-    
-    # Create new timer
     execute_query(
         "INSERT INTO game_timer (end_time, is_running) VALUES (%s, %s)",
         (end_time, True)
     )
-    
     return end_time
 
 def get_remaining_time():
-    """Calculate remaining time for active timer"""
     timer = get_current_timer()
     if not timer:
         return None
     
-    # FIX: Ensure end_time is timezone-aware or both are naive
     end_time = timer['end_time']
     now = datetime.now()
     
-    # If end_time is timezone-aware and now is naive, make now aware
     if end_time.tzinfo is not None and now.tzinfo is None:
         now = datetime.now(end_time.tzinfo)
     
     if now >= end_time:
-        # Timer expired, update instead of delete to maintain structure
         execute_query("UPDATE game_timer SET is_running = FALSE WHERE id = %s", (timer['id'],))
+        return 0
+    
+    remaining = (end_time - now).total_seconds()
+    return max(0, int(remaining))
+
+def get_current_day_timer():
+    result = execute_query(
+        "SELECT * FROM day_timer WHERE is_running = TRUE ORDER BY created_at DESC LIMIT 1",
+        fetch=True
+    )
+    if result:
+        return result[0]
+    return None
+
+def set_day_timer(days, hours, minutes, seconds):
+    total_seconds = (days * 24 * 60 * 60) + (hours * 60 * 60) + (minutes * 60) + seconds
+    end_time = datetime.now() + timedelta(seconds=total_seconds)
+    execute_query("DELETE FROM day_timer")
+    execute_query(
+        "INSERT INTO day_timer (end_time, is_running) VALUES (%s, %s)",
+        (end_time, True)
+    )
+    return end_time
+
+def get_day_remaining_time():
+    timer = get_current_day_timer()
+    if not timer:
+        return None
+    
+    end_time = timer['end_time']
+    now = datetime.now()
+    
+    if end_time.tzinfo is not None and now.tzinfo is None:
+        now = datetime.now(end_time.tzinfo)
+    
+    if now >= end_time:
+        execute_query("UPDATE day_timer SET is_running = FALSE WHERE id = %s", (timer['id'],))
+        return 0
+    
+    remaining = (end_time - now).total_seconds()
+    return max(0, int(remaining))
+
+def get_current_weekly_challenge():
+    result = execute_query(
+        "SELECT * FROM weekly_challenge WHERE is_active = TRUE ORDER BY created_at DESC LIMIT 1",
+        fetch=True
+    )
+    if result:
+        return result[0]
+    return None
+
+def set_weekly_challenge(days, action):
+    if action == 'stop':
+        execute_query("UPDATE weekly_challenge SET is_active = FALSE")
+        return None
+    
+    total_seconds = days * 24 * 60 * 60
+    end_time = datetime.now() + timedelta(seconds=total_seconds)
+    execute_query("UPDATE weekly_challenge SET is_active = FALSE")
+    execute_query(
+        "INSERT INTO weekly_challenge (end_time, is_active) VALUES (%s, %s)",
+        (end_time, True)
+    )
+    return end_time
+
+def get_weekly_remaining_time():
+    challenge = get_current_weekly_challenge()
+    if not challenge:
+        return 0
+    
+    end_time = challenge['end_time']
+    now = datetime.now()
+    
+    if end_time.tzinfo is not None and now.tzinfo is None:
+        now = datetime.now(end_time.tzinfo)
+    
+    if now >= end_time:
+        execute_query("UPDATE weekly_challenge SET is_active = FALSE WHERE id = %s", (challenge['id'],))
         return 0
     
     remaining = (end_time - now).total_seconds()
@@ -209,11 +275,9 @@ def get_remaining_time():
 
 # ---------------- App Logic ----------------
 chat_locked = True
-
-# Global variables to track online users
-online_users = {}  # username -> {'user_id': id, 'connected_at': timestamp, 'sid': socket_id}
-user_activity = {}  # username -> last_activity_timestamp
-connected_users = {}  # username -> sid
+online_users = {}
+user_activity = {}
+connected_users = {}
 
 @app.errorhandler(500)
 def internal_error(e):
@@ -242,10 +306,8 @@ def set_username():
             flash("Username required", "error")
             return redirect(url_for("set_username"))
 
-        # FIX: Add proper transaction handling
         existing = execute_query("SELECT * FROM users WHERE username=%s LIMIT 1", (username,), fetch=True)
         if not existing:
-            # FIX: Use proper user creation with error handling
             success = execute_query("INSERT INTO users (username) VALUES (%s)", (username,))
             if success:
                 existing = execute_query("SELECT * FROM users WHERE username=%s LIMIT 1", (username,), fetch=True)
@@ -257,7 +319,6 @@ def set_username():
             user = existing[0]
             session["user_id"] = user["id"]
             session["username"] = user["username"]
-            # FIX: Mark session as modified for immediate persistence
             session.modified = True
             flash("Username set!", "success")
             return redirect(url_for("chat"))
@@ -342,30 +403,23 @@ def toggle_chat_lock():
     chat_locked = not chat_locked
     return redirect(url_for("admin_dashboard"))
 
-# ---------------- Session Management Routes ----------------
-
 @app.route('/get_session_info')
 def get_session_info():
-    """Get current session information for admin panel"""
     try:
-        # Count online users (users with active Socket.IO connections)
         online_count = len(online_users)
         
-        # Count paid users from database
         paid_users_result = execute_query(
             "SELECT COUNT(DISTINCT user_id) as count FROM payments WHERE status = 'success'",
             fetch=True
         )
         paid_users = paid_users_result[0]['count'] if paid_users_result else 0
         
-        # Count total users
         total_users_result = execute_query(
             "SELECT COUNT(*) as count FROM users",
             fetch=True
         )
         total_users = total_users_result[0]['count'] if total_users_result else 0
         
-        # Generate session code based on timestamp
         session_code = f"SESSION_{int(time.time())}"
         
         return jsonify({
@@ -380,16 +434,11 @@ def get_session_info():
 
 @app.route('/start_new_session', methods=['POST'])
 def start_new_session():
-    """Reset chat session and require new payments"""
     try:
-        # Clear all payment records (or mark them as expired)
         execute_query("UPDATE payments SET status = 'expired' WHERE status = 'success'")
-        
-        # Clear online users tracking
         online_users.clear()
         user_activity.clear()
         
-        # Broadcast session reset to all connected clients
         socketio.emit('session_reset', {
             'message': 'Chat session has been reset. Payment required to continue.',
             'reset_by': session.get('username', 'Admin'),
@@ -407,22 +456,19 @@ def start_new_session():
 
 @app.route('/get_online_users')
 def get_online_users():
-    """Get list of currently online users"""
     try:
         online_list = []
         current_time = time.time()
         
-        # Clean up inactive users (more than 5 minutes since last activity)
         inactive_users = []
         for username, last_active in user_activity.items():
-            if current_time - last_active > 300:  # 5 minutes
+            if current_time - last_active > 300:
                 inactive_users.append(username)
         
         for username in inactive_users:
             user_activity.pop(username, None)
             online_users.pop(username, None)
         
-        # Prepare online users list
         for username, user_info in online_users.items():
             online_list.append({
                 'username': username,
@@ -438,9 +484,7 @@ def get_online_users():
 
 @app.route('/get_payment_stats')
 def get_payment_stats():
-    """Get payment statistics for admin panel"""
     try:
-        # Get today's payments
         today_payments = execute_query("""
             SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total 
             FROM payments 
@@ -448,14 +492,12 @@ def get_payment_stats():
             AND DATE(created_at) = CURRENT_DATE
         """, fetch=True)
         
-        # Get total payments
         total_payments = execute_query("""
             SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total 
             FROM payments 
             WHERE status = 'success'
         """, fetch=True)
         
-        # Get recent payments (last 24 hours)
         recent_payments = execute_query("""
             SELECT p.*, u.username 
             FROM payments p 
@@ -482,11 +524,8 @@ def get_payment_stats():
         return jsonify({'error': 'Failed to get payment stats'}), 500
 
 # ---------------- Socket.IO Event Handlers ----------------
-
 @socketio.on("connect")
 def handle_connect():
-    """Send current timer state when client connects"""
-    # Check if we should show GAME STARTED (no active timer)
     if check_and_broadcast_timer_status():
         return
     
@@ -499,12 +538,10 @@ def handle_connect():
             'is_running': True
         })
     else:
-        # Timer expired or no timer, show GAME STARTED
         check_and_broadcast_timer_status()
 
 @socketio.on("set_timer")
 def handle_set_timer(data):
-    """Handle timer setting from admin"""
     try:
         minutes = int(data.get('minutes', 5))
         seconds = int(data.get('seconds', 0))
@@ -519,7 +556,6 @@ def handle_set_timer(data):
         
         print(f"✅ Timer set. End time: {end_time}, Remaining: {remaining}s")
         
-        # Broadcast to all clients
         emit('timer_update', {
             'remaining_seconds': remaining,
             'is_running': True
@@ -528,9 +564,9 @@ def handle_set_timer(data):
     except Exception as e:
         print(f"❌ Timer setting error: {e}")
         emit('timer_error', {'message': str(e)})
+
 @socketio.on("get_timer")
 def handle_get_timer():
-    """Send current timer state to requesting client"""
     remaining = get_remaining_time()
     print(f"📡 Sending timer state: {remaining}s")
     
@@ -545,14 +581,104 @@ def handle_get_timer():
             'is_running': False
         })
 
+@socketio.on("set_day_timer")
+def handle_set_day_timer(data):
+    try:
+        days = int(data.get('days', 0))
+        hours = int(data.get('hours', 0))
+        minutes = int(data.get('minutes', 0))
+        seconds = int(data.get('seconds', 0))
+        
+        total_seconds = (days * 24 * 60 * 60) + (hours * 60 * 60) + (minutes * 60) + seconds
+        
+        if total_seconds <= 0:
+            emit('day_timer_error', {'message': 'Please set a valid timer duration'})
+            return
+        
+        print(f"📅 Setting day timer: {days}d {hours}h {minutes}m {seconds}s")
+        end_time = set_day_timer(days, hours, minutes, seconds)
+        remaining = get_day_remaining_time()
+        
+        print(f"✅ Day timer set. End time: {end_time}, Remaining: {remaining}s")
+        
+        emit('day_timer_update', {
+            'remaining_seconds': remaining,
+            'is_running': True
+        }, broadcast=True)
+        
+    except Exception as e:
+        print(f"❌ Day timer setting error: {e}")
+        emit('day_timer_error', {'message': str(e)})
+
+@socketio.on("get_day_timer")
+def handle_get_day_timer():
+    remaining = get_day_remaining_time()
+    print(f"📡 Sending day timer state: {remaining}s")
+    
+    if remaining is not None and remaining > 0:
+        emit('day_timer_update', {
+            'remaining_seconds': remaining,
+            'is_running': True
+        })
+    else:
+        emit('day_timer_update', {
+            'remaining_seconds': 0,
+            'is_running': False
+        })
+
+@socketio.on("set_weekly_challenge")
+def handle_set_weekly_challenge(data):
+    try:
+        days = int(data.get('days', 7))
+        action = data.get('action', 'start')
+        
+        if action == 'start' and days <= 0:
+            emit('weekly_challenge_error', {'message': 'Please set a valid duration for weekly challenge'})
+            return
+        
+        print(f"📅 Setting weekly challenge: {action}, {days} days")
+        
+        if action == 'start':
+            end_time = set_weekly_challenge(days, action)
+            remaining = get_weekly_remaining_time()
+            is_active = True
+        else:
+            set_weekly_challenge(days, action)
+            remaining = 0
+            is_active = False
+        
+        print(f"✅ Weekly challenge {action}. Remaining: {remaining}s")
+        
+        emit('weekly_challenge_update', {
+            'remaining_seconds': remaining,
+            'is_active': is_active
+        }, broadcast=True)
+        
+    except Exception as e:
+        print(f"❌ Weekly challenge setting error: {e}")
+        emit('weekly_challenge_error', {'message': str(e)})
+
+@socketio.on("get_weekly_challenge")
+def handle_get_weekly_challenge():
+    challenge = get_current_weekly_challenge()
+    if challenge:
+        remaining = get_weekly_remaining_time()
+        emit('weekly_challenge_update', {
+            'remaining_seconds': remaining,
+            'is_active': True
+        })
+    else:
+        emit('weekly_challenge_update', {
+            'remaining_seconds': 0,
+            'is_active': False
+        })
+
 @socketio.on("join_chat")
 def handle_join(data):
-    """Handle user joining the chat"""
     username = data.get("username")
     if not username:
         return
 
-    # Save user to online tracking
     user = execute_query("SELECT id FROM users WHERE username=%s LIMIT 1", (username,), fetch=True)
     if user:
         user_id = user[0]["id"]
@@ -563,12 +689,9 @@ def handle_join(data):
         }
         user_activity[username] = time.time()
 
-    # Save username + sid for chat functionality
     connected_users[username] = request.sid
-
     print("✅ {} joined, total users: {}".format(username, len(connected_users)))
 
-    # Send chat history only to this user
     history = execute_query("""
         SELECT u.username AS "from", m.message AS text, m.created_at AS timestamp
         FROM messages m
@@ -577,23 +700,18 @@ def handle_join(data):
         LIMIT 500
     """, fetch=True) or []
 
-    # Convert timestamps -> iso so Socket.IO can JSON encode safely
     for h in history:
         if h.get("timestamp") is not None and isinstance(h["timestamp"], datetime):
             h["timestamp"] = h["timestamp"].isoformat()
 
     emit("chat_history", history, to=request.sid)
-
-    # Broadcast updated user count
     socketio.emit("user_count_update", {"count": len(connected_users)})
 
 @socketio.on("message")
 def handle_message(data):
-    """Handle chat messages"""
     try:
         print("📨 Message received (raw):", data)
 
-        # Find sender by sid
         username = None
         for u, sid in connected_users.items():
             if sid == request.sid:
@@ -610,11 +728,9 @@ def handle_message(data):
         if not text:
             return
 
-        # Update user activity
         if username in user_activity:
             user_activity[username] = time.time()
 
-        # Save to DB
         user = execute_query("SELECT id FROM users WHERE username=%s LIMIT 1", (username,), fetch=True)
         if user:
             user_id = user[0]["id"]
@@ -629,7 +745,6 @@ def handle_message(data):
             "timestamp": datetime.utcnow().isoformat()
         }
 
-        # Broadcast to everyone
         emit("message", msg, broadcast=True)
 
     except Exception as e:
@@ -638,8 +753,6 @@ def handle_message(data):
 
 @socketio.on("disconnect")
 def handle_disconnect():
-    """Handle user disconnection"""
-    # Find user by sid
     username_to_remove = None
     for username, sid in list(connected_users.items()):
         if sid == request.sid:
@@ -648,17 +761,14 @@ def handle_disconnect():
 
     if username_to_remove:
         del connected_users[username_to_remove]
-        # Also remove from online_users tracking
         online_users.pop(username_to_remove, None)
         user_activity.pop(username_to_remove, None)
         print("❌ {} left, total users: {}".format(username_to_remove, len(connected_users)))
 
-    # Broadcast updated user count
     socketio.emit("user_count_update", {"count": len(connected_users)})
 
 @socketio.on("announce_winner")
 def handle_announce_winner(data):
-    """Handle winner announcement and broadcast to all clients"""
     try:
         winners = data.get("winners")
         if not winners:
@@ -666,7 +776,6 @@ def handle_announce_winner(data):
             
         print(f"🎉 Broadcasting winner announcement: {winners}")
         
-        # Broadcast to ALL connected clients
         emit(
             "winner_announced", 
             {"winners": winners}, 
@@ -680,13 +789,75 @@ def handle_announce_winner(data):
         print(f"❌ Error in handle_announce_winner: {e}")
         traceback.print_exc()
 
-# ---------------- Payment Routes ----------------
+@socketio.on("timer_finished")
+def handle_timer_finished():
+    try:
+        print("🎉 Timer finished - broadcasting GAME STARTED")
+        
+        execute_query("UPDATE game_timer SET is_running = FALSE WHERE is_running = TRUE")
+        
+        emit('game_started', {
+            'message': 'GAME STARTED',
+            'timestamp': datetime.utcnow().isoformat()
+        }, broadcast=True)
+        
+        print("✅ Game started announcement broadcasted to all users")
+        
+    except Exception as e:
+        print(f"❌ Error in handle_timer_finished: {e}")
+        traceback.print_exc()
 
+@socketio.on("day_timer_finished")
+def handle_day_timer_finished():
+    try:
+        print("🎉 Day timer finished - broadcasting DAY TIMER COMPLETE")
+        
+        execute_query("UPDATE day_timer SET is_running = FALSE WHERE is_running = TRUE")
+        
+        emit('day_timer_complete', {
+            'message': 'DAY TIMER COMPLETE',
+            'timestamp': datetime.utcnow().isoformat()
+        }, broadcast=True)
+        
+        print("✅ Day timer complete announcement broadcasted to all users")
+        
+    except Exception as e:
+        print(f"❌ Error in handle_day_timer_finished: {e}")
+        traceback.print_exc()
+
+@socketio.on("weekly_challenge_finished")
+def handle_weekly_challenge_finished():
+    try:
+        print("🎉 Weekly challenge finished - broadcasting completion")
+        
+        execute_query("UPDATE weekly_challenge SET is_active = FALSE WHERE is_active = TRUE")
+        
+        emit('weekly_challenge_complete', {
+            'message': 'WEEKLY CHALLENGE COMPLETED',
+            'timestamp': datetime.utcnow().isoformat()
+        }, broadcast=True)
+        
+        print("✅ Weekly challenge completion broadcasted to all users")
+        
+    except Exception as e:
+        print(f"❌ Error in handle_weekly_challenge_finished: {e}")
+        traceback.print_exc()
+
+def check_and_broadcast_timer_status():
+    timer = get_current_timer()
+    if not timer:
+        emit('game_started', {
+            'message': 'GAME STARTED',
+            'timestamp': datetime.utcnow().isoformat()
+        }, broadcast=True)
+        return True
+    return False
+
+# ---------------- Payment Routes ----------------
 PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY", "sk_test_...")
 
 @app.route("/initialize_payment", methods=["POST"])
 def initialize_payment():
-    """Initialize payment with Paystack"""
     try:
         user_id = session.get("user_id")
         username = session.get("username")
@@ -694,9 +865,8 @@ def initialize_payment():
         if not user_id or not username:
             return jsonify({"error": "User not logged in"}), 401
 
-        # Generate unique reference
         reference = str(uuid.uuid4())
-        amount_naira = 500  # charge 500 Naira
+        amount_naira = 500
         amount_kobo = amount_naira * 100
 
         headers = {
@@ -738,7 +908,6 @@ def initialize_payment():
 
 @app.route("/payment_verify")
 def payment_verify():
-    """Verify payment after Paystack redirect"""
     try:
         reference = request.args.get('reference') or request.args.get('trxref')
         payment_ref = reference or session.get('payment_reference')
@@ -812,7 +981,6 @@ def payment_verify():
 
 @app.route("/check_payment_status")
 def check_payment_status():
-    """Check if current user has paid"""
     user_id = session.get("user_id")
     if not user_id:
         return jsonify({"paid": False})
@@ -828,569 +996,7 @@ def check_payment_status():
     else:
         return jsonify({"paid": False})
 
-@socketio.on("timer_finished")
-def handle_timer_finished():
-    """Handle timer completion and broadcast to all clients"""
-    try:
-        print("🎉 Timer finished - broadcasting GAME STARTED")
-        
-        # Update database to mark timer as expired
-        execute_query("UPDATE game_timer SET is_running = FALSE WHERE is_running = TRUE")
-        
-        # Broadcast to ALL connected clients
-        emit('game_started', {
-            'message': 'GAME STARTED',
-            'timestamp': datetime.utcnow().isoformat()
-        }, broadcast=True)
-        
-        print("✅ Game started announcement broadcasted to all users")
-        
-    except Exception as e:
-        print(f"❌ Error in handle_timer_finished: {e}")
-        traceback.print_exc()
-
-def check_and_broadcast_timer_status():
-    """Check timer status and broadcast if expired"""
-    timer = get_current_timer()
-    if not timer:
-        # No active timer, broadcast game started state
-        emit('game_started', {
-            'message': 'GAME STARTED',
-            'timestamp': datetime.utcnow().isoformat()
-        }, broadcast=True)
-        return True
-    return False
-
-# Add this to your existing database initialization
-def init_db():
-    conn = get_db_connection()
-    if not conn:
-        print("❌ init_db: no DB connection")
-        return
-    try:
-        with conn.cursor() as cursor:
-            # ... your existing table creations ...
-            
-            # Add day timer table
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS day_timer (
-                    id SERIAL PRIMARY KEY,
-                    end_time TIMESTAMP NOT NULL,
-                    is_running BOOLEAN DEFAULT TRUE,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-        conn.commit()
-        print("✅ Tables initialized")
-    except Exception as e:
-        print("❌ DB init failed:", e)
-        traceback.print_exc()
-        try:
-            conn.rollback()
-        except:
-            pass
-    finally:
-        conn.close()
-
-# Add these new timer functions for day timer
-def get_current_day_timer():
-    """Get the active day timer from database"""
-    result = execute_query(
-        "SELECT * FROM day_timer WHERE is_running = TRUE ORDER BY created_at DESC LIMIT 1",
-        fetch=True
-    )
-    if result:
-        return result[0]
-    return None
-
-def set_day_timer(days, hours, minutes, seconds):
-    """Set a new day timer in the database"""
-    total_seconds = (days * 24 * 60 * 60) + (hours * 60 * 60) + (minutes * 60) + seconds
-    end_time = datetime.now() + timedelta(seconds=total_seconds)
-    
-    # Clear ALL existing day timers first
-    execute_query("DELETE FROM day_timer")
-    
-    # Create new day timer
-    execute_query(
-        "INSERT INTO day_timer (end_time, is_running) VALUES (%s, %s)",
-        (end_time, True)
-    )
-    
-    return end_time
-
-def get_day_remaining_time():
-    """Calculate remaining time for active day timer"""
-    timer = get_current_day_timer()
-    if not timer:
-        return None
-    
-    end_time = timer['end_time']
-    now = datetime.now()
-    
-    # If end_time is timezone-aware and now is naive, make now aware
-    if end_time.tzinfo is not None and now.tzinfo is None:
-        now = datetime.now(end_time.tzinfo)
-    
-    if now >= end_time:
-        # Timer expired, update instead of delete to maintain structure
-        execute_query("UPDATE day_timer SET is_running = FALSE WHERE id = %s", (timer['id'],))
-        return 0
-    
-    remaining = (end_time - now).total_seconds()
-    return max(0, int(remaining))
-
-# Add these new Socket.IO event handlers
-@socketio.on("set_day_timer")
-def handle_set_day_timer(data):
-    """Handle day timer setting from admin"""
-    try:
-        days = int(data.get('days', 0))
-        hours = int(data.get('hours', 0))
-        minutes = int(data.get('minutes', 0))
-        seconds = int(data.get('seconds', 0))
-        
-        total_seconds = (days * 24 * 60 * 60) + (hours * 60 * 60) + (minutes * 60) + seconds
-        
-        if total_seconds <= 0:
-            emit('day_timer_error', {'message': 'Please set a valid timer duration'})
-            return
-        
-        print(f"📅 Setting day timer: {days}d {hours}h {minutes}m {seconds}s")
-        end_time = set_day_timer(days, hours, minutes, seconds)
-        remaining = get_day_remaining_time()
-        
-        print(f"✅ Day timer set. End time: {end_time}, Remaining: {remaining}s")
-        
-        # Broadcast to all clients
-        emit('day_timer_update', {
-            'remaining_seconds': remaining,
-            'is_running': True
-        }, broadcast=True)
-        
-    except Exception as e:
-        print(f"❌ Day timer setting error: {e}")
-        emit('day_timer_error', {'message': str(e)})
-
-@socketio.on("get_day_timer")
-def handle_get_day_timer():
-    """Send current day timer state to requesting client"""
-    remaining = get_day_remaining_time()
-    print(f"📡 Sending day timer state: {remaining}s")
-    
-    if remaining is not None and remaining > 0:
-        emit('day_timer_update', {
-            'remaining_seconds': remaining,
-            'is_running': True
-        })
-    else:
-        emit('day_timer_update', {
-            'remaining_seconds': 0,
-            'is_running': False
-        })
-
-@socketio.on("day_timer_finished")
-def handle_day_timer_finished():
-    """Handle day timer completion and broadcast to all clients"""
-    try:
-        print("🎉 Day timer finished - broadcasting DAY TIMER COMPLETE")
-        
-        # Update database to mark day timer as expired
-        execute_query("UPDATE day_timer SET is_running = FALSE WHERE is_running = TRUE")
-        
-        # Broadcast to ALL connected clients
-        emit('day_timer_complete', {
-            'message': 'DAY TIMER COMPLETE',
-            'timestamp': datetime.utcnow().isoformat()
-        }, broadcast=True)
-        
-        print("✅ Day timer complete announcement broadcasted to all users")
-        
-    except Exception as e:
-        print(f"❌ Error in handle_day_timer_finished: {e}")
-        traceback.print_exc()
-
-# Add this to your existing database initialization
-def init_db():
-    conn = get_db_connection()
-    if not conn:
-        print("❌ init_db: no DB connection")
-        return
-    try:
-        with conn.cursor() as cursor:
-            # ... your existing table creations ...
-            
-            # Add weekly challenge table
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS weekly_challenge (
-                    id SERIAL PRIMARY KEY,
-                    end_time TIMESTAMP,
-                    is_active BOOLEAN DEFAULT FALSE,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-        conn.commit()
-        print("✅ Tables initialized")
-    except Exception as e:
-        print("❌ DB init failed:", e)
-        traceback.print_exc()
-        try:
-            conn.rollback()
-        except:
-            pass
-    finally:
-        conn.close()
-
-# Add these new functions for weekly challenge
-def get_current_weekly_challenge():
-    """Get the active weekly challenge from database"""
-    result = execute_query(
-        "SELECT * FROM weekly_challenge WHERE is_active = TRUE ORDER BY created_at DESC LIMIT 1",
-        fetch=True
-    )
-    if result:
-        return result[0]
-    return None
-
-def set_weekly_challenge(days, action):
-    """Set or stop weekly challenge"""
-    if action == 'stop':
-        # Stop all weekly challenges
-        execute_query("UPDATE weekly_challenge SET is_active = FALSE")
-        return None
-    
-    # Start new weekly challenge
-    total_seconds = days * 24 * 60 * 60
-    end_time = datetime.now() + timedelta(seconds=total_seconds)
-    
-    # Deactivate all existing challenges
-    execute_query("UPDATE weekly_challenge SET is_active = FALSE")
-    
-    # Create new challenge
-    execute_query(
-        "INSERT INTO weekly_challenge (end_time, is_active) VALUES (%s, %s)",
-        (end_time, True)
-    )
-    
-    return end_time
-
-def get_weekly_remaining_time():
-    """Calculate remaining time for active weekly challenge"""
-    challenge = get_current_weekly_challenge()
-    if not challenge:
-        return 0
-    
-    end_time = challenge['end_time']
-    now = datetime.now()
-    
-    # If end_time is timezone-aware and now is naive, make now aware
-    if end_time.tzinfo is not None and now.tzinfo is None:
-        now = datetime.now(end_time.tzinfo)
-    
-    if now >= end_time:
-        # Challenge expired, update instead of delete to maintain structure
-        execute_query("UPDATE weekly_challenge SET is_active = FALSE WHERE id = %s", (challenge['id'],))
-        return 0
-    
-    remaining = (end_time - now).total_seconds()
-    return max(0, int(remaining))
-
-# Add these new Socket.IO event handlers
-@socketio.on("set_weekly_challenge")
-def handle_set_weekly_challenge(data):
-    """Handle weekly challenge setting from admin"""
-    try:
-        days = int(data.get('days', 7))
-        action = data.get('action', 'start')
-        
-        if action == 'start' and days <= 0:
-            emit('weekly_challenge_error', {'message': 'Please set a valid duration for weekly challenge'})
-            return
-        
-        print(f"📅 Setting weekly challenge: {action}, {days} days")
-        
-        if action == 'start':
-            end_time = set_weekly_challenge(days, action)
-            remaining = get_weekly_remaining_time()
-            is_active = True
-        else:
-            set_weekly_challenge(days, action)
-            remaining = 0
-            is_active = False
-        
-        print(f"✅ Weekly challenge {action}. Remaining: {remaining}s")
-        
-        # Broadcast to all clients
-        emit('weekly_challenge_update', {
-            'remaining_seconds': remaining,
-            'is_active': is_active
-        }, broadcast=True)
-        
-    except Exception as e:
-        print(f"❌ Weekly challenge setting error: {e}")
-        emit('weekly_challenge_error', {'message': str(e)})
-
-@socketio.on("get_weekly_challenge")
-def handle_get_weekly_challenge():
-    """Send current weekly challenge state to requesting client"""
-    challenge = get_current_weekly_challenge()
-    if challenge:
-        remaining = get_weekly_remaining_time()
-        emit('weekly_challenge_update', {
-            'remaining_seconds': remaining,
-            'is_active': True
-        })
-    else:
-        emit('weekly_challenge_update', {
-            'remaining_seconds': 0,
-            'is_active': False
-        })
-
-@socketio.on("weekly_challenge_finished")
-def handle_weekly_challenge_finished():
-    """Handle weekly challenge completion and broadcast to all clients"""
-    try:
-        print("🎉 Weekly challenge finished - broadcasting completion")
-        
-        # Update database to mark challenge as completed
-        execute_query("UPDATE weekly_challenge SET is_active = FALSE WHERE is_active = TRUE")
-        
-        # Broadcast to ALL connected clients
-        emit('weekly_challenge_complete', {
-            'message': 'WEEKLY CHALLENGE COMPLETED',
-            'timestamp': datetime.utcnow().isoformat()
-        }, broadcast=True)
-        
-        print("✅ Weekly challenge completion broadcasted to all users")
-        
-    except Exception as e:
-        print(f"❌ Error in handle_weekly_challenge_finished: {e}")
-        traceback.print_exc()
-
-# Add these day timer functions if missing
-def get_current_day_timer():
-    """Get the active day timer from database"""
-    result = execute_query(
-        "SELECT * FROM day_timer WHERE is_running = TRUE ORDER BY created_at DESC LIMIT 1",
-        fetch=True
-    )
-    if result:
-        return result[0]
-    return None
-
-def set_day_timer(days, hours, minutes, seconds):
-    """Set a new day timer in the database"""
-    total_seconds = (days * 24 * 60 * 60) + (hours * 60 * 60) + (minutes * 60) + seconds
-    end_time = datetime.now() + timedelta(seconds=total_seconds)
-    
-    # Clear ALL existing day timers first
-    execute_query("DELETE FROM day_timer")
-    
-    # Create new day timer
-    execute_query(
-        "INSERT INTO day_timer (end_time, is_running) VALUES (%s, %s)",
-        (end_time, True)
-    )
-    
-    return end_time
-
-def get_day_remaining_time():
-    """Calculate remaining time for active day timer"""
-    timer = get_current_day_timer()
-    if not timer:
-        return None
-    
-    end_time = timer['end_time']
-    now = datetime.now()
-    
-    # If end_time is timezone-aware and now is naive, make now aware
-    if end_time.tzinfo is not None and now.tzinfo is None:
-        now = datetime.now(end_time.tzinfo)
-    
-    if now >= end_time:
-        # Timer expired, update instead of delete to maintain structure
-        execute_query("UPDATE day_timer SET is_running = FALSE WHERE id = %s", (timer['id'],))
-        return 0
-    
-    remaining = (end_time - now).total_seconds()
-    return max(0, int(remaining))
-
-@socketio.on("set_day_timer")
-def handle_set_day_timer(data):
-    """Handle day timer setting from admin"""
-    try:
-        days = int(data.get('days', 0))
-        hours = int(data.get('hours', 0))
-        minutes = int(data.get('minutes', 0))
-        seconds = int(data.get('seconds', 0))
-        
-        total_seconds = (days * 24 * 60 * 60) + (hours * 60 * 60) + (minutes * 60) + seconds
-        
-        if total_seconds <= 0:
-            emit('day_timer_error', {'message': 'Please set a valid timer duration'})
-            return
-        
-        print(f"📅 Setting day timer: {days}d {hours}h {minutes}m {seconds}s")
-        end_time = set_day_timer(days, hours, minutes, seconds)
-        remaining = get_day_remaining_time()
-        
-        print(f"✅ Day timer set. End time: {end_time}, Remaining: {remaining}s")
-        
-        # Broadcast to all clients
-        emit('day_timer_update', {
-            'remaining_seconds': remaining,
-            'is_running': True
-        }, broadcast=True)
-        
-    except Exception as e:
-        print(f"❌ Day timer setting error: {e}")
-        emit('day_timer_error', {'message': str(e)})
-
-@socketio.on("get_day_timer")
-def handle_get_day_timer():
-    """Send current day timer state to requesting client"""
-    remaining = get_day_remaining_time()
-    print(f"📡 Sending day timer state: {remaining}s")
-    
-    if remaining is not None and remaining > 0:
-        emit('day_timer_update', {
-            'remaining_seconds': remaining,
-            'is_running': True
-        })
-    else:
-        emit('day_timer_update', {
-            'remaining_seconds': 0,
-            'is_running': False
-        })
-
-# Add these new functions for weekly challenge
-def get_current_weekly_challenge():
-    """Get the active weekly challenge from database"""
-    result = execute_query(
-        "SELECT * FROM weekly_challenge WHERE is_active = TRUE ORDER BY created_at DESC LIMIT 1",
-        fetch=True
-    )
-    if result:
-        return result[0]
-    return None
-
-def set_weekly_challenge(days, action):
-    """Set or stop weekly challenge"""
-    if action == 'stop':
-        # Stop all weekly challenges
-        execute_query("UPDATE weekly_challenge SET is_active = FALSE")
-        return None
-    
-    # Start new weekly challenge
-    total_seconds = days * 24 * 60 * 60
-    end_time = datetime.now() + timedelta(seconds=total_seconds)
-    
-    # Deactivate all existing challenges
-    execute_query("UPDATE weekly_challenge SET is_active = FALSE")
-    
-    # Create new challenge
-    execute_query(
-        "INSERT INTO weekly_challenge (end_time, is_active) VALUES (%s, %s)",
-        (end_time, True)
-    )
-    
-    return end_time
-
-def get_weekly_remaining_time():
-    """Calculate remaining time for active weekly challenge"""
-    challenge = get_current_weekly_challenge()
-    if not challenge:
-        return 0
-    
-    end_time = challenge['end_time']
-    now = datetime.now()
-    
-    # If end_time is timezone-aware and now is naive, make now aware
-    if end_time.tzinfo is not None and now.tzinfo is None:
-        now = datetime.now(end_time.tzinfo)
-    
-    if now >= end_time:
-        # Challenge expired, update instead of delete to maintain structure
-        execute_query("UPDATE weekly_challenge SET is_active = FALSE WHERE id = %s", (challenge['id'],))
-        return 0
-    
-    remaining = (end_time - now).total_seconds()
-    return max(0, int(remaining))
-
-# Add these new Socket.IO event handlers
-@socketio.on("set_weekly_challenge")
-def handle_set_weekly_challenge(data):
-    """Handle weekly challenge setting from admin"""
-    try:
-        days = int(data.get('days', 7))
-        action = data.get('action', 'start')
-        
-        if action == 'start' and days <= 0:
-            emit('weekly_challenge_error', {'message': 'Please set a valid duration for weekly challenge'})
-            return
-        
-        print(f"📅 Setting weekly challenge: {action}, {days} days")
-        
-        if action == 'start':
-            end_time = set_weekly_challenge(days, action)
-            remaining = get_weekly_remaining_time()
-            is_active = True
-        else:
-            set_weekly_challenge(days, action)
-            remaining = 0
-            is_active = False
-        
-        print(f"✅ Weekly challenge {action}. Remaining: {remaining}s")
-        
-        # Broadcast to all clients
-        emit('weekly_challenge_update', {
-            'remaining_seconds': remaining,
-            'is_active': is_active
-        }, broadcast=True)
-        
-    except Exception as e:
-        print(f"❌ Weekly challenge setting error: {e}")
-        emit('weekly_challenge_error', {'message': str(e)})
-
-@socketio.on("get_weekly_challenge")
-def handle_get_weekly_challenge():
-    """Send current weekly challenge state to requesting client"""
-    challenge = get_current_weekly_challenge()
-    if challenge:
-        remaining = get_weekly_remaining_time()
-        emit('weekly_challenge_update', {
-            'remaining_seconds': remaining,
-            'is_active': True
-        })
-    else:
-        emit('weekly_challenge_update', {
-            'remaining_seconds': 0,
-            'is_active': False
-        })
-
-@socketio.on("weekly_challenge_finished")
-def handle_weekly_challenge_finished():
-    """Handle weekly challenge completion and broadcast to all clients"""
-    try:
-        print("🎉 Weekly challenge finished - broadcasting completion")
-        
-        # Update database to mark challenge as completed
-        execute_query("UPDATE weekly_challenge SET is_active = FALSE WHERE is_active = TRUE")
-        
-        # Broadcast to ALL connected clients
-        emit('weekly_challenge_complete', {
-            'message': 'WEEKLY CHALLENGE COMPLETED',
-            'timestamp': datetime.utcnow().isoformat()
-        }, broadcast=True)
-        
-        print("✅ Weekly challenge completion broadcasted to all users")
-        
-    except Exception as e:
-        print(f"❌ Error in handle_weekly_challenge_finished: {e}")
-        traceback.print_exc()
 # ---------------- Run ----------------
-
-# FIX: In the main block
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
     debug = os.getenv("DEBUG", "false").lower() == "true"
