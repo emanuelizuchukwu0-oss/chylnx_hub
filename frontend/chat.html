@@ -466,9 +466,123 @@
             max-width: 100%;
             overflow-x: hidden;
         }
+
+        /* Multiple Winner Selection Styles */
+.winner-selection-panel {
+    position: fixed;
+    top: 60px;
+    right: 20px;
+    width: 300px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    z-index: 2000;
+    display: none;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.winner-panel-header {
+    background: #25D366;
+    color: white;
+    padding: 15px;
+    border-radius: 10px 10px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.winner-panel-header h3 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.winner-list {
+    padding: 10px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.winner-item {
+    display: flex;
+    align-items: center;
+    padding: 8px;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+}
+
+.winner-item:hover {
+    background: #f5f5f5;
+}
+
+.winner-item.selected {
+    background: #e3f2fd;
+}
+
+.winner-checkbox {
+    margin-right: 10px;
+}
+
+.winner-actions {
+    padding: 15px;
+    border-top: 1px solid #eee;
+    display: flex;
+    gap: 10px;
+}
+
+.winner-actions button {
+    flex: 1;
+    padding: 8px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#confirmWinners {
+    background: #25D366;
+    color: white;
+}
+
+#cancelWinners {
+    background: #f0f0f0;
+    color: #333;
+}
+
+.selected-count {
+    background: #ffd700;
+    color: #000;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    margin-left: 10px;
+}
+
+/* Selected username highlight in chat */
+.username-selected {
+    background: rgba(255, 215, 0, 0.3) !important;
+    padding: 2px 6px;
+    border-radius: 12px;
+}
     </style>
+<head>
+    <!-- Your existing head content (title, styles, etc.) -->
 </head>
 <body data-paid="false">
+    <!-- Multiple Winner Selection Panel -->
+    <div id="winnerSelectionPanel" class="winner-selection-panel">
+        <div class="winner-panel-header">
+            <h3>Select Winners <span id="selectedCount" class="selected-count">0</span></h3>
+            <span onclick="closeWinnerPanel()" style="cursor: pointer; font-size: 18px;">×</span>
+        </div>
+        <div class="winner-list" id="winnerList">
+            <!-- Winner list will be populated dynamically -->
+        </div>
+        <div class="winner-actions">
+            <button id="cancelWinners" onclick="closeWinnerPanel()">Cancel</button>
+            <button id="confirmWinners" onclick="announceSelectedWinners()">Announce Winners</button>
+        </div>
+    </div>
+
     <!-- Username Form Overlay -->
     <div id="usernameOverlay">
         <div id="usernameForm">
@@ -527,228 +641,315 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
     <script>
-        let myUsername = "";
-        let socket = null;
-        let selectedWinner = null;
-        const ANNOUNCE_PASSCODE = "1234"; // Define passcode at the top
+     let myUsername = "";
+let socket = null;
+let selectedWinners = []; // Changed to array for multiple selection
+let onlineUsers = []; // Store online users
+const ANNOUNCE_PASSCODE = "1234";
 
-        // Initialize app
-        function initApp() {
-            document.getElementById('sendBtn').addEventListener('click', sendMessage);
-            document.getElementById('chatInput').addEventListener('keypress', handleKeyPress);
-            document.getElementById('bell').addEventListener('click', announceWinner);
-            document.getElementById('usernameInput').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') setUsername();
-            });
+// Initialize app
+function initApp() {
+    document.getElementById('sendBtn').addEventListener('click', sendMessage);
+    document.getElementById('chatInput').addEventListener('keypress', handleKeyPress);
+    document.getElementById('bell').addEventListener('click', showWinnerSelectionPanel);
+    document.getElementById('usernameInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') setUsername();
+    });
 
-            // Add click event to close overlay when clicking outside content
-            document.getElementById('winnerAnnouncementOverlay').addEventListener('click', function(e) {
-                if (e.target === this) {
-                    this.style.display = 'none';
+    // Add click event to close overlay when clicking outside content
+    document.getElementById('winnerAnnouncementOverlay').addEventListener('click', function(e) {
+        if (e.target === this) {
+            this.style.display = 'none';
+        }
+    });
+
+    document.getElementById('usernameOverlay').style.display = 'flex';
+    
+    // Focus on username input
+    document.getElementById('usernameInput').focus();
+}
+
+// Set username
+function setUsername() {
+    const usernameInput = document.getElementById('usernameInput');
+    const username = usernameInput.value.trim();
+    if (!username) return alert("Please enter a username");
+
+    myUsername = username;
+    document.getElementById('usernameOverlay').style.display = 'none';
+    initializeChat();
+}
+
+// Initialize Socket.IO chat
+function initializeChat() {
+    document.getElementById('chatInput').disabled = false;
+    document.getElementById('sendBtn').disabled = false;
+
+    socket = io(); // connect to server    
+
+    // Join chat
+    socket.emit('join_chat', { username: myUsername });
+
+    // Receive chat history
+    socket.on('chat_history', function(history) {
+        const chatWindow = document.getElementById('chatWindow');
+        chatWindow.innerHTML = '<div class="system-msg">Welcome to the chat!</div>';
+        history.forEach(msg => addMessage(msg, msg.from === myUsername));
+    });
+
+    // Receive messages
+    socket.on('message', function(msg) {
+        addMessage(msg, msg.from === myUsername);
+    });
+
+    // Online count
+    socket.on('user_count_update', function(data) {
+        document.getElementById('onlineCount').textContent = data.count + ' online';
+        
+        // Update online users list for winner selection
+        updateOnlineUsersList();
+    });
+
+    // Winner announcements
+    socket.on('announcement', function(data) {
+        addSystemMessage(data.text);
+    });
+
+    // Winner announced from server (for all users)
+    socket.on('winner_announced', function(data) {
+        console.log('🎉 Received winner announcement:', data);
+        
+        const winners = Array.isArray(data.winners) ? data.winners.join(", ") : data.winners;
+        
+        // Show the announcement overlay for EVERY user
+        showWinnerAnnouncement(winners);
+        
+        // Also add system message to chat
+        addSystemMessage(`🏆 WINNER ANNOUNCEMENT: ${winners}! Congratulations! 🎉`);
+        
+        // Optional: Disable chat input temporarily
+        document.getElementById("chatInput").disabled = true;
+        document.getElementById("sendBtn").disabled = true;
+        
+        // Re-enable after overlay closes (optional)
+        setTimeout(() => {
+            document.getElementById("chatInput").disabled = false;
+            document.getElementById("sendBtn").disabled = false;
+        }, 10000);
+    });
+
+    addSystemMessage(`Welcome, ${myUsername}! Start chatting below.`);
+    
+    // Focus on chat input
+    document.getElementById('chatInput').focus();
+}
+
+// Update online users list from connected_users (you'll need to get this from your server)
+function updateOnlineUsersList() {
+    // This would typically come from a socket event that sends the list of online users
+    // For now, we'll extract from the chat messages
+    const users = new Set();
+    const messages = document.querySelectorAll('.message .sender-name');
+    messages.forEach(msg => {
+        if (msg.textContent && msg.textContent !== myUsername) {
+            users.add(msg.textContent);
+        }
+    });
+    onlineUsers = Array.from(users);
+}
+
+// Show winner selection panel
+function showWinnerSelectionPanel() {
+    const panel = document.getElementById('winnerSelectionPanel');
+    const winnerList = document.getElementById('winnerList');
+    
+    // Populate winner list
+    winnerList.innerHTML = '';
+    
+    // Add current online users (you might want to get this from a socket event)
+    onlineUsers.forEach(user => {
+        if (user !== myUsername) {
+            const winnerItem = document.createElement('div');
+            winnerItem.className = `winner-item ${selectedWinners.includes(user) ? 'selected' : ''}`;
+            winnerItem.innerHTML = `
+                <input type="checkbox" class="winner-checkbox" ${selectedWinners.includes(user) ? 'checked' : ''} value="${user}">
+                <span>${user}</span>
+            `;
+            winnerItem.addEventListener('click', function(e) {
+                if (e.target.type !== 'checkbox') {
+                    const checkbox = this.querySelector('.winner-checkbox');
+                    checkbox.checked = !checkbox.checked;
+                    toggleWinnerSelection(user, checkbox.checked);
                 }
             });
-
-            document.getElementById('usernameOverlay').style.display = 'flex';
-            
-            // Focus on username input
-            document.getElementById('usernameInput').focus();
+            winnerList.appendChild(winnerItem);
         }
+    });
+    
+    // Add click event for checkboxes
+    winnerList.querySelectorAll('.winner-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            toggleWinnerSelection(this.value, this.checked);
+        });
+    });
+    
+    updateSelectedCount();
+    panel.style.display = 'block';
+}
 
-        // Set username
-        function setUsername() {
-            const usernameInput = document.getElementById('usernameInput');
-            const username = usernameInput.value.trim();
-            if (!username) return alert("Please enter a username");
+// Close winner selection panel
+function closeWinnerPanel() {
+    document.getElementById('winnerSelectionPanel').style.display = 'none';
+}
 
-            myUsername = username;
-            document.getElementById('usernameOverlay').style.display = 'none';
-            initializeChat();
+// Toggle winner selection
+function toggleWinnerSelection(username, isSelected) {
+    if (isSelected) {
+        if (!selectedWinners.includes(username)) {
+            selectedWinners.push(username);
         }
-
-        // Initialize Socket.IO chat
-        function initializeChat() {
-            document.getElementById('chatInput').disabled = false;
-            document.getElementById('sendBtn').disabled = false;
-
-            socket = io(); // connect to server    
-
-        // Add this with your other socket.on listeners in initializeChat()
-socket.on('winner_announced', function(data) {
-    console.log('🎉 Received winner announcement:', data);
-    
-    const winners = Array.isArray(data.winners) ? data.winners.join(", ") : data.winners;
-    
-    // Show the announcement overlay for EVERY user
-    showWinnerAnnouncement(winners);
-    
-    // Also add system message to chat
-    addSystemMessage(`🏆 WINNER ANNOUNCEMENT: ${winners}! Congratulations! 🎉`);
-    
-    // Optional: Disable chat input temporarily
-    document.getElementById("chatInput").disabled = true;
-    document.getElementById("sendBtn").disabled = true;
-    
-    // Re-enable after overlay closes (optional)
-    setTimeout(() => {
-        document.getElementById("chatInput").disabled = false;
-        document.getElementById("sendBtn").disabled = false;
-    }, 10000);
-});    
-
-
-
-            // Join chat
-            socket.emit('join_chat', { username: myUsername });
-
-            // Receive chat history
-            socket.on('chat_history', function(history) {
-                const chatWindow = document.getElementById('chatWindow');
-                chatWindow.innerHTML = '<div class="system-msg">Welcome to the chat!</div>';
-                history.forEach(msg => addMessage(msg, msg.from === myUsername));
-            });
-
-            // Receive messages
-            socket.on('message', function(msg) {
-                addMessage(msg, msg.from === myUsername);
-            });
-
-            // Online count
-            socket.on('user_count_update', function(data) {
-                document.getElementById('onlineCount').textContent = data.count + ' online';
-            });
-
-            // Winner announcements
-            socket.on('announcement', function(data) {
-                addSystemMessage(data.text);
-            });
-
-            // Winner announced from server (for all users)
-           let hasSeenWinnerAnnouncement = false; // ← ADDED THIS FLAG
-
-socket.on('winner_announced', function(data) {
-    // Only show announcement if user hasn't seen it yet ← ADDED THIS CHECK
-    if (!hasSeenWinnerAnnouncement) {
-        const winners = Array.isArray(data.winners) ? data.winners.join(", ") : data.winners;
-        showWinnerAnnouncement(winners);
-        hasSeenWinnerAnnouncement = true; // ← MARK AS SEEN
-        
-        // Reset flag after some time
-        setTimeout(() => {
-            hasSeenWinnerAnnouncement = false;
-        }, 30000); // Reset after 30 seconds
+    } else {
+        selectedWinners = selectedWinners.filter(user => user !== username);
     }
-});
-                
-                // Also add system message
-                addSystemMessage(`🏆 WINNER ANNOUNCEMENT: ${winners}! Congratulations! 🎉`);
-            };
+    
+    // Update UI
+    updateSelectedCount();
+    highlightSelectedUsers();
+}
 
-            addSystemMessage(`Welcome, ${myUsername}! Start chatting below.`);
-            
-            // Focus on chat input
-            document.getElementById('chatInput').focus();
-        
+// Update selected count display
+function updateSelectedCount() {
+    const countElement = document.getElementById('selectedCount');
+    countElement.textContent = selectedWinners.length;
+}
 
-        // Handle Enter key in input
-        function handleKeyPress(e) {
-            if (e.key === 'Enter') sendMessage();
-        }
-
-        // Send message
-        function sendMessage() {
-            const input = document.getElementById('chatInput');
-            const text = input.value.trim();
-            if (!text || !socket) return;
-
-            socket.emit('message', { from: myUsername, text: text });
-            input.value = '';
-            input.focus();
-        }
-
-        // Add message to chat window
-        function addMessage(msg, isSent) {
-            const chatWindow = document.getElementById('chatWindow');
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${isSent ? 'sent' : 'received'}`;
-
-            const time = new Date(msg.timestamp).toLocaleTimeString([], { 
-                hour: '2-digit', 
-                minute: '2-digit', 
-                hour12: true 
-            });
-
-            messageDiv.innerHTML = `
-                ${!isSent ? `<div class="sender-name" onclick="selectWinner('${msg.from}')">${msg.from}</div>` : ''}
-                <div class="message-content">${msg.text}</div>
-                <div class="message-time">${time}</div>
-            `;
-
-            chatWindow.appendChild(messageDiv);
-            chatWindow.scrollTop = chatWindow.scrollHeight;
-        }
-
-        // System messages
-        function addSystemMessage(text) {
-            const chatWindow = document.getElementById('chatWindow');
-            const div = document.createElement('div');
-            div.className = 'system-msg';
-            div.textContent = text;
-            chatWindow.appendChild(div);
-            chatWindow.scrollTop = chatWindow.scrollHeight;
-        }
-
-        // Winner selection
-        function selectWinner(username) {
-            if (username === myUsername) return alert("You can't select yourself as winner!");
-            selectedWinner = username;
-            showWinnerModal(username);
-        }
-
-        function showWinnerModal(username) {
-            document.getElementById('winnerName').textContent = username;
-            document.getElementById('winnerModal').style.display = 'flex';
-        }
-
-        function closeWinnerModal() {
-            document.getElementById('winnerModal').style.display = 'none';
-        }
-
-        // New function to show winner announcement overlay
-        function showWinnerAnnouncement(username) {
-            const overlay = document.getElementById('winnerAnnouncementOverlay');
-            const winnerNameElement = document.getElementById('announcedWinnerName');
-            
-            winnerNameElement.textContent = username;
-            overlay.style.display = 'flex';
-            
-            // Auto-close after 10 seconds
-            setTimeout(() => {
-                overlay.style.display = 'none';
-            }, 10000);
-        }
-
-        function announceWinner() {
-            if (!selectedWinner) return alert("Select a winner by clicking their name!");
-            
-            // Ask for passcode
-            const entered = prompt("Enter passcode to announce the winner:");
-            if (entered !== ANNOUNCE_PASSCODE) {
-                alert("❌ Wrong passcode! You are not allowed to announce.");
-                return;
+// Highlight selected users in chat
+function highlightSelectedUsers() {
+    // Remove all highlights first
+    document.querySelectorAll('.sender-name').forEach(name => {
+        name.classList.remove('username-selected');
+    });
+    
+    // Add highlight to selected users
+    selectedWinners.forEach(username => {
+        document.querySelectorAll('.sender-name').forEach(name => {
+            if (name.textContent === username) {
+                name.classList.add('username-selected');
             }
+        });
+    });
+}
 
-            // Show the announcement overlay immediately
-            showWinnerAnnouncement(selectedWinner);
-            
-            // Emit to server (broadcast to all users)
-            socket.emit('announce_winner', { winners: [selectedWinner] });
+// Announce selected winners
+function announceSelectedWinners() {
+    if (selectedWinners.length === 0) {
+        alert("Please select at least one winner!");
+        return;
+    }
+    
+    const entered = prompt("Enter passcode to announce the winners:");
+    if (entered !== ANNOUNCE_PASSCODE) {
+        alert("❌ Wrong passcode! You are not allowed to announce.");
+        return;
+    }
 
-            // Reset selection
-            selectedWinner = null;
-            closeWinnerModal();
-        }
+    // Show the announcement overlay immediately
+    showWinnerAnnouncement(selectedWinners.join(', '));
+    
+    // Emit to server (broadcast to all users)
+    socket.emit('announce_winner', { winners: selectedWinners });
 
-        window.addEventListener('DOMContentLoaded', initApp);
+    // Clear selection
+    selectedWinners = [];
+    closeWinnerPanel();
+    highlightSelectedUsers();
+}
+
+// Handle Enter key in input
+function handleKeyPress(e) {
+    if (e.key === 'Enter') sendMessage();
+}
+
+// Send message
+function sendMessage() {
+    const input = document.getElementById('chatInput');
+    const text = input.value.trim();
+    if (!text || !socket) return;
+
+    socket.emit('message', { from: myUsername, text: text });
+    input.value = '';
+    input.focus();
+}
+
+// Add message to chat window
+function addMessage(msg, isSent) {
+    const chatWindow = document.getElementById('chatWindow');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${isSent ? 'sent' : 'received'}`;
+
+    const time = new Date(msg.timestamp).toLocaleTimeString([], { 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        hour12: true 
+    });
+
+    const isSelected = selectedWinners.includes(msg.from);
+
+    messageDiv.innerHTML = `
+        ${!isSent ? `<div class="sender-name ${isSelected ? 'username-selected' : ''}" onclick="toggleUserSelection('${msg.from}')">${msg.from}</div>` : ''}
+        <div class="message-content">${msg.text}</div>
+        <div class="message-time">${time}</div>
+    `;
+
+    chatWindow.appendChild(messageDiv);
+    chatWindow.scrollTop = chatWindow.scrollHeight;
+    
+    // Add to online users if not already there
+    if (!isSent && !onlineUsers.includes(msg.from) && msg.from !== myUsername) {
+        onlineUsers.push(msg.from);
+    }
+}
+
+// Toggle user selection when clicking on username in chat
+function toggleUserSelection(username) {
+    if (username === myUsername) return;
+    
+    const isSelected = selectedWinners.includes(username);
+    if (isSelected) {
+        selectedWinners = selectedWinners.filter(user => user !== username);
+    } else {
+        selectedWinners.push(username);
+    }
+    
+    highlightSelectedUsers();
+    updateSelectedCount();
+}
+
+// System messages
+function addSystemMessage(text) {
+    const chatWindow = document.getElementById('chatWindow');
+    const div = document.createElement('div');
+    div.className = 'system-msg';
+    div.textContent = text;
+    chatWindow.appendChild(div);
+    chatWindow.scrollTop = chatWindow.scrollHeight;
+}
+
+// New function to show winner announcement overlay
+function showWinnerAnnouncement(usernames) {
+    const overlay = document.getElementById('winnerAnnouncementOverlay');
+    const winnerNameElement = document.getElementById('announcedWinnerName');
+    
+    winnerNameElement.textContent = usernames;
+    overlay.style.display = 'flex';
+    
+    // Auto-close after 10 seconds
+    setTimeout(() => {
+        overlay.style.display = 'none';
+    }, 10000);
+}
+
+window.addEventListener('DOMContentLoaded', initApp);
     </script>
 </body>
 </html>
