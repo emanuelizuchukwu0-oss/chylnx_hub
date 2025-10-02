@@ -305,6 +305,31 @@
     transition: all 0.3s ease;
     font-weight: bold;
 }
+.password-input {
+    padding: clamp(8px, 2vw, 10px) clamp(12px, 3vw, 15px);
+    border-radius: 5px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    margin-right: clamp(8px, 2vw, 10px);
+    width: min(180px, 70%);
+    background: rgba(255, 255, 255, 0.9);
+    font-size: clamp(0.9rem, 3vw, 1rem);
+    margin-bottom: 10px;
+    letter-spacing: 1px; /* Makes password dots more spaced */
+}
+
+.password-input:focus {
+    border-color: #25D366;
+    outline: none;
+    box-shadow: 0 0 5px rgba(37, 211, 102, 0.5);
+}
+
+/* Security indicator */
+.password-security {
+    font-size: 12px;
+    color: #666;
+    margin-top: 5px;
+    text-align: center;
+}
     </style>
 </head>
 <body>
@@ -352,12 +377,12 @@
             <h2>Admin Panel</h2>
             <button class="btn" onclick="window.location.href='/admin'">Admin</button>
             
-            <!-- Password protection -->
-            <div class="password-protection" id="passwordSection">
-                <h3>Timer Controls Locked</h3>
-                <input type="password" id="passwordInput" class="password-input" placeholder="Enter password (12345)">
-                <button class="btn unlock-btn" onclick="checkPassword()">Unlock Timer</button>
-            </div>
+           <!-- Password protection -->
+<div class="password-protection" id="passwordSection">
+    <h3>Timer Controls Locked</h3>
+    <input type="password" id="passwordInput" class="password-input" placeholder="Enter password">
+    <button class="btn unlock-btn" onclick="checkPassword()">Unlock Timer</button>
+</div>
             
             <!-- Timer Control Section (hidden by default) -->
             <div class="timer-control hidden" id="timerControl">
@@ -498,18 +523,19 @@ function showGameStartedEffects() {
     countdownElement.classList.add('game-started');
 }
 
-// Password protection functionality - FIXED VERSION
+// Password protection functionality
 function checkPassword() {
     console.log('🔑 Checking password...');
     const passwordInput = document.getElementById('passwordInput');
     const password = passwordInput.value;
     
-    console.log('Password entered:', password);
+    console.log('Password entered:', password ? '***' : 'empty');
     
     if (password === '12345') {
         console.log('✅ Password correct - unlocking timer controls');
         document.getElementById('passwordSection').classList.add('hidden');
         document.getElementById('timerControl').classList.remove('hidden');
+        passwordInput.value = ''; // Clear the password field after successful unlock
     } else {
         console.log('❌ Password incorrect');
         alert('Incorrect password! Please try again.');
@@ -517,7 +543,6 @@ function checkPassword() {
         passwordInput.focus();
     }
 }
-
 // Add event listener for Enter key in password field
 function setupPasswordEnterKey() {
     const passwordInput = document.getElementById('passwordInput');
