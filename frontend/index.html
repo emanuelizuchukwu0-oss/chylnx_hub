@@ -361,177 +361,203 @@
    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
 <script>
     // Timer functionality
-    let timerInterval;
-    let totalSeconds = 0; // Start with 0, will be set by server
-    let socket = null;
+let timerInterval;
+let totalSeconds = 0;
+let socket = null;
 
-    // Initialize Socket.io connection
-    function initializeSocket() {
-        socket = io();
-        
-        // Listen for timer updates from server
-        socket.on('timer_update', function(data) {
-            console.log('📡 Received timer update from server:', data);
-            
-            // Clear any existing timer first
-            clearInterval(timerInterval);
-            
-            if (data.is_running && data.remaining_seconds > 0) {
-                // Use the server-provided time
-                totalSeconds = data.remaining_seconds;
-                console.log('⏰ Syncing with server timer:', totalSeconds, 'seconds remaining');
-                
-                // Start counting down immediately
-                updateTimer();
-                timerInterval = setInterval(updateTimer, 1000);
-            } else {
-                // No active timer
-                console.log('⏰ No active timer on server');
-                totalSeconds = 0;
-                document.getElementById('countdown').textContent = "00:00";
-            }
-        });
-        
-        socket.on('timer_error', function(data) {
-            alert('Timer error: ' + data.message);
-        });
-        
-        // The server now automatically sends timer state on connect
-        // No need to manually request it
-        
-        // Handle connection issues
-        socket.on('connect_error', function(error) {
-            console.error('❌ Connection error:', error);
-            // Show connection error to user
-            document.getElementById('countdown').textContent = "Connecting...";
-        });
-    }
-
-    function updateTimer() {
-        const minutes = Math.floor(totalSeconds / 60);
-        const seconds = totalSeconds % 60;
-        
-        document.getElementById('countdown').textContent = 
-            `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-        
-        if (totalSeconds <= 0) {
-            clearInterval(timerInterval);
-            document.getElementById('countdown').textContent = "GAME TIME!";
-            // Optionally emit timer finished event
-            if (socket) {
-                socket.emit('timer_finished');
-            }
-            return;
-        }
-        
-        totalSeconds--;
-    }
+// Initialize Socket.io connection
+function initializeSocket() {
+    socket = io();
     
-    function setCustomTimer() {
-        const minutes = parseInt(document.getElementById('minutes').value) || 0;
-        const seconds = parseInt(document.getElementById('seconds').value) || 0;
+    // Listen for timer updates from server
+    socket.on('timer_update', function(data) {
+        console.log('📡 Received timer update from server:', data);
         
-        if (minutes === 0 && seconds === 0) {
-            alert('Please set a valid timer duration');
-            return;
-        }
+        // Clear any existing timer first
+        clearInterval(timerInterval);
         
-        // Send timer to server
-        if (socket) {
-            console.log('⏰ Sending timer to server:', minutes, 'minutes', seconds, 'seconds');
-            socket.emit('set_timer', {
-                minutes: minutes,
-                seconds: seconds
-            });
-        } else {
-            alert('Not connected to server. Using local timer only.');
-            totalSeconds = (minutes * 60) + seconds;
-            clearInterval(timerInterval);
-            updateTimer();
+        if (data.is_running && data.remaining_seconds > 0) {
+            // Use the server-provided time
+            totalSeconds = data.remaining_seconds;
+            console.log('⏰ Syncing with server timer:', totalSeconds, 'seconds remaining');
+            
+            // Start counting down immediately
+            updateTimerDisplay();
             timerInterval = setInterval(updateTimer, 1000);
-        }
-        
-        alert(`Timer set to ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
-    }
-    
-    // Password protection functionality - FIXED VERSION
-    function checkPassword() {
-        console.log('🔑 Checking password...');
-        const passwordInput = document.getElementById('passwordInput');
-        const password = passwordInput.value;
-        
-        console.log('Password entered:', password);
-        
-        if (password === '12345') {
-            console.log('✅ Password correct - unlocking timer controls');
-            document.getElementById('passwordSection').classList.add('hidden');
-            document.getElementById('timerControl').classList.remove('hidden');
         } else {
-            console.log('❌ Password incorrect');
-            alert('Incorrect password! Please try again.');
-            passwordInput.value = '';
-            passwordInput.focus();
+            // No active timer
+            console.log('⏰ No active timer on server');
+            totalSeconds = 0;
+            document.getElementById('countdown').textContent = "00:00";
         }
-    }
+    });
     
-    // Add event listener for Enter key in password field
-    function setupPasswordEnterKey() {
-        const passwordInput = document.getElementById('passwordInput');
-        if (passwordInput) {
-            passwordInput.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    checkPassword();
-                }
-            });
-        }
-    }
+    // Listen for game started event
+    socket.on('game_started', function(data) {
+        console.log('🎉 Game started received:', data);
+        clearInterval(timerInterval);
+        document.getElementById('countdown').textContent = "GAME STARTED";
+        
+        // Optional: Add visual effects for game start
+        showGameStartedEffects();
+    });
     
-    // Add click event listener to unlock button (as backup)
-    function setupUnlockButton() {
-        const unlockButton = document.querySelector('.unlock-btn');
-        if (unlockButton) {
-            unlockButton.addEventListener('click', checkPassword);
-        }
-    }
+    socket.on('timer_error', function(data) {
+        alert('Timer error: ' + data.message);
+    });
     
-    function showFallbackIcons() {
-        const iconContainer = document.getElementById('iconContainer');
-        const images = iconContainer.getElementsByTagName('img');
-        let allFailed = true;
+    // Handle connection issues
+    socket.on('connect_error', function(error) {
+        console.error('❌ Connection error:', error);
+        document.getElementById('countdown').textContent = "Connecting...";
+    });
+}
 
-        for (let img of images) {
-            if (img.complete && img.naturalWidth > 0) {
-                allFailed = false;
-                break;
+function updateTimer() {
+    if (totalSeconds <= 0) {
+        clearInterval(timerInterval);
+        document.getElementById('countdown').textContent = "GAME STARTED";
+        
+        // Notify server that timer finished
+        if (socket) {
+            socket.emit('timer_finished');
+        }
+        
+        // Show visual effects
+        showGameStartedEffects();
+        return;
+    }
+    
+    totalSeconds--;
+    updateTimerDisplay();
+}
+
+function updateTimerDisplay() {
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    
+    document.getElementById('countdown').textContent = 
+        `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+}
+
+function setCustomTimer() {
+    const minutes = parseInt(document.getElementById('minutes').value) || 0;
+    const seconds = parseInt(document.getElementById('seconds').value) || 0;
+    
+    if (minutes === 0 && seconds === 0) {
+        alert('Please set a valid timer duration');
+        return;
+    }
+    
+    // Send timer to server
+    if (socket) {
+        console.log('⏰ Sending timer to server:', minutes, 'minutes', seconds, 'seconds');
+        socket.emit('set_timer', {
+            minutes: minutes,
+            seconds: seconds
+        });
+    } else {
+        alert('Not connected to server. Using local timer only.');
+        totalSeconds = (minutes * 60) + seconds;
+        clearInterval(timerInterval);
+        updateTimerDisplay();
+        timerInterval = setInterval(updateTimer, 1000);
+    }
+    
+    alert(`Timer set to ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
+}
+
+function showGameStartedEffects() {
+    const countdownElement = document.getElementById('countdown');
+    
+    // Add visual effects
+    countdownElement.style.color = '#ffcc00';
+    countdownElement.style.textShadow = '0 0 10px #ffcc00, 0 0 20px #ffcc00';
+    countdownElement.style.fontSize = 'clamp(1.5rem, 6vw, 2.5rem)';
+    countdownElement.style.fontWeight = 'bold';
+    
+    // Optional: Add animation class if you have CSS animations
+    countdownElement.classList.add('game-started');
+}
+
+// Password protection functionality - FIXED VERSION
+function checkPassword() {
+    console.log('🔑 Checking password...');
+    const passwordInput = document.getElementById('passwordInput');
+    const password = passwordInput.value;
+    
+    console.log('Password entered:', password);
+    
+    if (password === '12345') {
+        console.log('✅ Password correct - unlocking timer controls');
+        document.getElementById('passwordSection').classList.add('hidden');
+        document.getElementById('timerControl').classList.remove('hidden');
+    } else {
+        console.log('❌ Password incorrect');
+        alert('Incorrect password! Please try again.');
+        passwordInput.value = '';
+        passwordInput.focus();
+    }
+}
+
+// Add event listener for Enter key in password field
+function setupPasswordEnterKey() {
+    const passwordInput = document.getElementById('passwordInput');
+    if (passwordInput) {
+        passwordInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                checkPassword();
             }
-        }
+        });
+    }
+}
 
-        if (allFailed) {
-            iconContainer.innerHTML = `
-                <span class="icon-fallback">E</span>
-                <span class="icon-fallback">N</span>
-                <span class="icon-fallback">K</span>
-            `;
+// Add click event listener to unlock button (as backup)
+function setupUnlockButton() {
+    const unlockButton = document.querySelector('.unlock-btn');
+    if (unlockButton) {
+        unlockButton.addEventListener('click', checkPassword);
+    }
+}
+
+function showFallbackIcons() {
+    const iconContainer = document.getElementById('iconContainer');
+    const images = iconContainer.getElementsByTagName('img');
+    let allFailed = true;
+
+    for (let img of images) {
+        if (img.complete && img.naturalWidth > 0) {
+            allFailed = false;
+            break;
         }
     }
 
-    // Initialize everything when page loads
-    window.addEventListener('load', function() {
-        console.log('🚀 Page loaded, initializing...');
-        
-        // Start with default display
-        document.getElementById('countdown').textContent = "00:00";
-        
-        // Initialize Socket.io
-        initializeSocket();
-        
-        // Setup password functionality
-        setupPasswordEnterKey();
-        setupUnlockButton();
-        
-        // Check for icons after load
-        setTimeout(showFallbackIcons, 500);
-        
+    if (allFailed) {
+        iconContainer.innerHTML = `
+            <span class="icon-fallback">E</span>
+            <span class="icon-fallback">N</span>
+            <span class="icon-fallback">K</span>
+        `;
+    }
+}
+
+// Initialize everything when page loads
+window.addEventListener('load', function() {
+    console.log('🚀 Page loaded, initializing...');
+    
+    // Start with default display
+    document.getElementById('countdown').textContent = "00:00";
+    
+    // Initialize Socket.io
+    initializeSocket();
+    
+    // Setup password functionality
+    setupPasswordEnterKey();
+    setupUnlockButton();
+    
+    // Check for icons after load
+    setTimeout(showFallbackIcons, 500);
+
         // Debug: Check if elements exist
         console.log('Password input exists:', !!document.getElementById('passwordInput'));
         console.log('Unlock button exists:', !!document.querySelector('.unlock-btn'));

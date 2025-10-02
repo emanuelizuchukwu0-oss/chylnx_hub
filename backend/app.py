@@ -814,6 +814,26 @@ def check_payment_status():
     else:
         return jsonify({"paid": False})
 
+@socketio.on("timer_finished")
+def handle_timer_finished():
+    """Handle timer completion and broadcast to all clients"""
+    try:
+        print("🎉 Timer finished - broadcasting GAME STARTED")
+        
+        # Update database to mark timer as expired
+        execute_query("UPDATE game_timer SET is_running = FALSE WHERE is_running = TRUE")
+        
+        # Broadcast to ALL connected clients
+        emit('game_started', {
+            'message': 'GAME STARTED',
+            'timestamp': datetime.utcnow().isoformat()
+        }, broadcast=True)
+        
+        print("✅ Game started announcement broadcasted to all users")
+        
+    except Exception as e:
+        print(f"❌ Error in handle_timer_finished: {e}")
+        traceback.print_exc()
 # ---------------- Run ----------------
 
 # FIX: In the main block
