@@ -472,6 +472,10 @@ def get_payment_stats():
 @socketio.on("connect")
 def handle_connect():
     """Send current timer state when client connects"""
+    # Check if we should show GAME STARTED (no active timer)
+    if check_and_broadcast_timer_status():
+        return
+    
     remaining = get_remaining_time()
     print(f"🔔 Client connected. Remaining time: {remaining}")
     
@@ -481,11 +485,8 @@ def handle_connect():
             'is_running': True
         })
     else:
-        # No active timer or timer expired
-        emit('timer_update', {
-            'remaining_seconds': 0,
-            'is_running': False
-        })
+        # Timer expired or no timer, show GAME STARTED
+        check_and_broadcast_timer_status()
 
 @socketio.on("set_timer")
 def handle_set_timer(data):
@@ -513,7 +514,6 @@ def handle_set_timer(data):
     except Exception as e:
         print(f"❌ Timer setting error: {e}")
         emit('timer_error', {'message': str(e)})
-
 @socketio.on("get_timer")
 def handle_get_timer():
     """Send current timer state to requesting client"""
@@ -834,6 +834,18 @@ def handle_timer_finished():
     except Exception as e:
         print(f"❌ Error in handle_timer_finished: {e}")
         traceback.print_exc()
+
+def check_and_broadcast_timer_status():
+    """Check timer status and broadcast if expired"""
+    timer = get_current_timer()
+    if not timer:
+        # No active timer, broadcast game started state
+        emit('game_started', {
+            'message': 'GAME STARTED',
+            'timestamp': datetime.utcnow().isoformat()
+        }, broadcast=True)
+        return True
+    return False
 # ---------------- Run ----------------
 
 # FIX: In the main block
