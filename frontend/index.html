@@ -287,6 +287,24 @@
                 gap: 25px;
             }
         }
+        /* Game Started Animation */
+.game-started {
+    animation: pulse 1s infinite;
+    color: #ffcc00 !important;
+    text-shadow: 0 0 10px #ffcc00, 0 0 20px #ffcc00 !important;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+/* Timer display enhancements */
+#countdown {
+    transition: all 0.3s ease;
+    font-weight: bold;
+}
     </style>
 </head>
 <body>
