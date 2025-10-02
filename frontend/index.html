@@ -330,81 +330,99 @@
     margin-top: 5px;
     text-align: center;
 }
-/* Day Timer Styles */
-.day-timer {
-    background: rgba(0, 0, 0, 0.7);
-    padding: clamp(12px, 3vw, 15px);
-    text-align: center;
-    border-radius: 12px;
-    margin: 0 auto clamp(15px, 4vw, 25px);
-    font-weight: bold;
-    font-size: clamp(1rem, 4vw, 1.4rem);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
-    max-width: min(500px, 90%);
-    border: 1px solid rgba(255, 165, 0, 0.3);
-    width: 100%;
-}
 
-.day-timer span {
-    color: #ffa500;
-    font-size: clamp(1.2rem, 4vw, 1.5rem);
-}
-
-.day-timer-complete {
-    background: linear-gradient(135deg, #ff8c00, #ff4500);
-    border-color: #ff4500;
-}
-
-.day-timer-complete span {
-    color: #fff;
-    text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
-}
-/* Weekly Challenge Styles */
+/* Weekly Challenge Styles - Enhanced for top position */
 .weekly-challenge {
-    background: rgba(0, 0, 0, 0.7);
-    padding: clamp(12px, 3vw, 15px);
+    background: rgba(0, 0, 0, 0.8);
+    padding: clamp(15px, 4vw, 20px);
     text-align: center;
     border-radius: 12px;
-    margin: 0 auto clamp(15px, 4vw, 25px);
+    margin: 0 auto clamp(15px, 4vw, 20px);
     font-weight: bold;
-    font-size: clamp(1rem, 4vw, 1.4rem);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    font-size: clamp(1.1rem, 4.5vw, 1.6rem);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
     max-width: min(500px, 90%);
-    border: 1px solid rgba(148, 0, 211, 0.3);
+    border: 2px solid rgba(148, 0, 211, 0.5);
     width: 100%;
+    order: -1; /* Ensure it stays at top */
 }
 
 .weekly-challenge span {
     color: #9400d3;
-    font-size: clamp(1.2rem, 4vw, 1.5rem);
+    font-size: clamp(1.3rem, 5vw, 1.8rem);
+    font-weight: bold;
 }
 
 .weekly-challenge-active {
     background: linear-gradient(135deg, #8a2be2, #4b0082);
-    border-color: #9400d3;
+    border-color: #ba55d3;
+    animation: pulse-weekly 2s infinite;
 }
 
-.weekly-challenge-active span {
-    color: #fff;
-    text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+@keyframes pulse-weekly {
+    0% { box-shadow: 0 6px 20px rgba(138, 43, 226, 0.6); }
+    50% { box-shadow: 0 6px 30px rgba(138, 43, 226, 0.9); }
+    100% { box-shadow: 0 6px 20px rgba(138, 43, 226, 0.6); }
 }
 
 .weekly-challenge-complete {
     background: linear-gradient(135deg, #ff8c00, #ff4500);
-    border-color: #ff4500;
+    border-color: #ff6347;
 }
 
 .weekly-challenge-complete span {
     color: #fff;
     text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
 }
+
+/* Adjust spacing for the new order */
+body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: clamp(10px, 3vw, 20px);
+}
+
+.weekly-challenge {
+    margin-bottom: clamp(10px, 3vw, 15px);
+}
+
+.game-timer {
+    margin-bottom: clamp(10px, 3vw, 15px);
+}
+
+.day-timer {
+    margin-bottom: clamp(15px, 4vw, 20px);
+}
     </style>
 </head>
 <body>
+    <!-- Weekly Challenge Display - MOVED TO TOP -->
+    <div class="weekly-challenge">
+        WEEKLY CHALLENGE: <span id="weeklyStatus">ACTIVE</span>
+    </div>
+
     <!-- Game Timer Display -->
     <div class="game-timer">
         NEXT GAME STARTS IN: <span id="countdown">05:00</span>
     </div>
+
+    <!-- Day Timer Display -->
+    <div class="day-timer">
+        EVENT ENDS IN: <span id="dayCountdown">00d 00h 00m 00s</span>
+    </div>
+
+    <!-- Rest of your existing code remains the same -->
+    <div class="head">
+        <p>CHYLNX HUB</p>
+        <div class="icons" id="iconContainer">
+            <img src="{{ url_for('static', filename='images/earth.png') }}" alt="Earth Icon" class="icon-img">
+            <img src="{{ url_for('static', filename='images/note.png') }}" alt="Note Icon" class="icon-img">
+            <img src="{{ url_for('static', filename='images/king.png') }}" alt="King Icon" class="icon-img">
+        </div>
+    </div>
+
+    <!-- ... rest of your code ... -->
 
    <!-- Responsive Header with Icons -->
 <div class="head">
@@ -695,10 +713,12 @@ window.addEventListener('load', function() {
     // Start with default display
     document.getElementById('countdown').textContent = "00:00";
     document.getElementById('dayCountdown').textContent = "00d 00h 00m 00s";
+    document.getElementById('weeklyStatus').textContent = "LOADING...";
     
     // Initialize Socket.io
     initializeSocket();
-    initializeDayTimerSocket(); // Initialize day timer
+    initializeDayTimerSocket();
+    initializeWeeklyChallengeSocket();
     
     // Setup password functionality
     setupPasswordEnterKey();
@@ -706,6 +726,13 @@ window.addEventListener('load', function() {
     
     // Check for icons after load
     setTimeout(showFallbackIcons, 500);
+    
+    // Request weekly challenge status after socket is connected
+    setTimeout(() => {
+        if (socket) {
+            socket.emit('get_weekly_challenge');
+        }
+    }, 1000);
 
         // Debug: Check if elements exist
         console.log('Password input exists:', !!document.getElementById('passwordInput'));
@@ -713,168 +740,8 @@ window.addEventListener('load', function() {
         console.log('Password section exists:', !!document.getElementById('passwordSection'));
         console.log('Timer control exists:', !!document.getElementById('timerControl'));
     });
-    // Day Timer functionality
-let dayTimerInterval;
-let dayTotalSeconds = 0;
-let dayGameStartedState = false;
-
-// Initialize Day Timer Socket.io
-function initializeDayTimerSocket() {
-    // Listen for day timer updates from server
-    socket.on('day_timer_update', function(data) {
-        console.log('📡 Received day timer update from server:', data);
-        
-        // Clear any existing day timer first
-        clearInterval(dayTimerInterval);
-        dayGameStartedState = false;
-        
-        if (data.is_running && data.remaining_seconds > 0) {
-            // Use the server-provided time
-            dayTotalSeconds = data.remaining_seconds;
-            console.log('📅 Syncing with server day timer:', dayTotalSeconds, 'seconds remaining');
-            
-            // Reset display style
-            resetDayTimerDisplay();
-            
-            // Start counting down immediately
-            updateDayTimerDisplay();
-            dayTimerInterval = setInterval(updateDayTimer, 1000);
-        } else {
-            // No active day timer, show complete
-            showDayTimerCompleteState();
-        }
-    });
-    
-    // Listen for day timer complete event
-    socket.on('day_timer_complete', function(data) {
-        console.log('🎉 Day timer complete received:', data);
-        showDayTimerCompleteState();
-    });
-    
-    socket.on('day_timer_error', function(data) {
-        alert('Day timer error: ' + data.message);
-    });
-}
-
-function updateDayTimer() {
-    if (dayTotalSeconds <= 0) {
-        clearInterval(dayTimerInterval);
-        showDayTimerCompleteState();
-        
-        // Notify server that day timer finished
-        if (socket) {
-            socket.emit('day_timer_finished');
-        }
-        return;
-    }
-    
-    dayTotalSeconds--;
-    updateDayTimerDisplay();
-}
-
-function updateDayTimerDisplay() {
-    const days = Math.floor(dayTotalSeconds / (24 * 60 * 60));
-    const hours = Math.floor((dayTotalSeconds % (24 * 60 * 60)) / (60 * 60));
-    const minutes = Math.floor((dayTotalSeconds % (60 * 60)) / 60);
-    const seconds = dayTotalSeconds % 60;
-    
-    document.getElementById('dayCountdown').textContent = 
-        `${days.toString().padStart(2, '0')}d ${hours.toString().padStart(2, '0')}h ${minutes.toString().padStart(2, '0')}m ${seconds.toString().padStart(2, '0')}s`;
-}
-
-function showDayTimerCompleteState() {
-    clearInterval(dayTimerInterval);
-    dayGameStartedState = true;
-    
-    const dayCountdownElement = document.getElementById('dayCountdown');
-    dayCountdownElement.textContent = "EVENT ENDED";
-    
-    // Add visual effects
-    const dayTimerElement = document.querySelector('.day-timer');
-    dayTimerElement.classList.add('day-timer-complete');
-    dayCountdownElement.style.color = '#fff';
-    dayCountdownElement.style.textShadow = '0 0 10px #fff, 0 0 20px #fff';
-    dayCountdownElement.style.fontSize = 'clamp(1.2rem, 4vw, 1.5rem)';
-    dayCountdownElement.style.fontWeight = 'bold';
-    
-    console.log('🔄 Day timer complete state activated');
-}
-
-function resetDayTimerDisplay() {
-    const dayCountdownElement = document.getElementById('dayCountdown');
-    const dayTimerElement = document.querySelector('.day-timer');
-    
-    dayTimerElement.classList.remove('day-timer-complete');
-    dayCountdownElement.style.color = '#ffa500';
-    dayCountdownElement.style.textShadow = '0 0 10px rgba(255, 165, 0, 0.7)';
-    dayCountdownElement.style.fontSize = 'clamp(1.2rem, 4vw, 1.5rem)';
-    dayCountdownElement.style.fontWeight = 'bold';
-    dayCountdownElement.style.animation = 'none';
-}
-
-function setCustomDayTimer() {
-    const days = parseInt(document.getElementById('dayDays').value) || 0;
-    const hours = parseInt(document.getElementById('dayHours').value) || 0;
-    const minutes = parseInt(document.getElementById('dayMinutes').value) || 0;
-    const seconds = parseInt(document.getElementById('daySeconds').value) || 0;
-    
-    const totalSeconds = (days * 24 * 60 * 60) + (hours * 60 * 60) + (minutes * 60) + seconds;
-    
-    if (totalSeconds <= 0) {
-        alert('Please set a valid day timer duration');
-        return;
-    }
-    
-    // Send day timer to server
-    if (socket) {
-        console.log('📅 Sending day timer to server:', days, 'days', hours, 'hours', minutes, 'minutes', seconds, 'seconds');
-        socket.emit('set_day_timer', {
-            days: days,
-            hours: hours,
-            minutes: minutes,
-            seconds: seconds
-        });
-        
-        // Reset the input fields to default after setting timer
-        document.getElementById('dayDays').value = '0';
-        document.getElementById('dayHours').value = '0';
-        document.getElementById('dayMinutes').value = '0';
-        document.getElementById('daySeconds').value = '0';
-    } else {
-        alert('Not connected to server. Using local day timer only.');
-        dayTotalSeconds = totalSeconds;
-        dayGameStartedState = false;
-        clearInterval(dayTimerInterval);
-        resetDayTimerDisplay();
-        updateDayTimerDisplay();
-        dayTimerInterval = setInterval(updateDayTimer, 1000);
-    }
-    
-    alert(`Day timer set to ${days}d ${hours}h ${minutes}m ${seconds}s`);
-}
-
-// Update your password check function to show both timers
-function checkPassword() {
-    console.log('🔑 Checking password...');
-    const passwordInput = document.getElementById('passwordInput');
-    const password = passwordInput.value;
-    
-    console.log('Password entered:', password ? '***' : 'empty');
-    
-    if (password === '12345') {
-        console.log('✅ Password correct - unlocking timer controls');
-        document.getElementById('passwordSection').classList.add('hidden');
-        document.getElementById('timerControl').classList.remove('hidden');
-        document.getElementById('dayTimerControl').classList.remove('hidden'); // Show day timer controls
-        passwordInput.value = ''; // Clear the password field after successful unlock
-    } else {
-        console.log('❌ Password incorrect');
-        alert('Incorrect password! Please try again.');
-        passwordInput.value = '';
-        passwordInput.focus();
-    }
-}
-// Weekly Challenge functionality
+ 
+// Weekly Challenge functionality (Independent - doesn't affect username form)
 let weeklyChallengeInterval;
 let weeklyTotalSeconds = 0;
 let isWeeklyChallengeActive = false;
@@ -894,14 +761,13 @@ function initializeWeeklyChallengeSocket() {
             weeklyTotalSeconds = data.remaining_seconds;
             console.log('📅 Weekly challenge active:', weeklyTotalSeconds, 'seconds remaining');
             
-            // Start counting down immediately
+            // Update status display with countdown
             updateWeeklyChallengeDisplay();
-            weeklyChallengeInterval = setInterval(updateWeeklyChallenge, 1000);
-            
-            // Update status display
-            document.getElementById('weeklyStatus').textContent = "ACTIVE";
             document.querySelector('.weekly-challenge').classList.add('weekly-challenge-active');
             document.querySelector('.weekly-challenge').classList.remove('weekly-challenge-complete');
+            
+            // Start counting down (but don't affect username form)
+            weeklyChallengeInterval = setInterval(updateWeeklyChallenge, 1000);
         } else {
             // Weekly challenge not active or completed
             isWeeklyChallengeActive = false;
@@ -942,20 +808,23 @@ function updateWeeklyChallenge() {
     }
     
     weeklyTotalSeconds--;
-    
-    // Update display every minute instead of every second to reduce load
-    if (weeklyTotalSeconds % 60 === 0) {
-        updateWeeklyChallengeDisplay();
-    }
+    updateWeeklyChallengeDisplay();
 }
 
 function updateWeeklyChallengeDisplay() {
-    // For weekly challenge, we might want to show days remaining
     const days = Math.floor(weeklyTotalSeconds / (24 * 60 * 60));
     const hours = Math.floor((weeklyTotalSeconds % (24 * 60 * 60)) / (60 * 60));
+    const minutes = Math.floor((weeklyTotalSeconds % (60 * 60)) / 60);
+    const seconds = weeklyTotalSeconds % 60;
     
-    // Optional: You can show the countdown if you want
-    // document.getElementById('weeklyStatus').textContent = `${days}d ${hours}h LEFT`;
+    // Show detailed countdown
+    if (days > 0) {
+        document.getElementById('weeklyStatus').textContent = `${days}d ${hours}h ${minutes}m ${seconds}s`;
+    } else if (hours > 0) {
+        document.getElementById('weeklyStatus').textContent = `${hours}h ${minutes}m ${seconds}s`;
+    } else {
+        document.getElementById('weeklyStatus').textContent = `${minutes}m ${seconds}s`;
+    }
 }
 
 function setWeeklyChallenge() {
@@ -981,7 +850,7 @@ function setWeeklyChallenge() {
             isWeeklyChallengeActive = true;
             weeklyTotalSeconds = days * 24 * 60 * 60;
             clearInterval(weeklyChallengeInterval);
-            document.getElementById('weeklyStatus').textContent = "ACTIVE";
+            updateWeeklyChallengeDisplay();
             document.querySelector('.weekly-challenge').classList.add('weekly-challenge-active');
             document.querySelector('.weekly-challenge').classList.remove('weekly-challenge-complete');
             weeklyChallengeInterval = setInterval(updateWeeklyChallenge, 1000);
@@ -998,29 +867,6 @@ function setWeeklyChallenge() {
         alert(`Weekly challenge started for ${days} days!`);
     } else {
         alert('Weekly challenge stopped!');
-    }
-}
-
-// Update your password check function to show weekly challenge controls
-function checkPassword() {
-    console.log('🔑 Checking password...');
-    const passwordInput = document.getElementById('passwordInput');
-    const password = passwordInput.value;
-    
-    console.log('Password entered:', password ? '***' : 'empty');
-    
-    if (password === '12345') {
-        console.log('✅ Password correct - unlocking timer controls');
-        document.getElementById('passwordSection').classList.add('hidden');
-        document.getElementById('timerControl').classList.remove('hidden');
-        document.getElementById('dayTimerControl').classList.remove('hidden');
-        document.getElementById('weeklyChallengeControl').classList.remove('hidden'); // Show weekly challenge controls
-        passwordInput.value = ''; // Clear the password field after successful unlock
-    } else {
-        console.log('❌ Password incorrect');
-        alert('Incorrect password! Please try again.');
-        passwordInput.value = '';
-        passwordInput.focus();
     }
 }
 </script>
