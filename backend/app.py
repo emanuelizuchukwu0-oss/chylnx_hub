@@ -1120,6 +1120,30 @@ def check_payment_status():
     else:
         return jsonify({"paid": False})
 
+@socketio.on("manual_weekly_complete")
+def handle_manual_weekly_complete(data):
+    """Manually trigger weekly challenge completion with custom message"""
+    try:
+        custom_message = data.get('message', 'WEEKLY CHALLENGE: COMPLETED')
+        
+        print(f"🎉 Manually triggering weekly challenge completion: {custom_message}")
+        
+        # Update database
+        execute_query("UPDATE weekly_challenge SET is_active = FALSE WHERE is_active = TRUE")
+        
+        # Broadcast with custom message
+        emit('weekly_challenge_complete', {
+            'message': custom_message,  # This uses the custom message
+            'timestamp': datetime.utcnow().isoformat(),
+            'manual_trigger': True
+        }, broadcast=True)
+        
+        print(f"✅ Manual weekly challenge completion broadcasted: {custom_message}")
+        
+    except Exception as e:
+        print(f"❌ Error in manual weekly completion: {e}")
+        traceback.print_exc()
+        emit('weekly_challenge_error', {'message': str(e)})
 # ---------------- Run ----------------
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
