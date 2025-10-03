@@ -955,8 +955,9 @@ def handle_weekly_challenge_finished():
         
         execute_query("UPDATE weekly_challenge SET is_active = FALSE WHERE is_active = TRUE")
         
+        # ↓ Change the 'message' value on the following line ↓
         emit('weekly_challenge_complete', {
-            'message': 'WEEKLY CHALLENGE COming',
+            'message': 'WEEKLY CHALLENGE: COMING SOON',  # <--- CHANGE THIS TEXT
             'timestamp': datetime.utcnow().isoformat()
         }, broadcast=True)
         
