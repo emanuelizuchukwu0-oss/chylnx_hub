@@ -681,7 +681,9 @@ const ANNOUNCE_PASSCODE = "1234";
 // Initialize app
 function initApp() {
     document.getElementById('sendBtn').addEventListener('click', sendMessage);
-    document.getElementById('chatInput').addEventListener('keypress', handleKeyPress);
+    document.getElementById('chatInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') sendMessage();
+    });
     document.getElementById('bell').addEventListener('click', showWinnerSelectionPanel);
     document.getElementById('usernameInput').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') setUsername();
@@ -701,7 +703,6 @@ function initApp() {
     // Focus on username input
     document.getElementById('usernameInput').focus();
 }
-
 // Check timer status from server (ONLY checks original game timer)
 function checkTimerStatus() {
     // Create a temporary socket connection to check timer status
@@ -825,15 +826,19 @@ function initializeChat() {
         history.forEach(msg => addMessage(msg, msg.from === myUsername));
     });
 
-    // OLD (might be causing issues)
-socket.on('message', function(data) {
-    addMessageToChat(data);
-});
+    // ✅ FIXED: Listen for new messages with correct event name
+    socket.on('new_message', function(data) {
+        console.log('📨 Received new message:', data);
+        const isSent = data.from === myUsername;
+        addMessage(data, isSent);
+    });
 
-// NEW (use this instead)
-socket.on('new_message', function(data) {
-    addMessageToChat(data);
-});
+    // ✅ FIXED: Add error handling
+    socket.on('message_error', function(data) {
+        console.error('❌ Message error:', data.error);
+        alert('Failed to send message: ' + data.error);
+    });
+
     // Online count
     socket.on('user_count_update', function(data) {
         document.getElementById('onlineCount').textContent = data.count + ' online';
@@ -1019,19 +1024,22 @@ function handleKeyPress(e) {
     if (e.key === 'Enter') sendMessage();
 }
 
-// Example of sending message from frontend
+// ✅ FIXED: Send message function
 function sendMessage() {
-    const messageInput = document.getElementById('message-input');
+    const messageInput = document.getElementById('chatInput');
     const text = messageInput.value.trim();
     
     if (text) {
+        console.log('📤 Sending message:', text);
         socket.emit('message', {
             text: text
         });
         messageInput.value = ''; // Clear input
+        messageInput.focus(); // Keep focus on input
+    } else {
+        alert('Please enter a message');
     }
 }
-
 // Add message to chat window
 function addMessage(msg, isSent) {
     const chatWindow = document.getElementById('chatWindow');
@@ -1119,6 +1127,19 @@ socket.on('connect', function() {
 socket.on('disconnect', function() {
     console.log('❌ Disconnected from server');
 });
+
+// In initializeChat() function, REPLACE the conflicting message listeners with:
+socket.on('new_message', function(data) {
+    console.log('📨 Received new message:', data);
+    const isSent = data.from === myUsername;
+    addMessage(data, isSent);
+});
+
+socket.on('message_error', function(data) {
+    console.error('❌ Message error:', data.error);
+    alert('Failed to send message: ' + data.error);
+});
+
     </script>
 </body>
 </html>
