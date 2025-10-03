@@ -13,37 +13,65 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         body {
-    color: #fff;
-    min-height: 100vh;
+    margin: 0;
     padding: clamp(10px, 3vw, 20px);
+    min-height: 100vh;
     width: 100%;
     overflow-x: hidden;
-    transition: background 0.3s ease;
+    background: #000;
+    color: #fff;
+    position: relative;
 }
 
-/* Color Options */
-body[data-theme="green"] { background: rgb(10, 138, 31); }
-body[data-theme="dark"] { background: #bcf806; }
-body[data-theme="blue"] { background: #ffffff; }
-body[data-theme="purple"] { background: #317d90; }
-
-/* Color Picker Styles */
-.color-picker {
+.color-bubble {
     position: fixed;
-    top: 20px;
-    right: 20px;
-    display: flex;
-    gap: 10px;
-    z-index: 1000;
+    border-radius: 50%;
+    filter: blur(40px);
+    opacity: 0.7;
+    z-index: -1;
 }
 
-.color-option {
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    cursor: pointer;
-    border: 2px solid white;
-    transition: transform 0.2s;
+.bubble-1 {
+    background: rgb(130, 190, 2);
+    width: 300px;
+    height: 300px;
+    top: 10%;
+    left: 10%;
+    animation: float 20s infinite ease-in-out;
+}
+
+.bubble-2 {
+    background: #1a1a1a;
+    width: 400px;
+    height: 400px;
+    top: 60%;
+    right: 10%;
+    animation: float 25s infinite ease-in-out reverse;
+}
+
+.bubble-3 {
+    background: #0066cc;
+    width: 350px;
+    height: 350px;
+    bottom: 10%;
+    left: 20%;
+    animation: float 30s infinite ease-in-out;
+}
+
+.bubble-4 {
+    background: #663399;
+    width: 250px;
+    height: 250px;
+    top: 30%;
+    right: 30%;
+    animation: float 22s infinite ease-in-out reverse;
+}
+
+@keyframes float {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    25% { transform: translate(100px, -50px) scale(1.1); }
+    50% { transform: translate(-50px, 100px) scale(0.9); }
+    75% { transform: translate(-100px, -100px) scale(1.05); }
 }
 
 .color-option:hover {
@@ -586,15 +614,24 @@ body {
         </button>
     </div>
     
-    <div style="margin-top: 10px; font-size: 12px; color: #ccc;">
-        Current: "<span id="currentMessageDisplay">WEEKLY CHALLENGE: COMPLETED</span>"
+    <<!-- For Option 3 -->
+<body>
+    <div class="section section-1">Content 1</div>
+    <div class="section section-2">Content 2</div>
+    <div class="section section-3">Content 3</div>
+    <div class="section section-4">Content 4</div>
+</body>
+
+<!-- For Option 5 -->
+<body>
+    <div class="color-bubble bubble-1"></div>
+    <div class="color-bubble bubble-2"></div>
+    <div class="color-bubble bubble-3"></div>
+    <div class="color-bubble bubble-4"></div>
+    <div class="content">
+        <!-- Your main content here -->
     </div>
-    <div class="color-picker">
-    <div class="color-option" data-color="green" style="background: rgb(130, 190, 2)"></div>
-    <div class="color-option" data-color="dark" style="background: #1a1a1a"></div>
-    <div class="color-option" data-color="blue" style="background: #0066cc"></div>
-    <div class="color-option" data-color="purple" style="background: #663399"></div>
-</div>
+</body>
 </div>
         </section>
     </main>
