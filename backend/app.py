@@ -1,6 +1,7 @@
 import os
 import uuid
 import time
+import threading
 import traceback
 from datetime import datetime, timedelta
 from flask import Flask, render_template, session, request, redirect, url_for, jsonify, flash
@@ -111,6 +112,30 @@ def init_db():
         return
     try:
         with conn.cursor() as cursor:
+            # ... your existing table creation code ...
+            
+            # ✅ ADD: Create a function for automatic message cleanup
+            cursor.execute("""
+                CREATE OR REPLACE FUNCTION delete_old_messages()
+                RETURNS void AS $$
+                BEGIN
+                    DELETE FROM messages WHERE created_at < NOW() - INTERVAL '24 hours';
+                    DELETE FROM message_status WHERE message_id NOT IN (SELECT id FROM messages);
+                END;
+                $$ LANGUAGE plpgsql;
+            """)
+            
+            # ✅ ADD: Create a scheduled job (if your PostgreSQL version supports it)
+            cursor.execute("""
+                DO $$ 
+                BEGIN
+                    -- Drop existing job if it exists
+                    DROP EVENT TRIGGER IF EXISTS message_cleanup_trigger;
+                EXCEPTION
+                    WHEN others THEN NULL;
+                END $$;
+            """)
+        with conn.cursor() as cursor:
             # Existing tables
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS users (
@@ -215,6 +240,8 @@ def init_db():
 
         conn.commit()
         print("✅ All tables initialized (including WhatsApp-like chat enhancements)")
+        print("✅ Automatic message cleanup function created (24-hour retention)")
+        
     except Exception as e:
         print("❌ DB init failed:", e)
         traceback.print_exc()
@@ -401,6 +428,78 @@ def check_and_broadcast_timer_status():
         return True
     return False
 
+# ---------------- Message Cleanup System (24-hour retention) ----------------
+class SimpleMessageCleanup:
+    def __init__(self):
+        self.running = True
+        self.cleanup_count = 0
+        self.last_cleanup = None
+        
+    def cleanup_old_messages(self):
+        """Clean up messages older than 24 hours"""
+        try:
+            print(f"🔄 [{datetime.now().strftime('%H:%M:%S')}] Running message cleanup...")
+            
+            # Count how many messages will be deleted
+            count_result = execute_query(
+                "SELECT COUNT(*) as count FROM messages WHERE created_at < NOW() - INTERVAL '24 hours'",
+                fetch=True
+            )
+            
+            old_count = count_result[0]['count'] if count_result else 0
+            
+            if old_count > 0:
+                # Delete messages older than 24 hours
+                delete_result = execute_query(
+                    "DELETE FROM messages WHERE created_at < NOW() - INTERVAL '24 hours'"
+                )
+                
+                # Clean up orphaned message_status records
+                execute_query(
+                    "DELETE FROM message_status WHERE message_id NOT IN (SELECT id FROM messages)"
+                )
+                
+                if delete_result:
+                    self.cleanup_count += old_count
+                    self.last_cleanup = datetime.now().isoformat()
+                    print(f"✅ Cleaned up {old_count} messages older than 24 hours")
+                    print(f"📊 Total cleaned since start: {self.cleanup_count}")
+                else:
+                    print("❌ Failed to delete old messages")
+            else:
+                print("ℹ️ No old messages to clean up")
+                
+        except Exception as e:
+            print(f"❌ Cleanup error: {e}")
+    
+    def start_cleanup_loop(self):
+        """Start the cleanup loop that runs every hour"""
+        print("✅ Starting automatic message cleanup (24-hour retention)")
+        
+        # Run immediately on startup
+        self.cleanup_old_messages()
+        
+        # Then run every hour
+        while self.running:
+            try:
+                # Wait for 1 hour
+                time.sleep(3600)
+                self.cleanup_old_messages()
+            except Exception as e:
+                print(f"❌ Cleanup loop error: {e}")
+                # Wait 5 minutes before retrying on error
+                time.sleep(300)
+    
+    def stop(self):
+        """Stop the cleanup loop"""
+        self.running = False
+        print("🛑 Message cleanup stopped")
+
+# Create and start the cleanup manager
+message_cleanup = SimpleMessageCleanup()
+cleanup_thread = threading.Thread(target=message_cleanup.start_cleanup_loop, daemon=True)
+cleanup_thread.start()
+
 # ---------------- App Logic ----------------
 chat_locked = True
 online_users = {}
@@ -581,6 +680,36 @@ def start_new_session():
     except Exception as e:
         print(f"❌ Error resetting session: {e}")
         return jsonify({'error': 'Failed to reset session'}), 500
+
+@app.route('/admin/cleanup_now', methods=['POST'])
+def admin_cleanup_now():
+    """Manually trigger message cleanup"""
+    if not session.get("admin_logged_in"):
+        return jsonify({"error": "Admin access required"}), 403
+    
+    try:
+        message_cleanup.cleanup_old_messages()
+        return jsonify({
+            "success": True,
+            "message": "Manual cleanup completed",
+            "total_cleaned": message_cleanup.cleanup_count,
+            "last_cleanup": message_cleanup.last_cleanup
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/admin/cleanup_status')
+def admin_cleanup_status():
+    """Get cleanup status"""
+    if not session.get("admin_logged_in"):
+        return jsonify({"error": "Admin access required"}), 403
+    
+    return jsonify({
+        "running": message_cleanup.running,
+        "total_cleaned": message_cleanup.cleanup_count,
+        "last_cleanup": message_cleanup.last_cleanup,
+        "retention_period": "24 hours"
+    })
 
 def check_day_timer_expired():
     """Check if day timer has expired and handle it - call this periodically"""
@@ -886,22 +1015,9 @@ def handle_get_weekly_challenge():
 def handle_join(data):
     username = data.get("username")
     if not username:
-        print("❌ No username provided in join_chat")
         return
 
-    print(f"🔔 User '{username}' attempting to join chat with SID: {request.sid}")
-    
-    # Get or create user in database
     user = execute_query("SELECT id FROM users WHERE username=%s LIMIT 1", (username,), fetch=True)
-    if not user:
-        # Create user if they don't exist
-        success = execute_query("INSERT INTO users (username) VALUES (%s)", (username,))
-        if success:
-            user = execute_query("SELECT id FROM users WHERE username=%s LIMIT 1", (username,), fetch=True)
-        else:
-            print(f"❌ Failed to create user: {username}")
-            return
-    
     if user:
         user_id = user[0]["id"]
         online_users[username] = {
@@ -911,12 +1027,8 @@ def handle_join(data):
         }
         user_activity[username] = time.time()
 
-    # ✅ FIXED: Properly add user to connected_users
     connected_users[username] = request.sid
-    
-    print(f"✅ {username} successfully joined chat")
-    print(f"📊 Total connected users: {len(connected_users)}")
-    print(f"🔍 Connected users: {list(connected_users.keys())}")
+    print("✅ {} joined, total users: {}".format(username, len(connected_users)))
 
     # Enhanced chat history with WhatsApp-like features
     history = execute_query("""
@@ -962,16 +1074,7 @@ def handle_join(data):
             WHERE user_id = %s AND status = 'delivered'
         """, (user[0]["id"],))
     
-    # ✅ FIXED: Broadcast updated user count to ALL clients
     socketio.emit("user_count_update", {"count": len(connected_users)})
-    
-    # ✅ FIXED: Broadcast new user joined message
-    socketio.emit("user_joined", {
-        "username": username,
-        "message": f"{username} joined the chat",
-        "timestamp": datetime.utcnow().isoformat(),
-        "online_count": len(connected_users)
-    })
 
 @socketio.on("message")
 def handle_message(data):
@@ -1056,6 +1159,21 @@ def handle_message(data):
         traceback.print_exc()
         emit('message_error', {'error': 'Failed to send message'})
 
+@socketio.on("manual_cleanup")
+def handle_manual_cleanup():
+    """Handle manual cleanup request from admin"""
+    try:
+        if session.get("admin_logged_in"):
+            message_cleanup.cleanup_old_messages()
+            emit('cleanup_success', {
+                'message': 'Manual cleanup completed. Messages older than 24 hours deleted.',
+                'total_cleaned': message_cleanup.cleanup_count
+            })
+        else:
+            emit('cleanup_error', {'error': 'Admin access required'})
+    except Exception as e:
+        emit('cleanup_error', {'error': str(e)})
+
 @socketio.on("disconnect")
 def handle_disconnect():
     username_to_remove = None
@@ -1065,25 +1183,11 @@ def handle_disconnect():
             break
 
     if username_to_remove:
-        # ✅ FIXED: Properly remove user from all tracking
-        if username_to_remove in connected_users:
-            del connected_users[username_to_remove]
-        if username_to_remove in online_users:
-            del online_users[username_to_remove]
-        if username_to_remove in user_activity:
-            del user_activity[username_to_remove]
-            
-        print(f"❌ {username_to_remove} left, total users: {len(connected_users)}")
-        
-        # ✅ FIXED: Broadcast user left message
-        socketio.emit("user_left", {
-            "username": username_to_remove,
-            "message": f"{username_to_remove} left the chat",
-            "timestamp": datetime.utcnow().isoformat(),
-            "online_count": len(connected_users)
-        })
-    
-    # ✅ FIXED: Always broadcast updated count
+        del connected_users[username_to_remove]
+        online_users.pop(username_to_remove, None)
+        user_activity.pop(username_to_remove, None)
+        print("❌ {} left, total users: {}".format(username_to_remove, len(connected_users)))
+
     socketio.emit("user_count_update", {"count": len(connected_users)})
 
 @socketio.on("announce_winner")
@@ -1463,7 +1567,6 @@ def handle_set_weekly_message(data):
             'success': False,
             'error': str(e)
         })
-
 
 # ---------------- Run ----------------
 if __name__ == "__main__":
