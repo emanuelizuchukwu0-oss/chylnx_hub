@@ -331,7 +331,7 @@ def check_day_timer_expired():
         socketio.emit('day_timer_complete', {
             'message': 'DAY TIMER COMPLETED',
             'timestamp': datetime.utcnow().isoformat()
-        }, broadcast=True)
+        })
         return True
     return False
 
@@ -394,10 +394,10 @@ def check_and_broadcast_timer_status():
     """Check timer status and broadcast if needed"""
     timer = get_current_timer()
     if not timer:
-        socketio.emit('game_started', {  # Remove broadcast=True
+        socketio.emit('game_started', {
             'message': 'GAME STARTED',
             'timestamp': datetime.utcnow().isoformat()
-        })  # Remove the broadcast parameter
+        })
         return True
     return False
 
@@ -567,7 +567,7 @@ def start_new_session():
         online_users.clear()
         user_activity.clear()
         
-        socketio.emit('session_reset', {  # CHANGED: socketio.emit without broadcast=True
+        socketio.emit('session_reset', {
             'message': 'Chat session has been reset. Payment required to continue.',
             'reset_by': session.get('username', 'Admin'),
             'timestamp': datetime.utcnow().isoformat()
@@ -595,7 +595,7 @@ def check_day_timer_expired():
         print("🎉 Day timer expired automatically")
         
         # Broadcast to all connected clients
-        socketio.emit('day_timer_complete', {  # CHANGED: socketio.emit without broadcast=True
+        socketio.emit('day_timer_complete', {
             'message': 'DAY TIMER COMPLETED',
             'timestamp': datetime.utcnow().isoformat()
         })
@@ -679,7 +679,7 @@ def check_and_broadcast_timer_status():
         socketio.emit('game_started', {
             'message': 'GAME STARTED',
             'timestamp': datetime.utcnow().isoformat()
-        }, broadcast=True)
+        })
         return True
     return False
 
@@ -724,7 +724,7 @@ def handle_set_timer(data):
         
         print(f"✅ Timer set. End time: {end_time}, Remaining: {remaining}s")
         
-        socketio.emit('timer_update', {  # CHANGED: socketio.emit without broadcast=True
+        socketio.emit('timer_update', {
             'remaining_seconds': remaining,
             'is_running': True
         })
@@ -771,7 +771,7 @@ def handle_set_day_timer(data):
         print(f"✅ Persistent day timer set. Will expire at: {end_time}")
         
         # Broadcast to all connected clients
-        socketio.emit('day_timer_update', {  # CHANGED: socketio.emit without broadcast=True
+        socketio.emit('day_timer_update', {
             'remaining_seconds': remaining,
             'is_running': True,
             'message': f'Day timer set for {days}d {hours}h {minutes}m {seconds}s'
@@ -825,7 +825,7 @@ def handle_stop_day_timer():
             execute_query("UPDATE day_timer SET is_running = FALSE WHERE id = %s", (timer['id'],))
             print("⏹️ Day timer stopped manually")
         
-        socketio.emit('day_timer_update', {  # CHANGED: socketio.emit without broadcast=True
+        socketio.emit('day_timer_update', {
             'remaining_seconds': 0,
             'is_running': False,
             'message': 'Day timer stopped'
@@ -858,7 +858,7 @@ def handle_set_weekly_challenge(data):
         
         print(f"✅ Weekly challenge {action}. Remaining: {remaining}s")
         
-        socketio.emit('weekly_challenge_update', {  # CHANGED: socketio.emit without broadcast=True
+        socketio.emit('weekly_challenge_update', {
             'remaining_seconds': remaining,
             'is_active': is_active
         })
@@ -1006,7 +1006,7 @@ def handle_message(data):
             }
 
             # Broadcast to all connected users
-            socketio.emit("message", msg)  # CHANGED: socketio.emit without broadcast=True
+            socketio.emit("message", msg)
             
             # Update status to 'delivered' for all online users
             for online_username, user_info in online_users.items():
@@ -1023,6 +1023,7 @@ def handle_message(data):
     except Exception as e:
         print("❌ handle_message error:", e)
         traceback.print_exc()
+
 @socketio.on("disconnect")
 def handle_disconnect():
     username_to_remove = None
@@ -1048,11 +1049,9 @@ def handle_announce_winner(data):
             
         print(f"🎉 Broadcasting winner announcement: {winners}")
         
-        emit(
+        socketio.emit(
             "winner_announced", 
-            {"winners": winners}, 
-            broadcast=True,
-            include_self=True
+            {"winners": winners}
         )
         
         print("✅ Winner announcement broadcasted to all users")
@@ -1068,10 +1067,10 @@ def handle_timer_finished():
         
         execute_query("UPDATE game_timer SET is_running = FALSE WHERE is_running = TRUE")
         
-        emit('game_started', {
+        socketio.emit('game_started', {
             'message': 'GAME STARTED',
             'timestamp': datetime.utcnow().isoformat()
-        }, broadcast=True)
+        })
         
         print("✅ Game started announcement broadcasted to all users")
         
@@ -1088,10 +1087,10 @@ def handle_day_timer_finished():
             print("🎉 Day timer finished - broadcasting completion")
             
             # Broadcast to ALL connected clients
-            emit('day_timer_complete', {
+            socketio.emit('day_timer_complete', {
                 'message': 'DAY TIMER COMPLETED',
                 'timestamp': datetime.utcnow().isoformat()
-            }, broadcast=True)
+            })
             
             print("✅ Day timer completion broadcasted to all users")
         
@@ -1106,10 +1105,10 @@ def handle_weekly_challenge_finished():
         
         execute_query("UPDATE weekly_challenge SET is_active = FALSE WHERE is_active = TRUE")
         
-        emit('weekly_challenge_complete', {
+        socketio.emit('weekly_challenge_complete', {
             'message': 'WEEKLY CHALLENGE: COMING SOON',
             'timestamp': datetime.utcnow().isoformat()
-        }, broadcast=True)
+        })
         
         print("✅ Weekly challenge completion broadcasted to all users")
         
@@ -1133,11 +1132,11 @@ def handle_message_delivered(data):
             )
             
             # Notify sender that message was delivered
-            emit("message_status_update", {
+            socketio.emit("message_status_update", {
                 'message_id': message_id,
                 'status': 'delivered',
                 'to_user': username
-            }, broadcast=True)
+            })
             
     except Exception as e:
         print(f"❌ Error updating message delivery: {e}")
@@ -1157,11 +1156,11 @@ def handle_message_read(data):
             )
             
             # Notify sender that message was read
-            emit("message_status_update", {
+            socketio.emit("message_status_update", {
                 'message_id': message_id,
                 'status': 'read',
                 'to_user': username
-            }, broadcast=True)
+            })
             
     except Exception as e:
         print(f"❌ Error updating message read status: {e}")
@@ -1171,7 +1170,7 @@ def handle_typing_start(data):
     """Handle typing indicator"""
     username = data.get('username')
     if username:
-        socketio.emit("user_typing", {  # CHANGED: socketio.emit without broadcast=True
+        socketio.emit("user_typing", {
             'username': username,
             'is_typing': True
         })
@@ -1181,10 +1180,11 @@ def handle_typing_stop(data):
     """Handle typing stop indicator"""
     username = data.get('username')
     if username:
-        socketio.emit("user_typing", {  # CHANGED: socketio.emit without broadcast=True
+        socketio.emit("user_typing", {
             'username': username,
             'is_typing': False
         })
+
 # ---------------- Payment Routes ----------------
 PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY", "sk_test_...")
 
@@ -1344,7 +1344,7 @@ def handle_manual_weekly_complete(data):
         execute_query("UPDATE weekly_challenge SET is_active = FALSE WHERE is_active = TRUE")
         
         # Broadcast with custom message
-        socketio.emit('weekly_challenge_complete', {  # CHANGED: socketio.emit without broadcast=True
+        socketio.emit('weekly_challenge_complete', {
             'message': custom_message,
             'timestamp': datetime.utcnow().isoformat(),
             'manual_trigger': True,
@@ -1402,7 +1402,7 @@ def handle_set_weekly_message(data):
             })
             
             # Also update the current display for all users
-            socketio.emit('weekly_message_update', {  # CHANGED: socketio.emit without broadcast=True
+            socketio.emit('weekly_message_update', {
                 'message': message
             })
         else:
