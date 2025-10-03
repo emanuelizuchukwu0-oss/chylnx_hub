@@ -1424,6 +1424,7 @@ def handle_set_weekly_message(data):
             'error': str(e)
         })
 
+
 # ---------------- Run ----------------
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
