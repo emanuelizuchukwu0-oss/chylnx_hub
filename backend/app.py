@@ -886,9 +886,22 @@ def handle_get_weekly_challenge():
 def handle_join(data):
     username = data.get("username")
     if not username:
+        print("❌ No username provided in join_chat")
         return
 
+    print(f"🔔 User '{username}' attempting to join chat with SID: {request.sid}")
+    
+    # Get or create user in database
     user = execute_query("SELECT id FROM users WHERE username=%s LIMIT 1", (username,), fetch=True)
+    if not user:
+        # Create user if they don't exist
+        success = execute_query("INSERT INTO users (username) VALUES (%s)", (username,))
+        if success:
+            user = execute_query("SELECT id FROM users WHERE username=%s LIMIT 1", (username,), fetch=True)
+        else:
+            print(f"❌ Failed to create user: {username}")
+            return
+    
     if user:
         user_id = user[0]["id"]
         online_users[username] = {
@@ -898,8 +911,12 @@ def handle_join(data):
         }
         user_activity[username] = time.time()
 
+    # ✅ FIXED: Properly add user to connected_users
     connected_users[username] = request.sid
-    print("✅ {} joined, total users: {}".format(username, len(connected_users)))
+    
+    print(f"✅ {username} successfully joined chat")
+    print(f"📊 Total connected users: {len(connected_users)}")
+    print(f"🔍 Connected users: {list(connected_users.keys())}")
 
     # Enhanced chat history with WhatsApp-like features
     history = execute_query("""
@@ -945,7 +962,16 @@ def handle_join(data):
             WHERE user_id = %s AND status = 'delivered'
         """, (user[0]["id"],))
     
+    # ✅ FIXED: Broadcast updated user count to ALL clients
     socketio.emit("user_count_update", {"count": len(connected_users)})
+    
+    # ✅ FIXED: Broadcast new user joined message
+    socketio.emit("user_joined", {
+        "username": username,
+        "message": f"{username} joined the chat",
+        "timestamp": datetime.utcnow().isoformat(),
+        "online_count": len(connected_users)
+    })
 
 @socketio.on("message")
 def handle_message(data):
@@ -1039,11 +1065,25 @@ def handle_disconnect():
             break
 
     if username_to_remove:
-        del connected_users[username_to_remove]
-        online_users.pop(username_to_remove, None)
-        user_activity.pop(username_to_remove, None)
-        print("❌ {} left, total users: {}".format(username_to_remove, len(connected_users)))
-
+        # ✅ FIXED: Properly remove user from all tracking
+        if username_to_remove in connected_users:
+            del connected_users[username_to_remove]
+        if username_to_remove in online_users:
+            del online_users[username_to_remove]
+        if username_to_remove in user_activity:
+            del user_activity[username_to_remove]
+            
+        print(f"❌ {username_to_remove} left, total users: {len(connected_users)}")
+        
+        # ✅ FIXED: Broadcast user left message
+        socketio.emit("user_left", {
+            "username": username_to_remove,
+            "message": f"{username_to_remove} left the chat",
+            "timestamp": datetime.utcnow().isoformat(),
+            "online_count": len(connected_users)
+        })
+    
+    # ✅ FIXED: Always broadcast updated count
     socketio.emit("user_count_update", {"count": len(connected_users)})
 
 @socketio.on("announce_winner")

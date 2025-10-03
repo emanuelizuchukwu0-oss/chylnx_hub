@@ -808,7 +808,7 @@ function setUsername() {
     initializeChat();
 }
 
-// ✅ FIXED: Initialize Socket.IO chat - REPLACE YOUR ENTIRE FUNCTION
+// ✅ FIXED: Initialize Socket.IO chat with user join/leave support
 function initializeChat() {
     document.getElementById('chatInput').disabled = false;
     document.getElementById('sendBtn').disabled = false;
@@ -818,13 +818,16 @@ function initializeChat() {
     // Debug connection
     socket.on('connect', function() {
         console.log('✅ Connected to server with SID:', socket.id);
+        console.log('👤 My username:', myUsername);
     });
 
     // Join chat
+    console.log('📤 Emitting join_chat for user:', myUsername);
     socket.emit('join_chat', { username: myUsername });
 
     // Receive chat history
     socket.on('chat_history', function(history) {
+        console.log('📜 Received chat history with', history.length, 'messages');
         const chatWindow = document.getElementById('chatWindow');
         chatWindow.innerHTML = '<div class="system-msg">Welcome to the chat!</div>';
         history.forEach(msg => {
@@ -833,23 +836,37 @@ function initializeChat() {
         });
     });
 
-    // ✅ FIXED: Listen for new messages
+    // Listen for new messages
     socket.on('new_message', function(data) {
-        console.log('📨 Received new message:', data);
+        console.log('📨 Received new message from:', data.from);
         const isSent = data.from === myUsername;
         addMessage(data, isSent);
     });
 
-    // ✅ FIXED: Add error handling
-    socket.on('message_error', function(data) {
-        console.error('❌ Message error:', data.error);
-        alert('Failed to send message: ' + data.error);
+    // ✅ NEW: Listen for user join events
+    socket.on('user_joined', function(data) {
+        console.log('👋 User joined:', data.username);
+        addSystemMessage(`${data.username} joined the chat`);
+        document.getElementById('onlineCount').textContent = data.online_count + ' online';
+    });
+
+    // ✅ NEW: Listen for user leave events  
+    socket.on('user_left', function(data) {
+        console.log('👋 User left:', data.username);
+        addSystemMessage(`${data.username} left the chat`);
+        document.getElementById('onlineCount').textContent = data.online_count + ' online';
     });
 
     // Online count
     socket.on('user_count_update', function(data) {
         document.getElementById('onlineCount').textContent = data.count + ' online';
-        updateOnlineUsersList();
+        console.log('👥 Online users count:', data.count);
+    });
+
+    // Add error handling
+    socket.on('message_error', function(data) {
+        console.error('❌ Message error:', data.error);
+        alert('Failed to send message: ' + data.error);
     });
 
     // Winner announcements
@@ -860,7 +877,7 @@ function initializeChat() {
         addSystemMessage(`🏆 WINNER ANNOUNCEMENT: ${winners}! Congratulations! 🎉`);
     });
 
-    addSystemMessage(`Welcome, ${myUsername}! Start chatting below.`);
+    addSystemMessage(`Welcome, ${myUsername}! You can start chatting now.`);
     
     // Focus on chat input
     document.getElementById('chatInput').focus();
@@ -1036,7 +1053,7 @@ function toggleUserSelection(username) {
     updateSelectedCount();
 }
 
-// System messages
+// ✅ FIXED: System messages function
 function addSystemMessage(text) {
     const chatWindow = document.getElementById('chatWindow');
     const div = document.createElement('div');
@@ -1044,6 +1061,7 @@ function addSystemMessage(text) {
     div.textContent = text;
     chatWindow.appendChild(div);
     chatWindow.scrollTop = chatWindow.scrollHeight;
+    console.log('💬 System message:', text);
 }
 
 // New function to show winner announcement overlay
@@ -1091,7 +1109,20 @@ socket.on('message_error', function(data) {
     console.error('❌ Message error:', data.error);
     alert('Failed to send message: ' + data.error);
 });
+// Add connection error handling
+socket.on('connect_error', function(error) {
+    console.error('❌ Connection error:', error);
+    addSystemMessage('Connection error - trying to reconnect...');
+});
 
+socket.on('reconnect', function() {
+    console.log('✅ Reconnected to server');
+    addSystemMessage('Reconnected to chat server');
+    // Re-join chat after reconnection
+    if (myUsername) {
+        socket.emit('join_chat', { username: myUsername });
+    }
+});
     </script>
 </body>
 </html>
