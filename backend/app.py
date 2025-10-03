@@ -415,21 +415,10 @@ def admin_dashboard():
     if not session.get("admin_logged_in"):
         return redirect(url_for("admin_login"))
 
-    users = execute_query("""
-        SELECT 
-            u.id, u.username, u.email, u.created_at,
-            p.status AS last_payment_status,
-            p.amount AS last_payment_amount,
-            p.created_at AS last_payment_date
-        FROM users u
-        LEFT JOIN LATERAL (
-            SELECT p2.* FROM payments p2 WHERE p2.user_id = u.id ORDER BY p2.created_at DESC LIMIT 1
-        ) p ON TRUE
-        ORDER BY u.created_at DESC
-    """, fetch=True) or []
+    # Simple query to get all users
+    users = execute_query("SELECT id, username, email, created_at FROM users ORDER BY created_at DESC", fetch=True) or []
 
     return render_template("admin_dashboard.html", users=users, chat_locked=chat_locked)
-
 @app.route("/toggle_chat_lock", methods=["POST"])
 def toggle_chat_lock():
     global chat_locked
@@ -956,7 +945,7 @@ def handle_weekly_challenge_finished():
         execute_query("UPDATE weekly_challenge SET is_active = FALSE WHERE is_active = TRUE")
         
         emit('weekly_challenge_complete', {
-            'message': 'WEEKLY CHALLENGE COming soon',
+            'message': 'WEEKLY CHALLENGE COming',
             'timestamp': datetime.utcnow().isoformat()
         }, broadcast=True)
         

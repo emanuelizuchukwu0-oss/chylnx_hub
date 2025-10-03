@@ -17,7 +17,34 @@
       </button>
     </form>
   </div>
-
+<!-- Add this to your admin_dashboard.html template -->
+<div class="user-list">
+    <h3>Registered Users</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Username</th>
+                <th>Email</th>
+                <th>Joined</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr>
+                <td>{{ user.id }}</td>
+                <td>{{ user.username }}</td>
+                <td>{{ user.email }}</td>
+                <td>{{ user.created_at }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4">No users found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
   <table class="min-w-full bg-white shadow rounded-lg">
     <thead>
       <tr>
