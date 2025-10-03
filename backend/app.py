@@ -83,6 +83,58 @@ def execute_query(query, params=None, fetch=False):
         conn.close()
 
 # ---------------- Initialize DB ----------------
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+def get_db_connection():
+    try:
+        return psycopg2.connect(DATABASE_URL)
+    except Exception as e:
+        print(f"❌ DB connection failed: {e}")
+        return None
+
+def execute_query(query, params=None, fetch=False):
+    conn = get_db_connection()
+    if not conn:
+        return None
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+            cursor.execute(query, params or ())
+            if fetch:
+                result = cursor.fetchall()
+            else:
+                result = True
+            conn.commit()
+            return result
+    except Exception as e:
+        print(f"❌ Query failed: {e}")
+        traceback.print_exc()
+        conn.rollback()
+        return None
+    finally:
+        conn.close()
+
+# ---------------- Weekly Challenge Message Functions ----------------
+def get_weekly_challenge_message():
+    """Get the current weekly challenge message from database"""
+    result = execute_query(
+        "SELECT setting_value FROM app_settings WHERE setting_key = 'weekly_challenge_message'",
+        fetch=True
+    )
+    if result:
+        return result[0]['setting_value']
+    return "WEEKLY CHALLENGE: COMPLETED"  # Default message
+
+def set_weekly_challenge_message(message):
+    """Set the weekly challenge message in database"""
+    return execute_query(
+        """INSERT INTO app_settings (setting_key, setting_value) 
+           VALUES ('weekly_challenge_message', %s) 
+           ON CONFLICT (setting_key) 
+           DO UPDATE SET setting_value = %s""",
+        (message, message)
+    )
+
+# ---------------- Initialize DB ----------------
 def init_db():
     conn = get_db_connection()
     if not conn:
@@ -90,6 +142,7 @@ def init_db():
         return
     try:
         with conn.cursor() as cursor:
+            # Existing tables
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS users (
                     id SERIAL PRIMARY KEY,
@@ -142,8 +195,27 @@ def init_db():
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
+            
+            # NEW: Add app_settings table for persistent messages
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS app_settings (
+                    id SERIAL PRIMARY KEY,
+                    setting_key VARCHAR(255) UNIQUE NOT NULL,
+                    setting_value TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            # Initialize with default message if not exists
+            cursor.execute("""
+                INSERT INTO app_settings (setting_key, setting_value) 
+                VALUES ('weekly_challenge_message', 'WEEKLY CHALLENGE: COMPLETED')
+                ON CONFLICT (setting_key) DO NOTHING
+            """)
+
         conn.commit()
-        print("✅ All tables initialized (including weekly_challenge)")
+        print("✅ All tables initialized (including app_settings)")
     except Exception as e:
         print("❌ DB init failed:", e)
         traceback.print_exc()
@@ -1120,13 +1192,17 @@ def check_payment_status():
     else:
         return jsonify({"paid": False})
 
+# Update your manual_weekly_complete handler to save to database
 @socketio.on("manual_weekly_complete")
 def handle_manual_weekly_complete(data):
-    """Manually trigger weekly challenge completion with custom message"""
+    """Manually trigger weekly challenge completion with custom message - PERSISTENT"""
     try:
         custom_message = data.get('message', 'WEEKLY CHALLENGE: COMPLETED')
         
         print(f"🎉 Manually triggering weekly challenge completion: {custom_message}")
+        
+        # Save message to database for persistence
+        set_weekly_challenge_message(custom_message)
         
         # Update database to mark as inactive
         execute_query("UPDATE weekly_challenge SET is_active = FALSE WHERE is_active = TRUE")
@@ -1135,15 +1211,76 @@ def handle_manual_weekly_complete(data):
         emit('weekly_challenge_complete', {
             'message': custom_message,
             'timestamp': datetime.utcnow().isoformat(),
-            'manual_trigger': True
+            'manual_trigger': True,
+            'persistent': True
         }, broadcast=True)
         
-        print(f"✅ Manual weekly challenge completion broadcasted: {custom_message}")
+        print(f"✅ Manual weekly challenge completion broadcasted and saved: {custom_message}")
         
     except Exception as e:
         print(f"❌ Error in manual weekly completion: {e}")
         traceback.print_exc()
         emit('weekly_challenge_error', {'message': str(e)})
+
+# Add this new route to get the current message
+@app.route('/get_weekly_message')
+def get_weekly_message():
+    """API endpoint to get current weekly challenge message"""
+    try:
+        message = get_weekly_challenge_message()
+        return jsonify({
+            'message': message,
+            'success': True
+        })
+    except Exception as e:
+        print(f"❌ Error getting weekly message: {e}")
+        return jsonify({'error': 'Failed to get message'}), 500
+
+# Add socket event to get message
+@socketio.on("get_weekly_message")
+def handle_get_weekly_message():
+    """Send current weekly challenge message to client"""
+    try:
+        message = get_weekly_challenge_message()
+        emit('weekly_message_update', {
+            'message': message
+        })
+    except Exception as e:
+        print(f"❌ Error in get_weekly_message: {e}")
+        emit('weekly_challenge_error', {'message': str(e)})
+
+@socketio.on("set_weekly_message")
+def handle_set_weekly_message(data):
+    """Save weekly challenge message to database"""
+    try:
+        message = data.get('message', 'WEEKLY CHALLENGE: COMPLETED')
+        
+        # Save to database
+        success = set_weekly_challenge_message(message)
+        
+        if success:
+            print(f"💾 Weekly message saved to database: {message}")
+            emit('set_weekly_message_response', {
+                'success': True,
+                'message': message
+            })
+            
+            # Also update the current display for all users
+            emit('weekly_message_update', {
+                'message': message
+            }, broadcast=True)
+        else:
+            emit('set_weekly_message_response', {
+                'success': False,
+                'error': 'Failed to save message to database'
+            })
+            
+    except Exception as e:
+        print(f"❌ Error setting weekly message: {e}")
+        emit('set_weekly_message_response', {
+            'success': False,
+            'error': str(e)
+        })        
 # ---------------- Run ----------------
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))

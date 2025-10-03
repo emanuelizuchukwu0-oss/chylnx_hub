@@ -752,7 +752,7 @@ function showFallbackIcons() {
     }
 }
 
-// Initialize everything when page loads
+// Update your window load event
 window.addEventListener('load', function() {
     console.log('🚀 Page loaded, initializing...');
     
@@ -773,11 +773,14 @@ window.addEventListener('load', function() {
     // Check for icons after load
     setTimeout(showFallbackIcons, 500);
     
-    // Request weekly challenge status after socket is connected
+    // Request weekly challenge status AND message after socket is connected
     setTimeout(() => {
         if (socket) {
             socket.emit('get_weekly_challenge');
+            socket.emit('get_weekly_message'); // Load the persistent message
         }
+        // Also try to load from server via HTTP as backup
+        loadWeeklyMessageFromServer();
     }, 1000);
         // Debug: Check if elements exist
         console.log('Password input exists:', !!document.getElementById('passwordInput'));
@@ -952,36 +955,74 @@ let isWeeklyChallengeActive = false;
 
 // Initialize Weekly Challenge Socket.io
 function initializeWeeklyChallengeSocket() {
-    // Update your existing weekly_challenge_complete handler
-socket.on('weekly_challenge_complete', function(data) {
-    console.log('🎉 Weekly challenge complete received:', data);
-    isWeeklyChallengeActive = false;
-    clearInterval(weeklyChallengeInterval);
-    
-    // Use the custom message from server, or fallback to default
-    const displayMessage = data.message || 'WEEKLY CHALLENGE: COMPLETED';
-    
-    // Update the display with the custom message
-    const weeklyChallengeElement = document.querySelector('.weekly-challenge');
-    weeklyChallengeElement.innerHTML = displayMessage;
-    
-    // Update visual state
-    weeklyChallengeElement.classList.remove('weekly-challenge-active');
-    weeklyChallengeElement.classList.add('weekly-challenge-complete');
-});
+    // Listen for weekly challenge updates from server
+    socket.on('weekly_challenge_update', function(data) {
+        console.log('📡 Received weekly challenge update from server:', data);
+        
+        // Clear any existing weekly timer first
+        clearInterval(weeklyChallengeInterval);
+        
+        if (data.is_active && data.remaining_seconds > 0) {
+            // Weekly challenge is active
+            isWeeklyChallengeActive = true;
+            weeklyTotalSeconds = data.remaining_seconds;
+            console.log('📅 Weekly challenge active:', weeklyTotalSeconds, 'seconds remaining');
+            
+            // Update status display
+            document.getElementById('weeklyStatus').textContent = "ACTIVE";
+            document.querySelector('.weekly-challenge').classList.add('weekly-challenge-active');
+            document.querySelector('.weekly-challenge').classList.remove('weekly-challenge-complete');
+            
+            // Start counting down (but don't affect username form)
+            weeklyChallengeInterval = setInterval(updateWeeklyChallenge, 1000);
+        } else {
+            // Weekly challenge not active or completed
+            isWeeklyChallengeActive = false;
+            clearInterval(weeklyChallengeInterval);
+            document.getElementById('weeklyStatus').textContent = "COMPLETED";
+            document.querySelector('.weekly-challenge').classList.remove('weekly-challenge-active');
+            document.querySelector('.weekly-challenge').classList.add('weekly-challenge-complete');
+        }
+    });
     
     // Listen for weekly challenge complete event
     socket.on('weekly_challenge_complete', function(data) {
         console.log('🎉 Weekly challenge complete received:', data);
         isWeeklyChallengeActive = false;
         clearInterval(weeklyChallengeInterval);
-        document.getElementById('weeklyStatus').textContent = "COMPLETED";
-        document.querySelector('.weekly-challenge').classList.remove('weekly-challenge-active');
-        document.querySelector('.weekly-challenge').classList.add('weekly-challenge-complete');
+        
+        // Use the message from server (which comes from database)
+        const displayMessage = data.message || 'WEEKLY CHALLENGE: COMPLETED';
+        
+        // Update the display with the persistent message
+        const weeklyChallengeElement = document.querySelector('.weekly-challenge');
+        if (weeklyChallengeElement) {
+            weeklyChallengeElement.innerHTML = displayMessage;
+            weeklyChallengeElement.classList.remove('weekly-challenge-active');
+            weeklyChallengeElement.classList.add('weekly-challenge-complete');
+        }
+        
+        // Also update our admin controls
+        setWeeklyMessageDisplay(displayMessage);
     });
     
     socket.on('weekly_challenge_error', function(data) {
         alert('Weekly challenge error: ' + data.message);
+    });
+    
+    // NEW: Listen for weekly message updates
+    socket.on('weekly_message_update', function(data) {
+        console.log('📡 Received weekly message update:', data.message);
+        setWeeklyMessageDisplay(data.message);
+    });
+    
+    // NEW: Listen for set_weekly_message responses
+    socket.on('set_weekly_message_response', function(data) {
+        if (data.success) {
+            console.log('✅ Weekly message saved to server:', data.message);
+        } else {
+            alert('Error saving message: ' + data.error);
+        }
     });
 }
 
@@ -1001,8 +1042,7 @@ function updateWeeklyChallenge() {
     
     weeklyTotalSeconds--;
     
-    // Optional: Update display with time remaining (but doesn't affect username form)
-    // You can remove this if you just want ACTIVE/COMPLETED status
+    // Optional: Update display with time remaining
     updateWeeklyChallengeDisplay();
 }
 
@@ -1062,7 +1102,47 @@ function setWeeklyChallenge() {
         alert('Weekly challenge stopped!');
     }
 }
-// Weekly Challenge Manual Control Functions
+
+// Weekly Challenge Manual Control Functions - SINGLE VERSION (remove duplicates)
+function loadWeeklyMessageFromServer() {
+    // Try Socket.io first
+    if (socket) {
+        socket.emit('get_weekly_message');
+    } else {
+        // Fallback to HTTP API
+        fetch('/get_weekly_message')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    setWeeklyMessageDisplay(data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading weekly message:', error);
+            });
+    }
+}
+
+function setWeeklyMessageDisplay(message) {
+    // Update the input field
+    const messageInput = document.getElementById('weeklyMessageInput');
+    if (messageInput) {
+        messageInput.value = message;
+    }
+    
+    // Update the current message display
+    const currentDisplay = document.getElementById('currentMessageDisplay');
+    if (currentDisplay) {
+        currentDisplay.textContent = message;
+    }
+    
+    // Also update the main weekly challenge display if it's in completed state
+    const weeklyChallengeElement = document.querySelector('.weekly-challenge');
+    if (weeklyChallengeElement && !weeklyChallengeElement.classList.contains('weekly-challenge-active')) {
+        weeklyChallengeElement.innerHTML = message;
+    }
+}
+
 function updateWeeklyMessage() {
     const newMessage = document.getElementById('weeklyMessageInput').value.trim();
     if (!newMessage) {
@@ -1070,17 +1150,20 @@ function updateWeeklyMessage() {
         return;
     }
     
-    // Store in localStorage
-    localStorage.setItem('customWeeklyMessage', newMessage);
-    document.getElementById('currentMessageDisplay').textContent = newMessage;
+    // Save to server for persistence
+    if (socket) {
+        socket.emit('set_weekly_message', { message: newMessage });
+    } else {
+        alert('Not connected to server');
+        return;
+    }
     
-    alert('Message updated to: "' + newMessage + '"');
-    console.log('Weekly message updated:', newMessage);
+    setWeeklyMessageDisplay(newMessage);
+    alert('Message updated and saved: "' + newMessage + '"');
 }
 
 function broadcastWeeklyMessage() {
     const message = document.getElementById('weeklyMessageInput').value.trim() || 
-                   localStorage.getItem('customWeeklyMessage') || 
                    'WEEKLY CHALLENGE: COMPLETED';
     
     if (socket) {
@@ -1095,14 +1178,23 @@ function broadcastWeeklyMessage() {
 
 function resetWeeklyMessage() {
     const defaultMessage = 'WEEKLY CHALLENGE: COMPLETED';
-    document.getElementById('weeklyMessageInput').value = defaultMessage;
-    document.getElementById('currentMessageDisplay').textContent = defaultMessage;
-    localStorage.setItem('customWeeklyMessage', defaultMessage);
+    
+    // Update server
+    if (socket) {
+        socket.emit('set_weekly_message', { message: defaultMessage });
+    } else {
+        alert('Not connected to server');
+        return;
+    }
+    
+    setWeeklyMessageDisplay(defaultMessage);
     alert('Message reset to default');
 }
 
 // Load saved message when page loads
 function loadSavedWeeklyMessage() {
+    // This is now handled by loadWeeklyMessageFromServer
+    // Keeping this as backup but it will be overridden by server data
     const savedMessage = localStorage.getItem('customWeeklyMessage');
     if (savedMessage) {
         document.getElementById('weeklyMessageInput').value = savedMessage;
