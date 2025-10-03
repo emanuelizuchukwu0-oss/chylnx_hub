@@ -12,15 +12,43 @@
             box-sizing: border-box;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-        
         body {
-            background: rgb(130, 190, 2);
-            color: #fff;
-            min-height: 100vh;
-            padding: clamp(10px, 3vw, 20px);
-            width: 100%;
-            overflow-x: hidden;
-        }
+    color: #fff;
+    min-height: 100vh;
+    padding: clamp(10px, 3vw, 20px);
+    width: 100%;
+    overflow-x: hidden;
+    transition: background 0.3s ease;
+}
+
+/* Color Options */
+body[data-theme="green"] { background: rgb(130, 190, 2); }
+body[data-theme="dark"] { background: #1a1a1a; }
+body[data-theme="blue"] { background: #0066cc; }
+body[data-theme="purple"] { background: #663399; }
+
+/* Color Picker Styles */
+.color-picker {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    gap: 10px;
+    z-index: 1000;
+}
+
+.color-option {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid white;
+    transition: transform 0.2s;
+}
+
+.color-option:hover {
+    transform: scale(1.1);
+}
         
         .head {
             display: flex;
@@ -561,6 +589,12 @@ body {
     <div style="margin-top: 10px; font-size: 12px; color: #ccc;">
         Current: "<span id="currentMessageDisplay">WEEKLY CHALLENGE: COMPLETED</span>"
     </div>
+    <div class="color-picker">
+    <div class="color-option" data-color="green" style="background: rgb(130, 190, 2)"></div>
+    <div class="color-option" data-color="dark" style="background: #1a1a1a"></div>
+    <div class="color-option" data-color="blue" style="background: #0066cc"></div>
+    <div class="color-option" data-color="purple" style="background: #663399"></div>
+</div>
 </div>
         </section>
     </main>
@@ -1201,6 +1235,21 @@ function loadSavedWeeklyMessage() {
         document.getElementById('currentMessageDisplay').textContent = savedMessage;
     }
 }
+// Theme switching functionality
+document.querySelectorAll('.color-option').forEach(option => {
+    option.addEventListener('click', function() {
+        const theme = this.getAttribute('data-color');
+        document.body.setAttribute('data-theme', theme);
+        // Save to localStorage
+        localStorage.setItem('selectedTheme', theme);
+    });
+});
+
+// Load saved theme on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const savedTheme = localStorage.getItem('selectedTheme') || 'green';
+    document.body.setAttribute('data-theme', savedTheme);
+});
 </script>
 </body>
 </html>
