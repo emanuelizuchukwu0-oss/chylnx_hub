@@ -956,7 +956,7 @@ def handle_weekly_challenge_finished():
         execute_query("UPDATE weekly_challenge SET is_active = FALSE WHERE is_active = TRUE")
         
         emit('weekly_challenge_complete', {
-            'message': 'WEEKLY CHALLENGE COMPLETED',
+            'message': 'WEEKLY CHALLENGE COming soon',
             'timestamp': datetime.utcnow().isoformat()
         }, broadcast=True)
         

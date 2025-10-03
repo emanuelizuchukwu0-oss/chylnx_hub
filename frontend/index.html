@@ -964,7 +964,7 @@ function initializeWeeklyChallengeSocket() {
 function updateWeeklyChallenge() {
     if (weeklyTotalSeconds <= 0) {
         clearInterval(weeklyChallengeInterval);
-        document.getElementById('weeklyStatus').textContent = "Coming soon";
+        document.getElementById('weeklyStatus').textContent = "COMPLETED";
         document.querySelector('.weekly-challenge').classList.remove('weekly-challenge-active');
         document.querySelector('.weekly-challenge').classList.add('weekly-challenge-complete');
         
