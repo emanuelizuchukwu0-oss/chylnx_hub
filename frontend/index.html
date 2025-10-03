@@ -3,86 +3,161 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Falling Objects Animation</title>
+    <title>CHYLNX_HUB</title>
     <link rel="stylesheet" href="styles.css">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CHYLNX HUB</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
+  <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-        body {
-    margin: 0;
-    padding: clamp(10px, 3vw, 20px);
-    min-height: 100vh;
-    width: 100%;
-    overflow-x: hidden;
-    background: hwb(218 0% 20%);
-    color: #fff;
-    position: relative;
-}
-
-.color-bubble {
-    position: fixed;
-    border-radius: 50%;
-    filter: blur(40px);
-    opacity: 0.7;
-    z-index: -1;
-}
-
-.bubble-1 {
-    background: rgb(2, 154, 219);
-    width: 300px;
-    height: 300px;
-    top: 10%;
-    left: 10%;
-    animation: float 20s infinite ease-in-out;
-}
-
-.bubble-2 {
-    background: #083f7e;
-    width: 400px;
-    height: 400px;
-    top: 60%;
-    right: 10%;
-    animation: float 25s infinite ease-in-out reverse;
-}
-
-.bubble-3 {
-    background: #633d8a;
-    width: 350px;
-    height: 350px;
-    bottom: 10%;
-    left: 20%;
-    animation: float 30s infinite ease-in-out;
-}
-
-.bubble-4 {
-    background: #e461a9;
-    width: 250px;
-    height: 250px;
-    top: 30%;
-    right: 30%;
-    animation: float 22s infinite ease-in-out reverse;
-}
-
-@keyframes float {
-    0%, 100% { transform: translate(0, 0) scale(1); }
-    25% { transform: translate(100px, -50px) scale(1.1); }
-    50% { transform: translate(-50px, 100px) scale(0.9); }
-    75% { transform: translate(-100px, -100px) scale(1.05); }
-}
-
-.color-option:hover {
-    transform: scale(1.1);
-}
         
+        body {
+            margin: 0;
+            padding: clamp(10px, 3vw, 20px);
+            min-height: 100vh;
+            width: 100%;
+            overflow-x: hidden;
+            background: linear-gradient(135deg, #0a3d0a 0%, #1a5c1a 50%, #0a3d0a 100%);
+            color: #fff;
+            position: relative;
+        }
+
+        /* ===== FALLING OBJECTS - FIXED ===== */
+        .falling-objects {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+            overflow: hidden;
+        }
+
+        .falling-object {
+            position: absolute;
+            top: -100px;
+            animation: fall linear infinite;
+            z-index: 2;
+        }
+
+        /* Different Shapes */
+        .puzzle-piece {
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.9);
+            clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 0%, 20% 20%, 20% 0%, 80% 0%, 80% 20%, 100% 20%, 100% 80%, 80% 80%, 80% 100%, 20% 100%, 20% 80%, 0% 80%);
+            border: 2px solid #90EE90;
+        }
+
+        .earth-orb {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #32CD32, #228B22);
+            box-shadow: 0 0 20px rgba(50, 205, 50, 0.7);
+            border: 2px solid #90EE90;
+        }
+
+        .color-orb {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+        }
+
+        .triangle {
+            width: 0;
+            height: 0;
+            border-left: 20px solid transparent;
+            border-right: 20px solid transparent;
+            border-bottom: 35px solid #90EE90;
+            background: transparent !important;
+        }
+
+        .star {
+            width: 35px;
+            height: 35px;
+            background: gold;
+            clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+            filter: drop-shadow(0 0 5px gold);
+        }
+
+        .square {
+            width: 30px;
+            height: 30px;
+            background: #32CD32;
+            transform: rotate(45deg);
+            border: 2px solid #90EE90;
+        }
+
+        /* Color Variations */
+        .color-green { background: #32CD32; }
+        .color-dark { background: #228B22; }
+        .color-blue { background: #20B2AA; }
+        .color-purple { background: #9370DB; }
+
+        /* Falling Animations - FIXED */
+        @keyframes fall {
+            0% {
+                transform: translateY(-100px) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        /* Individual Object Animations */
+        .object-1 { animation: fall 8s linear infinite; left: 5%; animation-delay: 0s; }
+        .object-2 { animation: fall 12s linear infinite; left: 15%; animation-delay: 1s; }
+        .object-3 { animation: fall 10s linear infinite; left: 25%; animation-delay: 2s; }
+        .object-4 { animation: fall 15s linear infinite; left: 35%; animation-delay: 0.5s; }
+        .object-5 { animation: fall 9s linear infinite; left: 45%; animation-delay: 3s; }
+        .object-6 { animation: fall 11s linear infinite; left: 55%; animation-delay: 1.5s; }
+        .object-7 { animation: fall 14s linear infinite; left: 65%; animation-delay: 2.5s; }
+        .object-8 { animation: fall 7s linear infinite; left: 75%; animation-delay: 4s; }
+        .object-9 { animation: fall 13s linear infinite; left: 85%; animation-delay: 0.8s; }
+        .object-10 { animation: fall 16s linear infinite; left: 95%; animation-delay: 3.5s; }
+
+        /* Floating animation */
+        .floating {
+            animation: fall-float 15s ease-in-out infinite !important;
+        }
+
+        @keyframes fall-float {
+            0%, 100% {
+                transform: translateY(-100px) translateX(0) rotate(0deg);
+            }
+            25% {
+                transform: translateY(25vh) translateX(-20px) rotate(90deg);
+            }
+            50% {
+                transform: translateY(50vh) translateX(20px) rotate(180deg);
+            }
+            75% {
+                transform: translateY(75vh) translateX(-15px) rotate(270deg);
+            }
+            100% {
+                transform: translateY(100vh) translateX(0) rotate(360deg);
+            }
+        }
+
+        /* Ensure content stays above falling objects */
+        .head, main, footer, .weekly-challenge, .game-timer, .day-timer, .section-card {
+            position: relative;
+            z-index: 100;
+        }
+
+        /* Your existing styles continue below... */
         .head {
             display: flex;
             align-items: center;
@@ -349,299 +424,178 @@
             }
         }
         /* Game Started Animation */
-.game-started {
-    animation: pulse 1s infinite;
-    color: #ffcc00 !important;
-    text-shadow: 0 0 10px #ffcc00, 0 0 20px #ffcc00 !important;
-}
+        .game-started {
+            animation: pulse 1s infinite;
+            color: #ffcc00 !important;
+            text-shadow: 0 0 10px #ffcc00, 0 0 20px #ffcc00 !important;
+        }
 
-@keyframes pulse {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-    100% { transform: scale(1); }
-}
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
 
-/* Timer display enhancements */
-#countdown {
-    transition: all 0.3s ease;
-    font-weight: bold;
-}
-.password-input {
-    padding: clamp(8px, 2vw, 10px) clamp(12px, 3vw, 15px);
-    border-radius: 5px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    margin-right: clamp(8px, 2vw, 10px);
-    width: min(180px, 70%);
-    background: rgba(255, 255, 255, 0.9);
-    font-size: clamp(0.9rem, 3vw, 1rem);
-    margin-bottom: 10px;
-    letter-spacing: 1px; /* Makes password dots more spaced */
-}
+        /* Timer display enhancements */
+        #countdown {
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+        .password-input {
+            padding: clamp(8px, 2vw, 10px) clamp(12px, 3vw, 15px);
+            border-radius: 5px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            margin-right: clamp(8px, 2vw, 10px);
+            width: min(180px, 70%);
+            background: rgba(255, 255, 255, 0.9);
+            font-size: clamp(0.9rem, 3vw, 1rem);
+            margin-bottom: 10px;
+            letter-spacing: 1px; /* Makes password dots more spaced */
+        }
 
-.password-input:focus {
-    border-color: #25D366;
-    outline: none;
-    box-shadow: 0 0 5px rgba(37, 211, 102, 0.5);
-}
+        .password-input:focus {
+            border-color: #25D366;
+            outline: none;
+            box-shadow: 0 0 5px rgba(37, 211, 102, 0.5);
+        }
 
-/* Security indicator */
-.password-security {
-    font-size: 12px;
-    color: #666;
-    margin-top: 5px;
-    text-align: center;
-}
-/* Day Timer Styles */
-.day-timer {
-    background: rgba(0, 0, 0, 0.7);
-    padding: clamp(12px, 3vw, 15px);
-    text-align: center;
-    border-radius: 12px;
-    margin: 0 auto clamp(15px, 4vw, 25px);
-    font-weight: bold;
-    font-size: clamp(1rem, 4vw, 1.4rem);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
-    max-width: min(500px, 90%);
-    border: 1px solid rgba(255, 165, 0, 0.3);
-    width: 100%;
-}
+        /* Security indicator */
+        .password-security {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+            text-align: center;
+        }
+        /* Day Timer Styles */
+        .day-timer {
+            background: rgba(0, 0, 0, 0.7);
+            padding: clamp(12px, 3vw, 15px);
+            text-align: center;
+            border-radius: 12px;
+            margin: 0 auto clamp(15px, 4vw, 25px);
+            font-weight: bold;
+            font-size: clamp(1rem, 4vw, 1.4rem);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            max-width: min(500px, 90%);
+            border: 1px solid rgba(255, 165, 0, 0.3);
+            width: 100%;
+        }
 
-.day-timer span {
-    color: #ffa500;
-    font-size: clamp(1.2rem, 4vw, 1.5rem);
-}
+        .day-timer span {
+            color: #ffa500;
+            font-size: clamp(1.2rem, 4vw, 1.5rem);
+        }
 
-.day-timer-complete {
-    background: linear-gradient(135deg, #ff8c00, #ff4500);
-    border-color: #ff4500;
-}
+        .day-timer-complete {
+            background: linear-gradient(135deg, #ff8c00, #ff4500);
+            border-color: #ff4500;
+        }
 
-.day-timer-complete span {
-    color: #fff;
-    text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
-}
-/* Weekly Challenge Styles - Enhanced for top position */
-.weekly-challenge {
-    background: rgba(0, 0, 0, 0.8);
-    padding: clamp(15px, 4vw, 20px);
-    text-align: center;
-    border-radius: 12px;
-    margin: 0 auto clamp(15px, 4vw, 20px);
-    font-weight: bold;
-    font-size: clamp(1.1rem, 4.5vw, 1.6rem);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
-    max-width: min(500px, 90%);
-    border: 2px solid rgba(148, 0, 211, 0.5);
-    width: 100%;
-    order: -1; /* Ensure it stays at top */
-}
+        .day-timer-complete span {
+            color: #fff;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+        /* Weekly Challenge Styles - Enhanced for top position */
+        .weekly-challenge {
+            background: rgba(0, 0, 0, 0.8);
+            padding: clamp(15px, 4vw, 20px);
+            text-align: center;
+            border-radius: 12px;
+            margin: 0 auto clamp(15px, 4vw, 20px);
+            font-weight: bold;
+            font-size: clamp(1.1rem, 4.5vw, 1.6rem);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
+            max-width: min(500px, 90%);
+            border: 2px solid rgba(148, 0, 211, 0.5);
+            width: 100%;
+            order: -1; /* Ensure it stays at top */
+        }
 
-.weekly-challenge span {
-    color: #9400d3;
-    font-size: clamp(1.3rem, 5vw, 1.8rem);
-    font-weight: bold;
-}
+        .weekly-challenge span {
+            color: #9400d3;
+            font-size: clamp(1.3rem, 5vw, 1.8rem);
+            font-weight: bold;
+        }
 
-.weekly-challenge-active {
-    background: linear-gradient(135deg, #8a2be2, #4b0082);
-    border-color: #ba55d3;
-    animation: pulse-weekly 2s infinite;
-}
+        .weekly-challenge-active {
+            background: linear-gradient(135deg, #8a2be2, #4b0082);
+            border-color: #ba55d3;
+            animation: pulse-weekly 2s infinite;
+        }
 
-@keyframes pulse-weekly {
-    0% { box-shadow: 0 6px 20px rgba(138, 43, 226, 0.6); }
-    50% { box-shadow: 0 6px 30px rgba(138, 43, 226, 0.9); }
-    100% { box-shadow: 0 6px 20px rgba(138, 43, 226, 0.6); }
-}
+        @keyframes pulse-weekly {
+            0% { box-shadow: 0 6px 20px rgba(138, 43, 226, 0.6); }
+            50% { box-shadow: 0 6px 30px rgba(138, 43, 226, 0.9); }
+            100% { box-shadow: 0 6px 20px rgba(138, 43, 226, 0.6); }
+        }
 
-.weekly-challenge-complete {
-    background: linear-gradient(135deg, #ff8c00, #ff4500);
-    border-color: #ff6347;
-}
+        .weekly-challenge-complete {
+            background: linear-gradient(135deg, #ff8c00, #ff4500);
+            border-color: #ff6347;
+        }
 
-.weekly-challenge-complete span {
-    color: #fff;
-    text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
-}
+        .weekly-challenge-complete span {
+            color: #fff;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
 
-/* Adjust spacing for the new order */
-body {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: clamp(10px, 3vw, 20px);
-}
+        /* Adjust spacing for the new order */
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: clamp(10px, 3vw, 20px);
+        }
 
-.weekly-challenge {
-    margin-bottom: clamp(10px, 3vw, 15px);
-}
+        .weekly-challenge {
+            margin-bottom: clamp(10px, 3vw, 15px);
+        }
 
-.game-timer {
-    margin-bottom: clamp(10px, 3vw, 15px);
-}
+        .game-timer {
+            margin-bottom: clamp(10px, 3vw, 15px);
+        }
 
-.day-timer {
-    margin-bottom: clamp(15px, 4vw, 20px);
-}
-b/* Fix for falling objects - Add this to your existing CSS */
-body {
-    margin: 0;
-    padding: clamp(10px, 3vw, 20px);
-    min-height: 100vh;
-    width: 100%;
-    overflow-x: hidden;
-    background: linear-gradient(135deg, #0a3d0a 0%, #1a5c1a 50%, #0a3d0a 100%);
-    color: #fff;
-    position: relative;
-}
+        .day-timer {
+            margin-bottom: clamp(15px, 4vw, 20px);
+        }
 
-/* Falling Objects Container - FIXED */
-.falling-objects {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    z-index: 0; /* Changed from -1 to 0 */
-    overflow: hidden;
-}
-
-/* Base Falling Animation - FIXED */
-.falling-object {
-    position: absolute;
-    top: -100px;
-    animation: fall linear infinite;
-    z-index: 1;
-}
-
-/* Different Shapes with better visibility */
-.puzzle-piece {
-    width: 40px;
-    height: 40px;
-    background: rgba(255, 255, 255, 0.8);
-    clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 0%, 20% 20%, 20% 0%, 80% 0%, 80% 20%, 100% 20%, 100% 80%, 80% 80%, 80% 100%, 20% 100%, 20% 80%, 0% 80%);
-    border: 2px solid #90EE90;
-}
-
-.earth-orb {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 30% 30%, #32CD32, #228B22);
-    box-shadow: 0 0 20px rgba(50, 205, 50, 0.7);
-    border: 2px solid #90EE90;
-}
-
-.color-orb {
-    width: 35px;
-    height: 35px;
-    border-radius: 50%;
-    border: 2px solid rgba(255, 255, 255, 0.5);
-}
-
-.triangle {
-    width: 0;
-    height: 0;
-    border-left: 20px solid transparent;
-    border-right: 20px solid transparent;
-    border-bottom: 35px solid #90EE90;
-    background: transparent !important;
-}
-
-.star {
-    width: 35px;
-    height: 35px;
-    background: gold;
-    clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
-    filter: drop-shadow(0 0 5px gold);
-}
-
-.square {
-    width: 30px;
-    height: 30px;
-    background: #32CD32;
-    transform: rotate(45deg);
-    border: 2px solid #90EE90;
-}
-
-/* Color Variations with green theme */
-.color-green { background: #32CD32; }
-.color-dark { background: #228B22; }
-.color-blue { background: #20B2AA; }
-.color-purple { background: #9370DB; }
-
-/* Falling Animation with Variations */
-@keyframes fall {
-    0% {
-        transform: translateY(-100px) rotate(0deg);
-        opacity: 1;
-    }
-    100% {
-        transform: translateY(100vh) rotate(360deg);
-        opacity: 0;
-    }
-}
-
-/* Individual Object Animations */
-.object-1 { animation-duration: 8s; left: 5%; animation-delay: 0s; }
-.object-2 { animation-duration: 12s; left: 15%; animation-delay: 1s; }
-.object-3 { animation-duration: 10s; left: 25%; animation-delay: 2s; }
-.object-4 { animation-duration: 15s; left: 35%; animation-delay: 0.5s; }
-.object-5 { animation-duration: 9s; left: 45%; animation-delay: 3s; }
-.object-6 { animation-duration: 11s; left: 55%; animation-delay: 1.5s; }
-.object-7 { animation-duration: 14s; left: 65%; animation-delay: 2.5s; }
-.object-8 { animation-duration: 7s; left: 75%; animation-delay: 4s; }
-.object-9 { animation-duration: 13s; left: 85%; animation-delay: 0.8s; }
-.object-10 { animation-duration: 16s; left: 95%; animation-delay: 3.5s; }
-
-/* Additional floating animation */
-.floating {
-    animation: fall-float 15s ease-in-out infinite;
-}
-
-@keyframes fall-float {
-    0%, 100% {
-        transform: translateY(-100px) translateX(0) rotate(0deg);
-    }
-    25% {
-        transform: translateY(25vh) translateX(-20px) rotate(90deg);
-    }
-    50% {
-        transform: translateY(50vh) translateX(20px) rotate(180deg);
-    }
-    75% {
-        transform: translateY(75vh) translateX(-15px) rotate(270deg);
-    }
-    100% {
-        transform: translateY(100vh) translateX(0) rotate(360deg);
-    }
-}
-
-/* Ensure content stays above falling objects */
-.head, main, footer, .weekly-challenge, .game-timer, .day-timer {
-    position: relative;
-    z-index: 10;
-}
-
-/* Modern green background with depth */
-body::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: 
-        radial-gradient(circle at 20% 80%, rgba(50, 205, 50, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 80% 20%, rgba(144, 238, 144, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 40% 40%, rgba(34, 139, 34, 0.1) 0%, transparent 50%);
-    z-index: -1;
-    pointer-events: none;
-}
+        .color-option:hover {
+            transform: scale(1.1);
+        }
     </style>
 </head>
 <body>
+    <!-- Falling Objects Container - MUST BE FIRST ELEMENT -->
+    <div class="falling-objects">
+        <!-- Puzzle Pieces -->
+        <div class="falling-object puzzle-piece object-1 color-green"></div>
+        <div class="falling-object puzzle-piece object-7 color-blue"></div>
+        
+        <!-- Earth Orbs -->
+        <div class="falling-object earth-orb object-2 floating"></div>
+        <div class="falling-object earth-orb object-8"></div>
+        
+        <!-- Color Orbs -->
+        <div class="falling-object color-orb object-3 color-purple floating"></div>
+        <div class="falling-object color-orb object-9 color-green"></div>
+        <div class="falling-object color-orb object-4 color-dark floating"></div>
+        <div class="falling-object color-orb object-10 color-blue"></div>
+        
+        <!-- Triangles -->
+        <div class="falling-object triangle object-5"></div>
+        <div class="falling-object triangle object-6 floating"></div>
+    </div>
+
+    <!-- Rest of your existing HTML continues here -->
+    <div class="head">
+        <p>CHYLNX HUB</p>
+        <div class="icons" id="iconContainer">
+            <img src="{{ url_for('static', filename='images/earth.png') }}" alt="Earth Icon" class="icon-img">
+            <img src="{{ url_for('static', filename='images/note.png') }}" alt="Note Icon" class="icon-img">
+            <img src="{{ url_for('static', filename='images/king.png') }}" alt="King Icon" class="icon-img">
+        </div>
+    </div>
+    <!-- ... rest of your code ... -->
     <!-- Rest of your existing code remains the same -->
     <div class="head">
         <p>CHYLNX HUB</p>
@@ -774,37 +728,7 @@ body::before {
             Reset Default
         </button>
     </div>
-    <!-- Falling Objects Container - PLACE THIS RIGHT AFTER <body> TAG -->
-<div class="falling-objects">
-    <!-- Puzzle Pieces -->
-    <div class="falling-object puzzle-piece object-1 color-green"></div>
-    <div class="falling-object puzzle-piece object-7 color-blue"></div>
     
-    <!-- Earth Orbs -->
-    <div class="falling-object earth-orb object-2 floating"></div>
-    <div class="falling-object earth-orb object-8"></div>
-    
-    <!-- Color Orbs -->
-    <div class="falling-object color-orb object-3 color-purple floating"></div>
-    <div class="falling-object color-orb object-9 color-green"></div>
-    <div class="falling-object color-orb object-4 color-dark floating"></div>
-    <div class="falling-object color-orb object-10 color-blue"></div>
-    
-    <!-- Triangles -->
-    <div class="falling-object triangle object-5"></div>
-    <div class="falling-object triangle object-6 floating"></div>
-    
-    <!-- Stars -->
-    <div class="falling-object star object-11"></div>
-    <div class="falling-object star object-12 floating"></div>
-</div>
-
-    <!-- Your Content -->
-    <div class="content">
-        <h1>Your Website Content</h1>
-        <p>This is your main content area with falling objects in the background.</p>
-        <!-- Add your actual content here -->
-    </div>
 </div>
         </section>
     </main>
@@ -1455,35 +1379,7 @@ document.querySelectorAll('.color-option').forEach(option => {
     });
 });
 
-// Load saved theme on page load
-document.addEventListener('DOMContentLoaded', function() {
-    const savedTheme = localStorage.getItem('selectedTheme') || 'green';
-    document.body.setAttribute('data-theme', savedTheme);
-});
-// Generate more falling objects dynamically
-document.addEventListener('DOMContentLoaded', function() {
-    const container = document.querySelector('.falling-objects');
-    const objectTypes = ['puzzle-piece', 'earth-orb', 'color-orb', 'triangle', 'star', 'square'];
-    const colors = ['color-green', 'color-dark', 'color-blue', 'color-purple'];
-    
-    // Create 20 additional objects
-    for (let i = 0; i < 20; i++) {
-        const object = document.createElement('div');
-        const type = objectTypes[Math.floor(Math.random() * objectTypes.length)];
-        const color = colors[Math.floor(Math.random() * colors.length)];
-        
-        object.className = `falling-object ${type} ${color}`;
-        object.style.left = `${Math.random() * 100}%`;
-        object.style.animationDuration = `${8 + Math.random() * 12}s`;
-        object.style.animationDelay = `${Math.random() * 5}s`;
-        
-        if (Math.random() > 0.5) {
-            object.classList.add('floating');
-        }
-        
-        container.appendChild(object);
-    }
-});
+
 // Generate more falling objects dynamically - ADD THIS TO YOUR EXISTING SCRIPT
 document.addEventListener('DOMContentLoaded', function() {
     const container = document.querySelector('.falling-objects');
