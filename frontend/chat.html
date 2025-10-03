@@ -678,30 +678,29 @@ let onlineUsers = [];
 let isGameStarted = false; // Track if game has started
 const ANNOUNCE_PASSCODE = "1234";
 
-// Initialize app
+// Initialize app - UPDATE THIS FUNCTION
 function initApp() {
+    // ✅ FIXED: Proper event listeners
     document.getElementById('sendBtn').addEventListener('click', sendMessage);
     document.getElementById('chatInput').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') sendMessage();
+        if (e.key === 'Enter') {
+            sendMessage();
+        }
     });
+    
     document.getElementById('bell').addEventListener('click', showWinnerSelectionPanel);
     document.getElementById('usernameInput').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') setUsername();
     });
 
-    // Add click event to close overlay when clicking outside content
-    document.getElementById('winnerAnnouncementOverlay').addEventListener('click', function(e) {
-        if (e.target === this) {
-            this.style.display = 'none';
-        }
-    });
-
-    // Show username overlay immediately but check timer status
+    // Show username overlay
     document.getElementById('usernameOverlay').style.display = 'flex';
     checkTimerStatus();
     
     // Focus on username input
     document.getElementById('usernameInput').focus();
+    
+    console.log('✅ App initialized successfully');
 }
 // Check timer status from server (ONLY checks original game timer)
 function checkTimerStatus() {
@@ -809,12 +808,17 @@ function setUsername() {
     initializeChat();
 }
 
-// Initialize Socket.IO chat
+// ✅ FIXED: Initialize Socket.IO chat - REPLACE YOUR ENTIRE FUNCTION
 function initializeChat() {
     document.getElementById('chatInput').disabled = false;
     document.getElementById('sendBtn').disabled = false;
 
     socket = io(); // connect to server    
+
+    // Debug connection
+    socket.on('connect', function() {
+        console.log('✅ Connected to server with SID:', socket.id);
+    });
 
     // Join chat
     socket.emit('join_chat', { username: myUsername });
@@ -823,10 +827,13 @@ function initializeChat() {
     socket.on('chat_history', function(history) {
         const chatWindow = document.getElementById('chatWindow');
         chatWindow.innerHTML = '<div class="system-msg">Welcome to the chat!</div>';
-        history.forEach(msg => addMessage(msg, msg.from === myUsername));
+        history.forEach(msg => {
+            const isSent = msg.from === myUsername;
+            addMessage(msg, isSent);
+        });
     });
 
-    // ✅ FIXED: Listen for new messages with correct event name
+    // ✅ FIXED: Listen for new messages
     socket.on('new_message', function(data) {
         console.log('📨 Received new message:', data);
         const isSent = data.from === myUsername;
@@ -842,54 +849,15 @@ function initializeChat() {
     // Online count
     socket.on('user_count_update', function(data) {
         document.getElementById('onlineCount').textContent = data.count + ' online';
-        
-        // Update online users list for winner selection
         updateOnlineUsersList();
     });
 
     // Winner announcements
-    socket.on('announcement', function(data) {
-        addSystemMessage(data.text);
-    });
-
-    // Winner announced from server (for all users)
     socket.on('winner_announced', function(data) {
         console.log('🎉 Received winner announcement:', data);
-        
         const winners = Array.isArray(data.winners) ? data.winners.join(", ") : data.winners;
-        
-        // Show the announcement overlay for EVERY user
         showWinnerAnnouncement(winners);
-        
-        // Also add system message to chat
         addSystemMessage(`🏆 WINNER ANNOUNCEMENT: ${winners}! Congratulations! 🎉`);
-        
-        // Optional: Disable chat input temporarily
-        document.getElementById("chatInput").disabled = true;
-        document.getElementById("sendBtn").disabled = true;
-        
-        // Re-enable after overlay closes (optional)
-        setTimeout(() => {
-            document.getElementById("chatInput").disabled = false;
-            document.getElementById("sendBtn").disabled = false;
-        }, 10000);
-    });
-
-    // Listen for game started events in case admin starts new timer
-    socket.on('game_started', function(data) {
-        console.log('🎉 Game started event received in chat');
-        isGameStarted = true;
-    });
-
-    // Listen for timer updates in case admin sets new timer
-    socket.on('timer_update', function(data) {
-        if (data.is_running && data.remaining_seconds > 0) {
-            // Timer started again - block new users from joining
-            isGameStarted = false;
-        } else {
-            // Timer stopped - allow new users
-            isGameStarted = true;
-        }
     });
 
     addSystemMessage(`Welcome, ${myUsername}! Start chatting below.`);
@@ -897,21 +865,6 @@ function initializeChat() {
     // Focus on chat input
     document.getElementById('chatInput').focus();
 }
-
-// Update online users list from connected_users (you'll need to get this from your server)
-function updateOnlineUsersList() {
-    // This would typically come from a socket event that sends the list of online users
-    // For now, we'll extract from the chat messages
-    const users = new Set();
-    const messages = document.querySelectorAll('.message .sender-name');
-    messages.forEach(msg => {
-        if (msg.textContent && msg.textContent !== myUsername) {
-            users.add(msg.textContent);
-        }
-    });
-    onlineUsers = Array.from(users);
-}
-
 // Show winner selection panel
 function showWinnerSelectionPanel() {
     const panel = document.getElementById('winnerSelectionPanel');
@@ -1024,23 +977,26 @@ function handleKeyPress(e) {
     if (e.key === 'Enter') sendMessage();
 }
 
-// ✅ FIXED: Send message function
+// ✅ FIXED: Send message function - REPLACE YOUR FUNCTION
 function sendMessage() {
     const messageInput = document.getElementById('chatInput');
     const text = messageInput.value.trim();
     
-    if (text) {
-        console.log('📤 Sending message:', text);
+    console.log('📤 Attempting to send message:', text);
+    
+    if (text && socket) {
+        console.log('📤 Emitting message event to server');
         socket.emit('message', {
             text: text
         });
         messageInput.value = ''; // Clear input
         messageInput.focus(); // Keep focus on input
     } else {
-        alert('Please enter a message');
+        console.error('❌ Cannot send message: no text or socket not connected');
+        if (!text) alert('Please enter a message');
     }
 }
-// Add message to chat window
+/// ✅ Make sure this function exists and works
 function addMessage(msg, isSent) {
     const chatWindow = document.getElementById('chatWindow');
     const messageDiv = document.createElement('div');
@@ -1063,12 +1019,8 @@ function addMessage(msg, isSent) {
     chatWindow.appendChild(messageDiv);
     chatWindow.scrollTop = chatWindow.scrollHeight;
     
-    // Add to online users if not already there
-    if (!isSent && !onlineUsers.includes(msg.from) && msg.from !== myUsername) {
-        onlineUsers.push(msg.from);
-    }
+    console.log('✅ Message added to chat:', msg.text);
 }
-
 // Toggle user selection when clicking on username in chat
 function toggleUserSelection(username) {
     if (username === myUsername) return;
