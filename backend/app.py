@@ -82,37 +82,6 @@ def execute_query(query, params=None, fetch=False):
     finally:
         conn.close()
 
-# ---------------- Initialize DB ----------------
-DATABASE_URL = os.getenv("DATABASE_URL")
-
-def get_db_connection():
-    try:
-        return psycopg2.connect(DATABASE_URL)
-    except Exception as e:
-        print(f"❌ DB connection failed: {e}")
-        return None
-
-def execute_query(query, params=None, fetch=False):
-    conn = get_db_connection()
-    if not conn:
-        return None
-    try:
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
-            cursor.execute(query, params or ())
-            if fetch:
-                result = cursor.fetchall()
-            else:
-                result = True
-            conn.commit()
-            return result
-    except Exception as e:
-        print(f"❌ Query failed: {e}")
-        traceback.print_exc()
-        conn.rollback()
-        return None
-    finally:
-        conn.close()
-
 # ---------------- Weekly Challenge Message Functions ----------------
 def get_weekly_challenge_message():
     """Get the current weekly challenge message from database"""
@@ -207,6 +176,36 @@ def init_db():
                 )
             """)
             
+            # WhatsApp-like chat enhancement tables
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS chat_sessions (
+                    id SERIAL PRIMARY KEY,
+                    session_code VARCHAR(255) UNIQUE NOT NULL,
+                    is_active BOOLEAN DEFAULT TRUE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS message_status (
+                    id SERIAL PRIMARY KEY,
+                    message_id INT REFERENCES messages(id) ON DELETE CASCADE,
+                    user_id INT REFERENCES users(id) ON DELETE CASCADE,
+                    status VARCHAR(50) DEFAULT 'sent',
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(message_id, user_id)
+                )
+            """)
+            
+            # Create indexes for better performance
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at DESC)
+            """)
+            
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_message_status_composite ON message_status(message_id, user_id)
+            """)
+            
             # Initialize with default message if not exists
             cursor.execute("""
                 INSERT INTO app_settings (setting_key, setting_value) 
@@ -215,7 +214,7 @@ def init_db():
             """)
 
         conn.commit()
-        print("✅ All tables initialized (including app_settings)")
+        print("✅ All tables initialized (including WhatsApp-like chat enhancements)")
     except Exception as e:
         print("❌ DB init failed:", e)
         traceback.print_exc()
@@ -228,7 +227,6 @@ def init_db():
 
 # Initialize database when app starts
 init_db()
-
 # ---------------- Timer Functions ----------------
 def get_current_timer():
     result = execute_query(
@@ -336,6 +334,20 @@ def check_day_timer_expired():
         return True
     return False
 
+def cleanup_old_messages():
+    """Clean up messages older than 30 days (like WhatsApp)"""
+    try:
+        result = execute_query(
+            "DELETE FROM messages WHERE created_at < NOW() - INTERVAL '30 days'"
+        )
+        if result:
+            print("✅ Cleaned up old messages")
+        return result
+    except Exception as e:
+        print(f"❌ Error cleaning up old messages: {e}")
+        return None
+
+# You can call this periodically or manually
 # ---------------- Weekly Challenge Functions ----------------
 def get_current_weekly_challenge():
     result = execute_query(
@@ -885,21 +897,51 @@ def handle_join(data):
     connected_users[username] = request.sid
     print("✅ {} joined, total users: {}".format(username, len(connected_users)))
 
+    # Enhanced chat history with WhatsApp-like features
     history = execute_query("""
-        SELECT u.username AS "from", m.message AS text, m.created_at AS timestamp
+        SELECT 
+            m.id,
+            u.username AS "from", 
+            m.message AS text, 
+            m.created_at AS timestamp,
+            COALESCE(ms.status, 'delivered') AS status
         FROM messages m
         JOIN users u ON m.user_id = u.id
-        ORDER BY m.created_at ASC
-        LIMIT 500
-    """, fetch=True) or []
+        LEFT JOIN message_status ms ON m.id = ms.message_id AND ms.user_id = %s
+        WHERE m.created_at >= NOW() - INTERVAL '7 days'  -- Last 7 days only
+        ORDER BY m.created_at DESC
+        LIMIT 200  -- Recent messages first, limit for performance
+    """, (user[0]["id"] if user else None,), fetch=True) or []
 
+    # Convert to WhatsApp-like format and reverse for chronological order
+    formatted_history = []
     for h in history:
         if h.get("timestamp") is not None and isinstance(h["timestamp"], datetime):
             h["timestamp"] = h["timestamp"].isoformat()
+        
+        # Add message ID and status for frontend tracking
+        formatted_history.append({
+            "id": h["id"],
+            "from": h["from"],
+            "text": h["text"],
+            "timestamp": h["timestamp"],
+            "status": h["status"]
+        })
 
-    emit("chat_history", history, to=request.sid)
+    # Reverse to show oldest first (like WhatsApp)
+    formatted_history.reverse()
+
+    emit("chat_history", formatted_history, to=request.sid)
+    
+    # Update message status to 'read' for all messages this user is seeing
+    if user:
+        execute_query("""
+            UPDATE message_status 
+            SET status = 'read' 
+            WHERE user_id = %s AND status = 'delivered'
+        """, (user[0]["id"],))
+    
     socketio.emit("user_count_update", {"count": len(connected_users)})
-
 @socketio.on("message")
 def handle_message(data):
     try:
@@ -925,25 +967,57 @@ def handle_message(data):
             user_activity[username] = time.time()
 
         user = execute_query("SELECT id FROM users WHERE username=%s LIMIT 1", (username,), fetch=True)
-        if user:
-            user_id = user[0]["id"]
+        if not user:
+            return
+
+        user_id = user[0]["id"]
+        
+        # Insert message with current session context
+        message_id = execute_query(
+            "INSERT INTO messages (user_id, username, message) VALUES (%s, %s, %s) RETURNING id",
+            (user_id, username, text),
+            fetch=True
+        )
+        
+        if message_id:
+            message_id = message_id[0]['id']
+            
+            # Mark message as sent for the sender immediately
             execute_query(
-                "INSERT INTO messages (user_id, username, message) VALUES (%s, %s, %s)",
-                (user_id, username, text)
+                "INSERT INTO message_status (message_id, user_id, status) VALUES (%s, %s, %s)",
+                (message_id, user_id, 'sent')
             )
+            
+            # Get current session code
+            session_code = f"SESSION_{int(time.time()) // 3600}"  # Hourly sessions
+            
+            msg = {
+                "id": message_id,  # Add message ID for status tracking
+                "from": username,
+                "text": text,
+                "timestamp": datetime.utcnow().isoformat(),
+                "status": "sent",  # Initial status
+                "session": session_code
+            }
 
-        msg = {
-            "from": username,
-            "text": text,
-            "timestamp": datetime.utcnow().isoformat()
-        }
-
-        emit("message", msg, broadcast=True)
+            # Broadcast to all connected users
+            emit("message", msg, broadcast=True)
+            
+            # Update status to 'delivered' for all online users
+            for online_username, user_info in online_users.items():
+                if online_username != username:  # Don't update sender's status
+                    online_user_id = user_info.get('user_id')
+                    if online_user_id:
+                        execute_query(
+                            "INSERT INTO message_status (message_id, user_id, status) VALUES (%s, %s, %s) ON CONFLICT DO NOTHING",
+                            (message_id, online_user_id, 'delivered')
+                        )
+            
+            print(f"✅ Message saved and broadcast: {text[:50]}...")
 
     except Exception as e:
         print("❌ handle_message error:", e)
         traceback.print_exc()
-
 @socketio.on("disconnect")
 def handle_disconnect():
     username_to_remove = None
@@ -1280,7 +1354,74 @@ def handle_set_weekly_message(data):
         emit('set_weekly_message_response', {
             'success': False,
             'error': str(e)
-        })        
+        })  
+@socketio.on("message_delivered")
+def handle_message_delivered(data):
+    """Mark message as delivered for a specific user"""
+    try:
+        message_id = data.get('message_id')
+        username = data.get('username')
+        
+        user = execute_query("SELECT id FROM users WHERE username=%s LIMIT 1", (username,), fetch=True)
+        if user and message_id:
+            execute_query(
+                "INSERT INTO message_status (message_id, user_id, status) VALUES (%s, %s, %s) ON CONFLICT DO NOTHING",
+                (message_id, user[0]["id"], 'delivered')
+            )
+            
+            # Notify sender that message was delivered
+            emit("message_status_update", {
+                'message_id': message_id,
+                'status': 'delivered',
+                'to_user': username
+            }, broadcast=True)
+            
+    except Exception as e:
+        print(f"❌ Error updating message delivery: {e}")
+
+@socketio.on("message_read")
+def handle_message_read(data):
+    """Mark message as read by a user"""
+    try:
+        message_id = data.get('message_id')
+        username = data.get('username')
+        
+        user = execute_query("SELECT id FROM users WHERE username=%s LIMIT 1", (username,), fetch=True)
+        if user and message_id:
+            execute_query(
+                "UPDATE message_status SET status = 'read' WHERE message_id = %s AND user_id = %s",
+                (message_id, user[0]["id"])
+            )
+            
+            # Notify sender that message was read
+            emit("message_status_update", {
+                'message_id': message_id,
+                'status': 'read',
+                'to_user': username
+            }, broadcast=True)
+            
+    except Exception as e:
+        print(f"❌ Error updating message read status: {e}")
+
+@socketio.on("typing_start")
+def handle_typing_start(data):
+    """Handle typing indicator"""
+    username = data.get('username')
+    if username:
+        emit("user_typing", {
+            'username': username,
+            'is_typing': True
+        }, broadcast=True, include_self=False)
+
+@socketio.on("typing_stop")
+def handle_typing_stop(data):
+    """Handle typing stop indicator"""
+    username = data.get('username')
+    if username:
+        emit("user_typing", {
+            'username': username,
+            'is_typing': False
+        }, broadcast=True, include_self=False)             
 # ---------------- Run ----------------
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
