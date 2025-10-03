@@ -227,6 +227,7 @@ def init_db():
 
 # Initialize database when app starts
 init_db()
+
 # ---------------- Timer Functions ----------------
 def get_current_timer():
     result = execute_query(
@@ -347,7 +348,6 @@ def cleanup_old_messages():
         print(f"❌ Error cleaning up old messages: {e}")
         return None
 
-# You can call this periodically or manually
 # ---------------- Weekly Challenge Functions ----------------
 def get_current_weekly_challenge():
     result = execute_query(
@@ -641,6 +641,17 @@ def get_payment_stats():
         return jsonify({'error': 'Failed to get payment stats'}), 500
 
 # ---------------- Socket.IO Event Handlers ----------------
+def check_and_broadcast_timer_status():
+    """Check timer status and broadcast if needed"""
+    timer = get_current_timer()
+    if not timer:
+        socketio.emit('game_started', {
+            'message': 'GAME STARTED',
+            'timestamp': datetime.utcnow().isoformat()
+        }, broadcast=True)
+        return True
+    return False
+
 @socketio.on("connect")
 def handle_connect():
     """Send current timer states when client connects"""
@@ -664,8 +675,8 @@ def handle_connect():
         })
     
     # ALWAYS send the current ACTUAL day timer state from database
-    # This ensures it's always accurate regardless of page refreshes
     handle_get_day_timer()
+
 @socketio.on("set_timer")
 def handle_set_timer(data):
     try:
@@ -793,44 +804,6 @@ def handle_stop_day_timer():
         print(f"❌ Error stopping day timer: {e}")
         emit('day_timer_error', {'message': str(e)})
 
-@socketio.on("get_day_timer")
-def handle_get_day_timer():
-    """Send current day timer state to requesting client"""
-    remaining = get_day_remaining_time()
-    timer = get_current_day_timer()
-    end_time = timer['end_time'].isoformat() if timer and timer.get('end_time') else None
-    
-    print(f"📡 Sending day timer state: {remaining}s")
-    
-    if remaining is not None and remaining > 0:
-        emit('day_timer_update', {
-            'remaining_seconds': remaining,
-            'is_running': True,
-            'end_time': end_time
-        })
-    else:
-        emit('day_timer_update', {
-            'remaining_seconds': 0,
-            'is_running': False,
-            'end_time': None
-        })
-
-@socketio.on("get_day_timer")
-def handle_get_day_timer():
-    remaining = get_day_remaining_time()
-    print(f"📡 Sending day timer state: {remaining}s")
-    
-    if remaining is not None and remaining > 0:
-        emit('day_timer_update', {
-            'remaining_seconds': remaining,
-            'is_running': True
-        })
-    else:
-        emit('day_timer_update', {
-            'remaining_seconds': 0,
-            'is_running': False
-        })
-
 @socketio.on("set_weekly_challenge")
 def handle_set_weekly_challenge(data):
     try:
@@ -942,6 +915,7 @@ def handle_join(data):
         """, (user[0]["id"],))
     
     socketio.emit("user_count_update", {"count": len(connected_users)})
+
 @socketio.on("message")
 def handle_message(data):
     try:
@@ -1018,6 +992,7 @@ def handle_message(data):
     except Exception as e:
         print("❌ handle_message error:", e)
         traceback.print_exc()
+
 @socketio.on("disconnect")
 def handle_disconnect():
     username_to_remove = None
@@ -1101,9 +1076,8 @@ def handle_weekly_challenge_finished():
         
         execute_query("UPDATE weekly_challenge SET is_active = FALSE WHERE is_active = TRUE")
         
-        # ↓ Change the 'message' value on the following line ↓
         emit('weekly_challenge_complete', {
-            'message': 'WEEKLY CHALLENGE: COMING SOON',  # <--- CHANGE THIS TEXT
+            'message': 'WEEKLY CHALLENGE: COMING SOON',
             'timestamp': datetime.utcnow().isoformat()
         }, broadcast=True)
         
@@ -1113,15 +1087,74 @@ def handle_weekly_challenge_finished():
         print(f"❌ Error in handle_weekly_challenge_finished: {e}")
         traceback.print_exc()
 
-def check_and_broadcast_timer_status():
-    timer = get_current_timer()
-    if not timer:
-        emit('game_started', {
-            'message': 'GAME STARTED',
-            'timestamp': datetime.utcnow().isoformat()
-        }, broadcast=True)
-        return True
-    return False
+# ---------------- WhatsApp-like Chat Functions ----------------
+@socketio.on("message_delivered")
+def handle_message_delivered(data):
+    """Mark message as delivered for a specific user"""
+    try:
+        message_id = data.get('message_id')
+        username = data.get('username')
+        
+        user = execute_query("SELECT id FROM users WHERE username=%s LIMIT 1", (username,), fetch=True)
+        if user and message_id:
+            execute_query(
+                "INSERT INTO message_status (message_id, user_id, status) VALUES (%s, %s, %s) ON CONFLICT (message_id, user_id) DO UPDATE SET status = 'delivered'",
+                (message_id, user[0]["id"], 'delivered')
+            )
+            
+            # Notify sender that message was delivered
+            emit("message_status_update", {
+                'message_id': message_id,
+                'status': 'delivered',
+                'to_user': username
+            }, broadcast=True)
+            
+    except Exception as e:
+        print(f"❌ Error updating message delivery: {e}")
+
+@socketio.on("message_read")
+def handle_message_read(data):
+    """Mark message as read by a user"""
+    try:
+        message_id = data.get('message_id')
+        username = data.get('username')
+        
+        user = execute_query("SELECT id FROM users WHERE username=%s LIMIT 1", (username,), fetch=True)
+        if user and message_id:
+            execute_query(
+                "UPDATE message_status SET status = 'read' WHERE message_id = %s AND user_id = %s",
+                (message_id, user[0]["id"])
+            )
+            
+            # Notify sender that message was read
+            emit("message_status_update", {
+                'message_id': message_id,
+                'status': 'read',
+                'to_user': username
+            }, broadcast=True)
+            
+    except Exception as e:
+        print(f"❌ Error updating message read status: {e}")
+
+@socketio.on("typing_start")
+def handle_typing_start(data):
+    """Handle typing indicator"""
+    username = data.get('username')
+    if username:
+        emit("user_typing", {
+            'username': username,
+            'is_typing': True
+        }, broadcast=True, include_self=False)
+
+@socketio.on("typing_stop")
+def handle_typing_stop(data):
+    """Handle typing stop indicator"""
+    username = data.get('username')
+    if username:
+        emit("user_typing", {
+            'username': username,
+            'is_typing': False
+        }, broadcast=True, include_self=False)
 
 # ---------------- Payment Routes ----------------
 PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY", "sk_test_...")
@@ -1354,74 +1387,8 @@ def handle_set_weekly_message(data):
         emit('set_weekly_message_response', {
             'success': False,
             'error': str(e)
-        })  
-@socketio.on("message_delivered")
-def handle_message_delivered(data):
-    """Mark message as delivered for a specific user"""
-    try:
-        message_id = data.get('message_id')
-        username = data.get('username')
-        
-        user = execute_query("SELECT id FROM users WHERE username=%s LIMIT 1", (username,), fetch=True)
-        if user and message_id:
-            execute_query(
-                "INSERT INTO message_status (message_id, user_id, status) VALUES (%s, %s, %s) ON CONFLICT DO NOTHING",
-                (message_id, user[0]["id"], 'delivered')
-            )
-            
-            # Notify sender that message was delivered
-            emit("message_status_update", {
-                'message_id': message_id,
-                'status': 'delivered',
-                'to_user': username
-            }, broadcast=True)
-            
-    except Exception as e:
-        print(f"❌ Error updating message delivery: {e}")
+        })
 
-@socketio.on("message_read")
-def handle_message_read(data):
-    """Mark message as read by a user"""
-    try:
-        message_id = data.get('message_id')
-        username = data.get('username')
-        
-        user = execute_query("SELECT id FROM users WHERE username=%s LIMIT 1", (username,), fetch=True)
-        if user and message_id:
-            execute_query(
-                "UPDATE message_status SET status = 'read' WHERE message_id = %s AND user_id = %s",
-                (message_id, user[0]["id"])
-            )
-            
-            # Notify sender that message was read
-            emit("message_status_update", {
-                'message_id': message_id,
-                'status': 'read',
-                'to_user': username
-            }, broadcast=True)
-            
-    except Exception as e:
-        print(f"❌ Error updating message read status: {e}")
-
-@socketio.on("typing_start")
-def handle_typing_start(data):
-    """Handle typing indicator"""
-    username = data.get('username')
-    if username:
-        emit("user_typing", {
-            'username': username,
-            'is_typing': True
-        }, broadcast=True, include_self=False)
-
-@socketio.on("typing_stop")
-def handle_typing_stop(data):
-    """Handle typing stop indicator"""
-    username = data.get('username')
-    if username:
-        emit("user_typing", {
-            'username': username,
-            'is_typing': False
-        }, broadcast=True, include_self=False)             
 # ---------------- Run ----------------
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
