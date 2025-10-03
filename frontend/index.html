@@ -483,18 +483,19 @@ body {
 .day-timer {
     margin-bottom: clamp(15px, 4vw, 20px);
 }
+b/* Fix for falling objects - Add this to your existing CSS */
 body {
     margin: 0;
     padding: clamp(10px, 3vw, 20px);
     min-height: 100vh;
     width: 100%;
     overflow-x: hidden;
-    background: #000;
+    background: linear-gradient(135deg, #0a3d0a 0%, #1a5c1a 50%, #0a3d0a 100%);
     color: #fff;
     position: relative;
 }
 
-/* Falling Objects Container */
+/* Falling Objects Container - FIXED */
 .falling-objects {
     position: fixed;
     top: 0;
@@ -502,65 +503,73 @@ body {
     width: 100%;
     height: 100%;
     pointer-events: none;
-    z-index: -1;
+    z-index: 0; /* Changed from -1 to 0 */
+    overflow: hidden;
 }
 
-/* Base Falling Animation */
+/* Base Falling Animation - FIXED */
 .falling-object {
     position: absolute;
     top: -100px;
     animation: fall linear infinite;
+    z-index: 1;
 }
 
-/* Different Shapes */
+/* Different Shapes with better visibility */
 .puzzle-piece {
     width: 40px;
     height: 40px;
-    background: rgb(130, 190, 2);
+    background: rgba(255, 255, 255, 0.8);
     clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 0%, 20% 20%, 20% 0%, 80% 0%, 80% 20%, 100% 20%, 100% 80%, 80% 80%, 80% 100%, 20% 100%, 20% 80%, 0% 80%);
+    border: 2px solid #90EE90;
 }
 
 .earth-orb {
     width: 50px;
     height: 50px;
     border-radius: 50%;
-    background: radial-gradient(circle at 30% 30%, #0066cc, #1a1a1a);
-    box-shadow: 0 0 20px rgba(0, 102, 204, 0.5);
+    background: radial-gradient(circle at 30% 30%, #32CD32, #228B22);
+    box-shadow: 0 0 20px rgba(50, 205, 50, 0.7);
+    border: 2px solid #90EE90;
 }
 
 .color-orb {
     width: 35px;
     height: 35px;
     border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.5);
 }
 
 .triangle {
     width: 0;
     height: 0;
-    border-left: 25px solid transparent;
-    border-right: 25px solid transparent;
-    border-bottom: 40px solid #663399;
+    border-left: 20px solid transparent;
+    border-right: 20px solid transparent;
+    border-bottom: 35px solid #90EE90;
+    background: transparent !important;
 }
 
 .star {
-    width: 40px;
-    height: 40px;
+    width: 35px;
+    height: 35px;
     background: gold;
     clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+    filter: drop-shadow(0 0 5px gold);
 }
 
 .square {
     width: 30px;
     height: 30px;
-    background: #ff6b35;
+    background: #32CD32;
     transform: rotate(45deg);
+    border: 2px solid #90EE90;
 }
 
-/* Color Variations */
-.color-green { background: rgb(130, 190, 2); }
-.color-dark { background: #1a1a1a; }
-.color-blue { background: #0066cc; }
-.color-purple { background: #663399; }
+/* Color Variations with green theme */
+.color-green { background: #32CD32; }
+.color-dark { background: #228B22; }
+.color-blue { background: #20B2AA; }
+.color-purple { background: #9370DB; }
 
 /* Falling Animation with Variations */
 @keyframes fall {
@@ -575,20 +584,18 @@ body {
 }
 
 /* Individual Object Animations */
-.object-1 { animation-duration: 8s; left: 10%; animation-delay: 0s; }
-.object-2 { animation-duration: 12s; left: 25%; animation-delay: 1s; }
-.object-3 { animation-duration: 10s; left: 40%; animation-delay: 2s; }
-.object-4 { animation-duration: 15s; left: 55%; animation-delay: 0.5s; }
-.object-5 { animation-duration: 9s; left: 70%; animation-delay: 3s; }
-.object-6 { animation-duration: 11s; left: 85%; animation-delay: 1.5s; }
-.object-7 { animation-duration: 14s; left: 15%; animation-delay: 2.5s; }
-.object-8 { animation-duration: 7s; left: 30%; animation-delay: 4s; }
-.object-9 { animation-duration: 13s; left: 45%; animation-delay: 0.8s; }
-.object-10 { animation-duration: 16s; left: 60%; animation-delay: 3.5s; }
-.object-11 { animation-duration: 8.5s; left: 75%; animation-delay: 1.2s; }
-.object-12 { animation-duration: 11.5s; left: 90%; animation-delay: 2.8s; }
+.object-1 { animation-duration: 8s; left: 5%; animation-delay: 0s; }
+.object-2 { animation-duration: 12s; left: 15%; animation-delay: 1s; }
+.object-3 { animation-duration: 10s; left: 25%; animation-delay: 2s; }
+.object-4 { animation-duration: 15s; left: 35%; animation-delay: 0.5s; }
+.object-5 { animation-duration: 9s; left: 45%; animation-delay: 3s; }
+.object-6 { animation-duration: 11s; left: 55%; animation-delay: 1.5s; }
+.object-7 { animation-duration: 14s; left: 65%; animation-delay: 2.5s; }
+.object-8 { animation-duration: 7s; left: 75%; animation-delay: 4s; }
+.object-9 { animation-duration: 13s; left: 85%; animation-delay: 0.8s; }
+.object-10 { animation-duration: 16s; left: 95%; animation-delay: 3.5s; }
 
-/* Additional floating animation for some objects */
+/* Additional floating animation */
 .floating {
     animation: fall-float 15s ease-in-out infinite;
 }
@@ -611,14 +618,26 @@ body {
     }
 }
 
-/* Content Styling */
-.content {
+/* Ensure content stays above falling objects */
+.head, main, footer, .weekly-challenge, .game-timer, .day-timer {
     position: relative;
-    z-index: 1;
-    background: rgba(0, 0, 0, 0.7);
-    padding: 20px;
-    border-radius: 10px;
-    backdrop-filter: blur(5px);
+    z-index: 10;
+}
+
+/* Modern green background with depth */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: 
+        radial-gradient(circle at 20% 80%, rgba(50, 205, 50, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(144, 238, 144, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 40% 40%, rgba(34, 139, 34, 0.1) 0%, transparent 50%);
+    z-index: -1;
+    pointer-events: none;
 }
     </style>
 </head>
@@ -755,49 +774,30 @@ body {
             Reset Default
         </button>
     </div>
+    <!-- Falling Objects Container - PLACE THIS RIGHT AFTER <body> TAG -->
+<div class="falling-objects">
+    <!-- Puzzle Pieces -->
+    <div class="falling-object puzzle-piece object-1 color-green"></div>
+    <div class="falling-object puzzle-piece object-7 color-blue"></div>
     
-    <!-- For Option 3 -->
-<body>
-    <div class="section section-1">Content 1</div>
-    <div class="section section-2">Content 2</div>
-    <div class="section section-3">Content 3</div>
-    <div class="section section-4">Content 4</div>
-</body>
-
-<!-- For Option 5 -->
-    <div class="color-bubble bubble-1"></div>
-    <div class="color-bubble bubble-2"></div>
-    <div class="color-bubble bubble-3"></div>
-    <div class="color-bubble bubble-4"></div>
-    <div class="content">
-        <!-- Your main content here -->
-    </div>
-     <!-- Falling Objects Container -->
-    <div class="falling-objects">
-        <!-- Puzzle Pieces -->
-        <div class="falling-object puzzle-piece object-1 color-green"></div>
-        <div class="falling-object puzzle-piece object-7 color-blue"></div>
-        
-        <!-- Earth Orbs -->
-        <div class="falling-object earth-orb object-2"></div>
-        <div class="falling-object earth-orb object-8"></div>
-        
-        <!-- Color Orbs -->
-        <div class="falling-object color-orb object-3 color-purple floating"></div>
-        <div class="falling-object color-orb object-9 color-green floating"></div>
-        <div class="falling-object color-orb object-4 color-dark"></div>
-        <div class="falling-object color-orb object-10 color-blue floating"></div>
-        
-        <!-- Triangles -->
-        <div class="falling-object triangle object-5"></div>
-        <div class="falling-object triangle object-11"></div>
-        
-        <!-- Stars -->
-        <div class="falling-object star object-6"></div>
-        <div class="falling-object star object-12"></div>
-        
-        <!-- Add more objects as needed -->
-    </div>
+    <!-- Earth Orbs -->
+    <div class="falling-object earth-orb object-2 floating"></div>
+    <div class="falling-object earth-orb object-8"></div>
+    
+    <!-- Color Orbs -->
+    <div class="falling-object color-orb object-3 color-purple floating"></div>
+    <div class="falling-object color-orb object-9 color-green"></div>
+    <div class="falling-object color-orb object-4 color-dark floating"></div>
+    <div class="falling-object color-orb object-10 color-blue"></div>
+    
+    <!-- Triangles -->
+    <div class="falling-object triangle object-5"></div>
+    <div class="falling-object triangle object-6 floating"></div>
+    
+    <!-- Stars -->
+    <div class="falling-object star object-11"></div>
+    <div class="falling-object star object-12 floating"></div>
+</div>
 
     <!-- Your Content -->
     <div class="content">
@@ -1483,6 +1483,34 @@ document.addEventListener('DOMContentLoaded', function() {
         
         container.appendChild(object);
     }
+});
+// Generate more falling objects dynamically - ADD THIS TO YOUR EXISTING SCRIPT
+document.addEventListener('DOMContentLoaded', function() {
+    const container = document.querySelector('.falling-objects');
+    if (!container) return;
+    
+    const objectTypes = ['puzzle-piece', 'earth-orb', 'color-orb', 'triangle', 'star', 'square'];
+    const colors = ['color-green', 'color-dark', 'color-blue', 'color-purple'];
+    
+    // Create additional objects for better coverage
+    for (let i = 13; i <= 30; i++) {
+        const object = document.createElement('div');
+        const type = objectTypes[Math.floor(Math.random() * objectTypes.length)];
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        
+        object.className = `falling-object ${type} ${color}`;
+        object.style.left = `${Math.random() * 100}%`;
+        object.style.animationDuration = `${8 + Math.random() * 12}s`;
+        object.style.animationDelay = `${Math.random() * 10}s`;
+        
+        if (Math.random() > 0.6) {
+            object.classList.add('floating');
+        }
+        
+        container.appendChild(object);
+    }
+    
+    console.log('🎯 Falling objects initialized');
 });
 </script>
 </body>
