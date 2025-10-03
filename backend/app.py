@@ -1128,12 +1128,12 @@ def handle_manual_weekly_complete(data):
         
         print(f"🎉 Manually triggering weekly challenge completion: {custom_message}")
         
-        # Update database
+        # Update database to mark as inactive
         execute_query("UPDATE weekly_challenge SET is_active = FALSE WHERE is_active = TRUE")
         
         # Broadcast with custom message
         emit('weekly_challenge_complete', {
-            'message': custom_message,  # This uses the custom message
+            'message': custom_message,
             'timestamp': datetime.utcnow().isoformat(),
             'manual_trigger': True
         }, broadcast=True)

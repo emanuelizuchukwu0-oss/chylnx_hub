@@ -532,6 +532,36 @@ body {
     </div>
     <button class="timer-btn" onclick="setWeeklyChallenge()">Set Weekly Challenge</button>
 </div>
+<!-- Weekly Challenge Manual Control - Add this with your other timer controls -->
+<div class="timer-control hidden" id="weeklyMessageControl">
+    <h3>Weekly Challenge Message Control</h3>
+    
+    <div class="timer-input">
+        <input type="text" id="weeklyMessageInput" 
+               value="WEEKLY CHALLENGE: COMPLETED" 
+               placeholder="Enter custom message"
+               style="width: 100%; max-width: 300px; padding: 8px; margin: 5px 0;">
+    </div>
+    
+    <div style="display: flex; gap: 10px; justify-content: center; margin-top: 10px;">
+        <button class="timer-btn" onclick="updateWeeklyMessage()" 
+                style="background: #007bff;">
+            Update Message
+        </button>
+        <button class="timer-btn" onclick="broadcastWeeklyMessage()" 
+                style="background: #28a745;">
+            Broadcast Now
+        </button>
+        <button class="timer-btn" onclick="resetWeeklyMessage()" 
+                style="background: #6c757d;">
+            Reset Default
+        </button>
+    </div>
+    
+    <div style="margin-top: 10px; font-size: 12px; color: #ccc;">
+        Current: "<span id="currentMessageDisplay">WEEKLY CHALLENGE: COMPLETED</span>"
+    </div>
+</div>
         </section>
     </main>
 
@@ -900,7 +930,13 @@ function checkPassword() {
         console.log('✅ Password correct - unlocking timer controls');
         document.getElementById('passwordSection').classList.add('hidden');
         document.getElementById('timerControl').classList.remove('hidden');
-        document.getElementById('dayTimerControl').classList.remove('hidden'); // Show day timer controls
+        document.getElementById('dayTimerControl').classList.remove('hidden');
+        document.getElementById('weeklyChallengeControl').classList.remove('hidden');
+        document.getElementById('weeklyMessageControl').classList.remove('hidden'); // Add this line
+        
+        // Load any saved message
+        loadSavedWeeklyMessage();
+        
         passwordInput.value = ''; // Clear the password field after successful unlock
     } else {
         console.log('❌ Password incorrect');
@@ -916,35 +952,23 @@ let isWeeklyChallengeActive = false;
 
 // Initialize Weekly Challenge Socket.io
 function initializeWeeklyChallengeSocket() {
-    // Listen for weekly challenge updates from server
-    socket.on('weekly_challenge_update', function(data) {
-        console.log('📡 Received weekly challenge update from server:', data);
-        
-        // Clear any existing weekly timer first
-        clearInterval(weeklyChallengeInterval);
-        
-        if (data.is_active && data.remaining_seconds > 0) {
-            // Weekly challenge is active
-            isWeeklyChallengeActive = true;
-            weeklyTotalSeconds = data.remaining_seconds;
-            console.log('📅 Weekly challenge active:', weeklyTotalSeconds, 'seconds remaining');
-            
-            // Update status display
-            document.getElementById('weeklyStatus').textContent = "ACTIVE";
-            document.querySelector('.weekly-challenge').classList.add('weekly-challenge-active');
-            document.querySelector('.weekly-challenge').classList.remove('weekly-challenge-complete');
-            
-            // Start counting down (but don't affect username form)
-            weeklyChallengeInterval = setInterval(updateWeeklyChallenge, 1000);
-        } else {
-            // Weekly challenge not active or completed
-            isWeeklyChallengeActive = false;
-            clearInterval(weeklyChallengeInterval);
-            document.getElementById('weeklyStatus').textContent = "COMPLETED";
-            document.querySelector('.weekly-challenge').classList.remove('weekly-challenge-active');
-            document.querySelector('.weekly-challenge').classList.add('weekly-challenge-complete');
-        }
-    });
+    // Update your existing weekly_challenge_complete handler
+socket.on('weekly_challenge_complete', function(data) {
+    console.log('🎉 Weekly challenge complete received:', data);
+    isWeeklyChallengeActive = false;
+    clearInterval(weeklyChallengeInterval);
+    
+    // Use the custom message from server, or fallback to default
+    const displayMessage = data.message || 'WEEKLY CHALLENGE: COMPLETED';
+    
+    // Update the display with the custom message
+    const weeklyChallengeElement = document.querySelector('.weekly-challenge');
+    weeklyChallengeElement.innerHTML = displayMessage;
+    
+    // Update visual state
+    weeklyChallengeElement.classList.remove('weekly-challenge-active');
+    weeklyChallengeElement.classList.add('weekly-challenge-complete');
+});
     
     // Listen for weekly challenge complete event
     socket.on('weekly_challenge_complete', function(data) {
@@ -1036,6 +1060,53 @@ function setWeeklyChallenge() {
         alert(`Weekly challenge started for ${days} days!`);
     } else {
         alert('Weekly challenge stopped!');
+    }
+}
+// Weekly Challenge Manual Control Functions
+function updateWeeklyMessage() {
+    const newMessage = document.getElementById('weeklyMessageInput').value.trim();
+    if (!newMessage) {
+        alert('Please enter a message');
+        return;
+    }
+    
+    // Store in localStorage
+    localStorage.setItem('customWeeklyMessage', newMessage);
+    document.getElementById('currentMessageDisplay').textContent = newMessage;
+    
+    alert('Message updated to: "' + newMessage + '"');
+    console.log('Weekly message updated:', newMessage);
+}
+
+function broadcastWeeklyMessage() {
+    const message = document.getElementById('weeklyMessageInput').value.trim() || 
+                   localStorage.getItem('customWeeklyMessage') || 
+                   'WEEKLY CHALLENGE: COMPLETED';
+    
+    if (socket) {
+        socket.emit('manual_weekly_complete', {
+            message: message
+        });
+        alert('Broadcasting: "' + message + '" to all users');
+    } else {
+        alert('Not connected to server');
+    }
+}
+
+function resetWeeklyMessage() {
+    const defaultMessage = 'WEEKLY CHALLENGE: COMPLETED';
+    document.getElementById('weeklyMessageInput').value = defaultMessage;
+    document.getElementById('currentMessageDisplay').textContent = defaultMessage;
+    localStorage.setItem('customWeeklyMessage', defaultMessage);
+    alert('Message reset to default');
+}
+
+// Load saved message when page loads
+function loadSavedWeeklyMessage() {
+    const savedMessage = localStorage.getItem('customWeeklyMessage');
+    if (savedMessage) {
+        document.getElementById('weeklyMessageInput').value = savedMessage;
+        document.getElementById('currentMessageDisplay').textContent = savedMessage;
     }
 }
 </script>
