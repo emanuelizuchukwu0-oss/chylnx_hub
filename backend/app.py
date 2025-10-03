@@ -959,33 +959,39 @@ def handle_message(data):
                 break
 
         if not username:
-            username = data.get("from")
-        if not username:
-            print("⚠ Could not determine message sender for sid:", request.sid)
-            return
+            # Try to get username from session
+            username = session.get("username")
+            if not username:
+                print("⚠ Could not determine message sender for sid:", request.sid)
+                return
 
         text = (data.get("text") or "").strip()
         if not text:
+            emit('message_error', {'error': 'Message cannot be empty'})
             return
 
+        # Update user activity
         if username in user_activity:
             user_activity[username] = time.time()
 
+        # Get user from database
         user = execute_query("SELECT id FROM users WHERE username=%s LIMIT 1", (username,), fetch=True)
         if not user:
+            emit('message_error', {'error': 'User not found'})
             return
 
         user_id = user[0]["id"]
         
-        # Insert message with current session context
-        message_id = execute_query(
-            "INSERT INTO messages (user_id, username, message) VALUES (%s, %s, %s) RETURNING id",
+        # Insert message into database
+        message_result = execute_query(
+            "INSERT INTO messages (user_id, username, message) VALUES (%s, %s, %s) RETURNING id, created_at",
             (user_id, username, text),
             fetch=True
         )
         
-        if message_id:
-            message_id = message_id[0]['id']
+        if message_result:
+            message_id = message_result[0]['id']
+            created_at = message_result[0]['created_at']
             
             # Mark message as sent for the sender immediately
             execute_query(
@@ -993,36 +999,36 @@ def handle_message(data):
                 (message_id, user_id, 'sent')
             )
             
-            # Get current session code
-            session_code = f"SESSION_{int(time.time()) // 3600}"  # Hourly sessions
-            
+            # Create message object for broadcasting
             msg = {
-                "id": message_id,  # Add message ID for status tracking
+                "id": message_id,
                 "from": username,
                 "text": text,
-                "timestamp": datetime.utcnow().isoformat(),
-                "status": "sent",  # Initial status
-                "session": session_code
+                "timestamp": created_at.isoformat() if hasattr(created_at, 'isoformat') else datetime.utcnow().isoformat(),
+                "status": "sent"
             }
 
-            # Broadcast to all connected users
-            socketio.emit("message", msg)
+            print(f"✅ Broadcasting message: {msg}")
+
+            # Broadcast to all connected users including sender
+            socketio.emit("new_message", msg)
             
-            # Update status to 'delivered' for all online users
+            # Update status to 'delivered' for all other online users
             for online_username, user_info in online_users.items():
-                if online_username != username:  # Don't update sender's status
+                if online_username != username:
                     online_user_id = user_info.get('user_id')
                     if online_user_id:
                         execute_query(
-                            "INSERT INTO message_status (message_id, user_id, status) VALUES (%s, %s, %s) ON CONFLICT DO NOTHING",
+                            "INSERT INTO message_status (message_id, user_id, status) VALUES (%s, %s, %s) ON CONFLICT (message_id, user_id) DO UPDATE SET status = 'delivered'",
                             (message_id, online_user_id, 'delivered')
                         )
             
-            print(f"✅ Message saved and broadcast: {text[:50]}...")
+            print(f"✅ Message saved and broadcast: '{text[:50]}...' from {username}")
 
     except Exception as e:
         print("❌ handle_message error:", e)
         traceback.print_exc()
+        emit('message_error', {'error': 'Failed to send message'})
 
 @socketio.on("disconnect")
 def handle_disconnect():

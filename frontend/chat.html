@@ -825,11 +825,15 @@ function initializeChat() {
         history.forEach(msg => addMessage(msg, msg.from === myUsername));
     });
 
-    // Receive messages
-    socket.on('message', function(msg) {
-        addMessage(msg, msg.from === myUsername);
-    });
+    // OLD (might be causing issues)
+socket.on('message', function(data) {
+    addMessageToChat(data);
+});
 
+// NEW (use this instead)
+socket.on('new_message', function(data) {
+    addMessageToChat(data);
+});
     // Online count
     socket.on('user_count_update', function(data) {
         document.getElementById('onlineCount').textContent = data.count + ' online';
@@ -1015,15 +1019,17 @@ function handleKeyPress(e) {
     if (e.key === 'Enter') sendMessage();
 }
 
-// Send message
+// Example of sending message from frontend
 function sendMessage() {
-    const input = document.getElementById('chatInput');
-    const text = input.value.trim();
-    if (!text || !socket) return;
-
-    socket.emit('message', { from: myUsername, text: text });
-    input.value = '';
-    input.focus();
+    const messageInput = document.getElementById('message-input');
+    const text = messageInput.value.trim();
+    
+    if (text) {
+        socket.emit('message', {
+            text: text
+        });
+        messageInput.value = ''; // Clear input
+    }
 }
 
 // Add message to chat window
@@ -1095,6 +1101,24 @@ function showWinnerAnnouncement(usernames) {
 }
 
 window.addEventListener('DOMContentLoaded', initApp);
+// Add debug listeners
+socket.on('new_message', function(data) {
+    console.log('📨 Received new message:', data);
+    addMessageToChat(data);
+});
+
+socket.on('message_error', function(data) {
+    console.error('❌ Message error:', data.error);
+    alert('Failed to send message: ' + data.error);
+});
+
+socket.on('connect', function() {
+    console.log('✅ Connected to server');
+});
+
+socket.on('disconnect', function() {
+    console.log('❌ Disconnected from server');
+});
     </script>
 </body>
 </html>
