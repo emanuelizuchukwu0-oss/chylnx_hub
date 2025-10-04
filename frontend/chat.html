@@ -673,6 +673,287 @@
     25% { transform: rotate(-12deg) scale(1.2); }
     75% { transform: rotate(12deg) scale(1.2); }
 }
+/* Animated Character Styles */
+.animated-character {
+    position: fixed;
+    z-index: 10000;
+    transition: all 1s ease-in-out;
+    pointer-events: none;
+}
+
+/* Username Screen Position */
+.animated-character.username-guide {
+    top: 30%;
+    right: 10%;
+    transform: scale(0.8);
+}
+
+/* Chat Screen Position */
+.animated-character.chat-guide {
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) scale(0.7);
+}
+
+/* Character Body */
+.character-body {
+    position: relative;
+    width: 80px;
+    height: 120px;
+}
+
+.character-head {
+    width: 50px;
+    height: 50px;
+    background: #4CAF50;
+    border-radius: 50%;
+    margin: 0 auto 10px;
+    position: relative;
+    border: 3px solid #388E3C;
+}
+
+.character-body-main {
+    width: 60px;
+    height: 50px;
+    background: #4CAF50;
+    border-radius: 25px;
+    margin: 0 auto;
+    border: 3px solid #388E3C;
+}
+
+/* Arms */
+.character-arm {
+    position: absolute;
+    width: 15px;
+    background: #4CAF50;
+    border: 2px solid #388E3C;
+    border-radius: 10px;
+    transition: all 0.5s ease;
+}
+
+.left-arm {
+    height: 40px;
+    top: 55px;
+    left: -5px;
+    transform-origin: top center;
+}
+
+.right-arm {
+    height: 40px;
+    top: 55px;
+    right: -5px;
+    transform-origin: top center;
+}
+
+/* Legs */
+.character-leg {
+    position: absolute;
+    width: 15px;
+    background: #4CAF50;
+    border: 2px solid #388E3C;
+    border-radius: 10px;
+    bottom: -35px;
+}
+
+.left-leg {
+    height: 35px;
+    left: 15px;
+    transform-origin: top center;
+}
+
+.right-leg {
+    height: 35px;
+    right: 15px;
+    transform-origin: top center;
+}
+
+/* Eyes */
+.character-eyes {
+    position: absolute;
+    top: 15px;
+    width: 100%;
+    display: flex;
+    justify-content: space-around;
+    padding: 0 8px;
+}
+
+.eye {
+    width: 8px;
+    height: 8px;
+    background: white;
+    border-radius: 50%;
+    position: relative;
+    animation: blink 4s infinite;
+}
+
+.eye::after {
+    content: '';
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: #333;
+    border-radius: 50%;
+    top: 2px;
+    left: 2px;
+}
+
+@keyframes blink {
+    0%, 96%, 100% { transform: scaleY(1); }
+    98% { transform: scaleY(0.1); }
+}
+
+/* Speech Bubble */
+.speech-bubble {
+    position: absolute;
+    background: white;
+    padding: 10px 15px;
+    border-radius: 20px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    font-size: 14px;
+    color: #333;
+    max-width: 200px;
+    text-align: center;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.5s ease;
+    pointer-events: none;
+}
+
+.animated-character.username-guide .speech-bubble {
+    top: -80px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.animated-character.chat-guide .speech-bubble {
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.speech-bubble::after {
+    content: '';
+    position: absolute;
+    border: 10px solid transparent;
+}
+
+.animated-character.username-guide .speech-bubble::after {
+    border-top-color: white;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.animated-character.chat-guide .speech-bubble::after {
+    border-top-color: white;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+/* Character Animations */
+@keyframes pointDown {
+    0%, 100% { 
+        transform: translateY(0px) rotate(0deg); 
+    }
+    50% { 
+        transform: translateY(-10px) rotate(5deg); 
+    }
+}
+
+@keyframes lookAround {
+    0%, 100% { 
+        transform: translateX(0px); 
+    }
+    25% { 
+        transform: translateX(-5px); 
+    }
+    75% { 
+        transform: translateX(5px); 
+    }
+}
+
+@keyframes armsFolded {
+    0%, 100% { 
+        transform: rotate(0deg); 
+    }
+    50% { 
+        transform: rotate(-10deg); 
+    }
+}
+
+@keyframes breathing {
+    0%, 100% { 
+        transform: scale(1); 
+    }
+    50% { 
+        transform: scale(1.05); 
+    }
+}
+
+@keyframes bounce {
+    0%, 100% { 
+        transform: translateY(0); 
+    }
+    50% { 
+        transform: translateY(-20px); 
+    }
+}
+
+@keyframes walk {
+    0%, 100% { 
+        transform: rotate(0deg); 
+    }
+    25% { 
+        transform: rotate(15deg); 
+    }
+    75% { 
+        transform: rotate(-15deg); 
+    }
+}
+
+/* Active States */
+.animated-character.username-guide {
+    animation: pointDown 2s ease-in-out infinite, bounce 3s ease-in-out infinite;
+}
+
+.animated-character.username-guide .right-arm {
+    animation: pointDown 2s ease-in-out infinite;
+    transform: rotate(90deg);
+}
+
+.animated-character.chat-guide {
+    animation: breathing 4s ease-in-out infinite;
+}
+
+.animated-character.chat-guide .left-arm,
+.animated-character.chat-guide .right-arm {
+    animation: armsFolded 3s ease-in-out infinite;
+    transform: rotate(-45deg);
+}
+
+.animated-character.chat-guide .character-head {
+    animation: lookAround 6s ease-in-out infinite;
+}
+
+/* Walking Animation for Transition */
+.animated-character.walking {
+    animation: walk 0.5s ease-in-out infinite, bounce 1s ease-in-out infinite;
+}
+
+.animated-character.walking .left-leg {
+    animation: walk 0.5s ease-in-out infinite;
+}
+
+.animated-character.walking .right-leg {
+    animation: walk 0.5s ease-in-out infinite reverse;
+}
+
+/* Show speech bubble */
+.speech-bubble.show {
+    opacity: 1;
+    transform: translateY(0);
+}
     </style>
 <head>
     <!-- Your existing head content (title, styles, etc.) -->
@@ -748,6 +1029,24 @@
             <p id="announcedWinnerName" style="font-size: clamp(24px, 6vw, 32px); color: #000; font-weight: bold;"></p>
             <p style="margin-top: 20px; font-size: clamp(14px, 3vw, 18px);">This announcement will close automatically</p>
         </div>
+        <!-- Animated Character -->
+<div class="animated-character" id="animatedCharacter">
+    <div class="character-body">
+        <div class="character-head"></div>
+        <div class="character-body-main"></div>
+        <div class="character-arm left-arm"></div>
+        <div class="character-arm right-arm"></div>
+        <div class="character-leg left-leg"></div>
+        <div class="character-leg right-leg"></div>
+        <div class="character-eyes">
+            <div class="eye left-eye"></div>
+            <div class="eye right-eye"></div>
+        </div>
+    </div>
+    <div class="speech-bubble" id="speechBubble">
+        Enter your username to start chatting!
+    </div>
+</div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
@@ -1241,6 +1540,230 @@ function announceWinner() {
     console.log('🎉 Announcing winner!');
     // You can trigger a Socket.io event or show a modal here
 }
+// Animated Character Controller
+let characterState = 'username'; // 'username' or 'chat'
+
+function initializeCharacter() {
+    const character = document.getElementById('animatedCharacter');
+    const speechBubble = document.getElementById('speechBubble');
+    
+    if (!character) return;
+    
+    // Start with username guide
+    showUsernameGuide();
+    
+    // Show speech bubble after a delay
+    setTimeout(() => {
+        speechBubble.classList.add('show');
+    }, 1000);
+    
+    // Hide speech bubble when user starts typing username
+    const usernameInput = document.getElementById('usernameInput');
+    if (usernameInput) {
+        usernameInput.addEventListener('focus', () => {
+            speechBubble.classList.remove('show');
+        });
+        
+        usernameInput.addEventListener('blur', () => {
+            if (!usernameInput.value) {
+                setTimeout(() => {
+                    speechBubble.classList.add('show');
+                }, 500);
+            }
+        });
+    }
+}
+
+function showUsernameGuide() {
+    const character = document.getElementById('animatedCharacter');
+    const speechBubble = document.getElementById('speechBubble');
+    
+    if (!character) return;
+    
+    characterState = 'username';
+    character.className = 'animated-character username-guide';
+    speechBubble.textContent = 'Enter your username to start chatting!';
+    
+    // Point to username input
+    pointToUsernameInput();
+}
+
+function showChatGuide() {
+    const character = document.getElementById('animatedCharacter');
+    const speechBubble = document.getElementById('speechBubble');
+    
+    if (!character) return;
+    
+    // First, walk to new position
+    character.classList.add('walking');
+    character.style.transition = 'all 2s ease-in-out';
+    character.className = 'animated-character walking';
+    
+    // Move to chat position
+    setTimeout(() => {
+        character.classList.remove('walking');
+        characterState = 'chat';
+        character.className = 'animated-character chat-guide';
+        
+        // Update speech bubble
+        speechBubble.textContent = 'Welcome to the chat! Start typing to join the conversation.';
+        setTimeout(() => {
+            speechBubble.classList.add('show');
+        }, 1000);
+        
+        // Hide speech bubble after 5 seconds
+        setTimeout(() => {
+            speechBubble.classList.remove('show');
+        }, 5000);
+    }, 2000);
+}
+
+function pointToUsernameInput() {
+    const character = document.getElementById('animatedCharacter');
+    const usernameInput = document.getElementById('usernameInput');
+    
+    if (!character || !usernameInput) return;
+    
+    // Calculate position to point at username input
+    const inputRect = usernameInput.getBoundingClientRect();
+    const characterRect = character.getBoundingClientRect();
+    
+    // Position character to point at input
+    character.style.right = 'auto';
+    character.style.left = (inputRect.left + inputRect.width + 50) + 'px';
+    character.style.top = (inputRect.top - 50) + 'px';
+}
+
+// Update your existing setUsername function to trigger character movement
+function setUsername() {
+    const usernameInput = document.getElementById('usernameInput');
+    const username = usernameInput.value.trim();
+    
+    if (!username) {
+        alert('Please enter a username');
+        return;
+    }
+    
+    myUsername = username;
+    document.getElementById('usernameOverlay').style.display = 'none';
+    
+    // Move character to chat position
+    showChatGuide();
+    
+    // Initialize chat
+    initializeChat();
+    
+    // Join chat room
+    if (socket) {
+        socket.emit('join_chat', { username: username });
+    }
+}
+
+// Make character look at mouse movement in chat
+function initializeChatCharacter() {
+    const chatContainer = document.getElementById('chatContainer');
+    const character = document.getElementById('animatedCharacter');
+    
+    if (!chatContainer || !character) return;
+    
+    chatContainer.addEventListener('mousemove', (e) => {
+        if (characterState !== 'chat') return;
+        
+        const rect = chatContainer.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        
+        // Make character look towards mouse
+        const characterRect = character.getBoundingClientRect();
+        const characterX = characterRect.left + characterRect.width / 2;
+        const characterY = characterRect.top + characterRect.height / 2;
+        
+        const deltaX = mouseX - characterX;
+        const deltaY = mouseY - characterY;
+        
+        const angle = Math.atan2(deltaY, deltaX) * (180 / Math.PI);
+        
+        // Update eyes to look at mouse
+        const eyes = character.querySelector('.character-eyes');
+        if (eyes) {
+            eyes.style.transform = `translateX(${Math.min(Math.max(deltaX / 50, -10), 10)}px)`;
+        }
+    });
+}
+
+// Character reactions to chat events
+function characterReactToMessage(isMyMessage) {
+    if (characterState !== 'chat') return;
+    
+    const character = document.getElementById('animatedCharacter');
+    const leftArm = character.querySelector('.left-arm');
+    const rightArm = character.querySelector('.right-arm');
+    
+    if (isMyMessage) {
+        // Wave when user sends message
+        rightArm.style.animation = 'none';
+        rightArm.style.transform = 'rotate(120deg)';
+        
+        setTimeout(() => {
+            rightArm.style.animation = '';
+            rightArm.style.transform = '';
+        }, 1000);
+    } else {
+        // Nod when others send messages
+        character.style.animation = 'none';
+        void character.offsetWidth; // Trigger reflow
+        character.style.animation = 'breathing 4s ease-in-out infinite, nod 1s ease-in-out';
+        
+        setTimeout(() => {
+            character.style.animation = 'breathing 4s ease-in-out infinite';
+        }, 1000);
+    }
+}
+
+// Add this CSS for nod animation
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes nod {
+        0%, 100% { transform: translateX(-50%) scale(0.7) rotate(0deg); }
+        50% { transform: translateX(-50%) scale(0.7) rotate(5deg); }
+    }
+`;
+document.head.appendChild(style);
+
+// Update your existing sendMessage function to trigger character reaction
+function sendMessage() {
+    const messageInput = document.getElementById('chatInput');
+    const text = messageInput.value.trim();
+    
+    if (text && socket) {
+        socket.emit('message', {
+            text: text
+        });
+        messageInput.value = '';
+        messageInput.focus();
+        
+        // Character reaction to own message
+        characterReactToMessage(true);
+    }
+}
+
+// Update message reception to trigger character reaction
+socket.on('new_message', function(data) {
+    console.log('📨 Received new message from:', data.from);
+    const isSent = data.from === myUsername;
+    addMessage(data, isSent);
+    
+    // Character reaction to others' messages
+    if (!isSent) {
+        characterReactToMessage(false);
+    }
+});
+
+// Initialize character when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    initializeCharacter();
+    initializeChatCharacter();
+});
     </script>
 </body>
 </html>
