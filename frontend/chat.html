@@ -1530,12 +1530,6 @@ function initializeChat() {
     
     // Add welcome message
     addSystemMessage(`Welcome, ${myUsername}! Start chatting.`);
-    
-    // Demo: Simulate other users joining (remove in production)
-    setTimeout(() => {
-        addSystemMessage('User "ChatMaster" joined the chat');
-        updateOnlineCount(2);
-    }, 2000);
 }
 
 function updateOnlineCount(count) {
@@ -1564,23 +1558,6 @@ function sendMessage() {
     
     // Character reaction
     characterReactToMessage(true);
-    
-    // Demo: Simulate response (remove in production)
-    setTimeout(() => {
-        const responses = [
-            "Hello there! 👋",
-            "Nice to meet you!",
-            "How's everyone doing?",
-            "Great chat! 💬"
-        ];
-        const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-        
-        addMessage({
-            from: 'ChatBot',
-            text: randomResponse,
-            timestamp: new Date()
-        }, false);
-    }, 1000 + Math.random() * 2000);
 }
 
 function addMessage(msg, isSent) {
@@ -1628,7 +1605,7 @@ function showWinnerSelectionPanel() {
     winnerList.innerHTML = '';
     
     // Demo users (replace with actual online users)
-    const demoUsers = ['ChatMaster', 'GamePro', 'TechWizard', 'CodeNinja'];
+    const demoUsers = []; // Empty now since we removed chatbot
     
     demoUsers.forEach(user => {
         if (user !== myUsername) {
