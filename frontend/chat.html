@@ -853,7 +853,7 @@
 
 /* Remove duplicate animated character styles and keep only this version: */
 
-/* Animated Character Styles */
+/* Updated Realistic Character Styles */
 .animated-character {
     position: fixed;
     z-index: 10000;
@@ -862,152 +862,165 @@
     display: block;
 }
 
-/* Username Screen Position */
-.animated-character.username-guide {
-    top: 40%;
-    right: 10%;
-    transform: scale(0.8);
-}
-
-/* Chat Screen Position */
-.animated-character.chat-guide {
-    bottom: 100px;
-    left: 50%;
-    transform: translateX(-50%) scale(0.7);
-}
-
-/* Character Body */
 .character-body {
     position: relative;
-    width: 80px;
-    height: 120px;
+    width: 100px;
+    height: 160px;
+    filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.3));
 }
 
 .character-head {
-    width: 50px;
-    height: 50px;
-    background: #4CAF50;
-    border-radius: 50%;
-    margin: 0 auto 10px;
-    position: relative;
-    border: 3px solid #388E3C;
-}
-
-.character-body-main {
     width: 60px;
-    height: 50px;
-    background: #4CAF50;
-    border-radius: 25px;
-    margin: 0 auto;
-    border: 3px solid #388E3C;
+    height: 70px;
+    background: linear-gradient(135deg, #ffdbac 0%, #f1c27d 100%);
+    border-radius: 40% 40% 50% 50%;
+    margin: 0 auto 8px;
+    position: relative;
+    border: 2px solid #e0a96d;
+    box-shadow: inset -2px -2px 4px rgba(0,0,0,0.1);
 }
 
-/* Arms */
-.character-arm {
-    position: absolute;
-    width: 15px;
-    background: #4CAF50;
-    border: 2px solid #388E3C;
-    border-radius: 10px;
-    transition: all 0.5s ease;
-}
-
-.left-arm {
-    height: 40px;
-    top: 55px;
-    left: -5px;
-    transform-origin: top center;
-}
-
-.right-arm {
-    height: 40px;
-    top: 55px;
-    right: -5px;
-    transform-origin: top center;
-}
-
-/* Legs */
-.character-leg {
-    position: absolute;
-    width: 15px;
-    background: #4CAF50;
-    border: 2px solid #388E3C;
-    border-radius: 10px;
-    bottom: -35px;
-}
-
-.left-leg {
-    height: 35px;
-    left: 15px;
-    transform-origin: top center;
-}
-
-.right-leg {
-    height: 35px;
-    right: 15px;
-    transform-origin: top center;
-}
-
-/* Eyes */
-.character-eyes {
+.character-face {
     position: absolute;
     top: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80%;
+    height: 60%;
+}
+
+.character-eyes {
+    position: absolute;
+    top: 8px;
     width: 100%;
     display: flex;
     justify-content: space-around;
-    padding: 0 8px;
+    padding: 0 5px;
+    transition: transform 0.3s ease;
 }
 
 .eye {
-    width: 8px;
-    height: 8px;
+    width: 12px;
+    height: 12px;
     background: white;
     border-radius: 50%;
     position: relative;
+    border: 2px solid #333;
     animation: blink 4s infinite;
+    overflow: hidden;
 }
 
 .eye::after {
     content: '';
     position: absolute;
-    width: 4px;
-    height: 4px;
+    width: 6px;
+    height: 6px;
     background: #333;
     border-radius: 50%;
     top: 2px;
     left: 2px;
+    transition: all 0.2s ease;
 }
 
-@keyframes blink {
-    0%, 96%, 100% { transform: scaleY(1); }
-    98% { transform: scaleY(0.1); }
+.character-mouth {
+    position: absolute;
+    bottom: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 20px;
+    height: 8px;
+    background: #e75480;
+    border-radius: 0 0 10px 10px;
+    transition: all 0.3s ease;
+}
+
+.character-body-main {
+    width: 70px;
+    height: 60px;
+    background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+    border-radius: 25px 25px 20px 20px;
+    margin: 0 auto;
+    border: 2px solid #388E3C;
+    position: relative;
+    box-shadow: inset -2px -2px 4px rgba(0,0,0,0.2);
+}
+
+/* Arms - More realistic */
+.character-arm {
+    position: absolute;
+    width: 18px;
+    background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+    border: 2px solid #388E3C;
+    border-radius: 12px;
+    transition: all 0.5s ease;
+    transform-origin: top center;
+    box-shadow: inset -1px -1px 2px rgba(0,0,0,0.1);
+}
+
+.left-arm {
+    height: 50px;
+    top: 45px;
+    left: -8px;
+    transform: rotate(-20deg);
+}
+
+.right-arm {
+    height: 50px;
+    top: 45px;
+    right: -8px;
+    transform: rotate(20deg);
+}
+
+/* Legs - More realistic */
+.character-leg {
+    position: absolute;
+    width: 20px;
+    background: linear-gradient(135deg, #2E7D32 0%, #1B5E20 100%);
+    border: 2px solid #1B5E20;
+    border-radius: 8px 8px 12px 12px;
+    bottom: -40px;
+    transform-origin: top center;
+    box-shadow: inset 0 -2px 4px rgba(0,0,0,0.3);
+}
+
+.left-leg {
+    height: 40px;
+    left: 18px;
+}
+
+.right-leg {
+    height: 40px;
+    right: 18px;
 }
 
 /* Speech Bubble */
 .speech-bubble {
     position: absolute;
     background: white;
-    padding: 10px 15px;
+    padding: 12px 18px;
     border-radius: 20px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.2);
     font-size: 14px;
+    font-weight: bold;
     color: #333;
-    max-width: 200px;
+    max-width: 220px;
     text-align: center;
     opacity: 0;
     transform: translateY(20px);
     transition: all 0.5s ease;
     pointer-events: none;
+    border: 2px solid #25D366;
+    z-index: 10001;
 }
 
 .animated-character.username-guide .speech-bubble {
-    top: -80px;
+    top: -90px;
     left: 50%;
     transform: translateX(-50%);
 }
 
 .animated-character.chat-guide .speech-bubble {
-    bottom: 100%;
+    bottom: 120%;
     left: 50%;
     transform: translateX(-50%);
 }
@@ -1015,7 +1028,7 @@
 .speech-bubble::after {
     content: '';
     position: absolute;
-    border: 10px solid transparent;
+    border: 12px solid transparent;
 }
 
 .animated-character.username-guide .speech-bubble::after {
@@ -1033,33 +1046,15 @@
 }
 
 /* Character Animations */
-@keyframes pointDown {
+@keyframes gentleSway {
     0%, 100% { 
-        transform: translateY(0px) rotate(0deg); 
-    }
-    50% { 
-        transform: translateY(-10px) rotate(5deg); 
-    }
-}
-
-@keyframes lookAround {
-    0%, 100% { 
-        transform: translateX(0px); 
+        transform: translateX(0px) rotate(0deg); 
     }
     25% { 
-        transform: translateX(-5px); 
+        transform: translateX(-3px) rotate(-1deg); 
     }
     75% { 
-        transform: translateX(5px); 
-    }
-}
-
-@keyframes armsFolded {
-    0%, 100% { 
-        transform: rotate(0deg); 
-    }
-    50% { 
-        transform: rotate(-10deg); 
+        transform: translateX(3px) rotate(1deg); 
     }
 }
 
@@ -1068,16 +1063,16 @@
         transform: scale(1); 
     }
     50% { 
-        transform: scale(1.05); 
+        transform: scale(1.02); 
     }
 }
 
-@keyframes bounce {
+@keyframes excitedJump {
     0%, 100% { 
         transform: translateY(0); 
     }
     50% { 
-        transform: translateY(-20px); 
+        transform: translateY(-15px); 
     }
 }
 
@@ -1086,25 +1081,22 @@
         transform: rotate(0deg); 
     }
     25% { 
-        transform: rotate(15deg); 
+        transform: rotate(20deg); 
     }
     75% { 
-        transform: rotate(-15deg); 
+        transform: rotate(-20deg); 
     }
 }
 
-@keyframes nod {
-    0%, 100% { 
-        transform: translateX(-50%) scale(0.7) rotate(0deg); 
-    }
-    50% { 
-        transform: translateX(-50%) scale(0.7) rotate(5deg); 
-    }
+@keyframes typing {
+    0% { transform: scale(0.9); opacity: 0; }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); opacity: 1; }
 }
 
 /* Active States */
 .animated-character.username-guide {
-    animation: pointDown 2s ease-in-out infinite, bounce 3s ease-in-out infinite;
+    animation: gentleSway 3s ease-in-out infinite, excitedJump 2s ease-in-out infinite;
 }
 
 .animated-character.username-guide .right-arm {
@@ -1116,39 +1108,162 @@
     animation: breathing 4s ease-in-out infinite;
 }
 
-.animated-character.chat-guide .left-arm,
-.animated-character.chat-guide .right-arm {
-    animation: armsFolded 3s ease-in-out infinite;
-    transform: rotate(-45deg);
-}
-
 .animated-character.chat-guide .character-head {
-    animation: lookAround 6s ease-in-out infinite;
+    animation: gentleSway 6s ease-in-out infinite;
 }
 
 /* Walking Animation for Transition */
 .animated-character.walking {
-    animation: walk 0.5s ease-in-out infinite, bounce 1s ease-in-out infinite;
+    animation: walk 0.6s ease-in-out infinite;
 }
 
 .animated-character.walking .left-leg {
-    animation: walk 0.5s ease-in-out infinite;
+    animation: walk 0.6s ease-in-out infinite;
 }
 
 .animated-character.walking .right-leg {
-    animation: walk 0.5s ease-in-out infinite reverse;
+    animation: walk 0.6s ease-in-out infinite reverse;
 }
 
 /* Show speech bubble */
 .speech-bubble.show {
     opacity: 1;
     transform: translateY(0);
+    animation: typing 0.5s ease-in-out;
 }
+
+/* Character Reactions */
+.character-talking .character-mouth {
+    animation: talk 0.3s ease-in-out infinite;
+}
+
+@keyframes talk {
+    0%, 100% { height: 4px; }
+    50% { height: 8px; }
+}
+
+.character-excited {
+    animation: excitedJump 0.5s ease-in-out 3 !important;
+}
+/* Character Positioning inside Username Form */
+#usernameOverlay {
+    position: relative; /* This is important for positioning the character */
+}
+
+#usernameOverlay .animated-character {
+    position: absolute;
+    top: 50%;
+    right: -80px; /* Position to the right of the form */
+    transform: translateY(-50%) scale(0.7);
+    z-index: 2001; /* Above the form but within overlay */
+}
+
+#usernameOverlay .animated-character.username-guide {
+    animation: pointToForm 2s ease-in-out infinite, bounce 3s ease-in-out infinite;
+}
+
+#usernameOverlay .animated-character.username-guide .right-arm {
+    animation: pointToForm 2s ease-in-out infinite;
+    transform: rotate(60deg);
+}
+
+/* Pointing animation towards the form */
+@keyframes pointToForm {
+    0%, 100% { 
+        transform: translateY(-50%) scale(0.7) translateX(0px); 
+    }
+    50% { 
+        transform: translateY(-50%) scale(0.7) translateX(-10px); 
+    }
+}
+
+/* Adjust speech bubble for form positioning */
+#usernameOverlay .speech-bubble {
+    position: absolute;
+    top: -100px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    padding: 12px 18px;
+    border-radius: 20px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+    font-size: 14px;
+    font-weight: bold;
+    color: #333;
+    max-width: 220px;
+    text-align: center;
+    opacity: 0;
+    border: 2px solid #25D366;
+    z-index: 2002;
+}
+
+#usernameOverlay .speech-bubble::after {
+    content: '';
+    position: absolute;
+    border: 12px solid transparent;
+    border-top-color: white;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+/* Mobile adjustments for form character */
+@media (max-width: 768px) {
+    #usernameOverlay .animated-character {
+        right: -60px;
+        transform: translateY(-50%) scale(0.6);
+    }
+    
+    #usernameOverlay .speech-bubble {
+        top: -80px;
+        max-width: 180px;
+        font-size: 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    #usernameOverlay .animated-character {
+        display: none; /* Hide on very small screens */
+    }
+}
+
     </style>
 <head>
     <!-- Your existing head content (title, styles, etc.) -->
 </head>
 <body data-paid="false">
+    <!-- Multiple Winner Selection Panel -->
+    <div id="winnerSelectionPanel" class="winner-selection-panel">...</div>
+
+    <!-- Username Form Overlay WITH CHARACTER INSIDE -->
+    <div id="usernameOverlay">
+        <div id="usernameForm">...</div>
+        <!-- ANIMATED CHARACTER GOES HERE -->
+        <div class="animated-character" id="animatedCharacter" style="display: none;">
+            <!-- character elements -->
+        </div>
+    </div>
+
+    <!-- Fixed Header -->
+    <header>...</header>
+
+    <!-- Chat Container -->
+    <div id="chatContainer">...</div>
+
+    <!-- Fixed Input Area -->
+    <div id="inputArea">...</div>
+
+    <!-- Winner Modal -->
+    <div id="winnerModal">...</div>
+
+    <!-- Winner Announcement Overlay -->
+    <div id="winnerAnnouncementOverlay">...</div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+        // Your JavaScript code
+    </script>
+</body>
     <!-- Multiple Winner Selection Panel -->
     <div id="winnerSelectionPanel" class="winner-selection-panel">
         <div class="winner-panel-header">
@@ -1164,18 +1279,40 @@
         </div>
     </div>
 
-    <!-- Username Form Overlay -->
-    <div id="usernameOverlay">
-        <div id="usernameForm">
-            <h3>Join the Chat</h3>
-            <input type="text" id="usernameInput" placeholder="Enter your username" autocomplete="off">
-            <button onclick="setUsername()">Start Chatting</button>
-            <div class="form-note">
-                Choose a cool name to get started!
-            </div>
+   <!-- Username Form Overlay -->
+<div id="usernameOverlay">
+    <div id="usernameForm">
+        <h3>Join the Chat</h3>
+        <input type="text" id="usernameInput" placeholder="Enter your username" autocomplete="off">
+        <button onclick="setUsername()">Start Chatting</button>
+        <div class="form-note">
+            Choose a cool name to get started!
         </div>
     </div>
-
+    
+    <!-- ADD THE ANIMATED CHARACTER INSIDE THE OVERLAY -->
+    <div class="animated-character" id="animatedCharacter" style="display: none;">
+        <div class="character-body">
+            <div class="character-head">
+                <div class="character-face">
+                    <div class="character-eyes">
+                        <div class="eye left-eye"></div>
+                        <div class="eye right-eye"></div>
+                    </div>
+                    <div class="character-mouth"></div>
+                </div>
+            </div>
+            <div class="character-body-main"></div>
+            <div class="character-arm left-arm"></div>
+            <div class="character-arm right-arm"></div>
+            <div class="character-leg left-leg"></div>
+            <div class="character-leg right-leg"></div>
+        </div>
+        <div class="speech-bubble" id="speechBubble">
+            INPUT A COOL USERNAME! 🎮
+        </div>
+    </div>
+</div>
     <!-- Fixed Header -->
     <header>
         <div class="header-info">
@@ -1190,9 +1327,12 @@
 <div class="animated-character" id="animatedCharacter" style="display: none;">
     <div class="character-body">
         <div class="character-head">
-            <div class="character-eyes">
-                <div class="eye left-eye"></div>
-                <div class="eye right-eye"></div>
+            <div class="character-face">
+                <div class="character-eyes">
+                    <div class="eye left-eye"></div>
+                    <div class="eye right-eye"></div>
+                </div>
+                <div class="character-mouth"></div>
             </div>
         </div>
         <div class="character-body-main"></div>
@@ -1202,7 +1342,7 @@
         <div class="character-leg right-leg"></div>
     </div>
     <div class="speech-bubble" id="speechBubble">
-        Enter your username to start chatting!
+        INPUT A COOL USERNAME! 🎮
     </div>
 </div>
 
@@ -1252,6 +1392,7 @@ let onlineUsers = [];
 let isGameStarted = false;
 let characterState = 'username';
 const ANNOUNCE_PASSCODE = "1234";
+let messageInterval;
 
 // Initialize app
 function initApp() {
@@ -1264,9 +1405,15 @@ function initApp() {
     const usernameInput = document.getElementById('usernameInput');
     
     if (sendBtn) sendBtn.addEventListener('click', sendMessage);
-    if (chatInput) chatInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') sendMessage();
-    });
+    if (chatInput) {
+        chatInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') sendMessage();
+        });
+        // Enable chat input immediately
+        chatInput.disabled = false;
+    }
+    
+    if (sendBtn) sendBtn.disabled = false;
     
     if (bell) bell.addEventListener('click', showWinnerSelectionPanel);
     if (usernameInput) usernameInput.addEventListener('keypress', function(e) {
@@ -1277,14 +1424,16 @@ function initApp() {
     const usernameOverlay = document.getElementById('usernameOverlay');
     if (usernameOverlay) usernameOverlay.style.display = 'flex';
     
-    // Initialize character
+    // Initialize character with repeated messages
     initializeCharacter();
     
     // Focus on username input
     if (usernameInput) usernameInput.focus();
     
     console.log('✅ App initialized successfully');
-}// Character Functions
+}
+
+// Character Functions
 function initializeCharacter() {
     const character = document.getElementById('animatedCharacter');
     if (!character) {
@@ -1296,13 +1445,35 @@ function initializeCharacter() {
     character.style.display = 'block';
     showUsernameGuide();
     
-    // Show speech bubble after a delay
-    setTimeout(() => {
-        const speechBubble = document.getElementById('speechBubble');
-        if (speechBubble) {
+    // Start repeating messages
+    startRepeatingMessages();
+}
+
+function startRepeatingMessages() {
+    const messages = [
+        "INPUT A COOL USERNAME! 🎮",
+        "CHOOSE AN AWESOME NAME! ✨", 
+        "PICK A CREATIVE USERNAME! 🚀",
+        "ENTER YOUR COOL NAME! 💫"
+    ];
+    
+    let messageIndex = 0;
+    const speechBubble = document.getElementById('speechBubble');
+    
+    // Clear any existing interval
+    if (messageInterval) clearInterval(messageInterval);
+    
+    messageInterval = setInterval(() => {
+        if (speechBubble && characterState === 'username') {
+            speechBubble.textContent = messages[messageIndex];
             speechBubble.classList.add('show');
+            
+            // Add typing animation
+            speechBubble.style.animation = 'typing 0.5s ease-in-out';
+            
+            messageIndex = (messageIndex + 1) % messages.length;
         }
-    }, 1000);
+    }, 3000); // Change message every 3 seconds
 }
 
 function showUsernameGuide() {
@@ -1316,7 +1487,7 @@ function showUsernameGuide() {
     character.style.display = 'block';
     
     if (speechBubble) {
-        speechBubble.textContent = 'Enter your username to start chatting!';
+        speechBubble.textContent = 'INPUT A COOL USERNAME! 🎮';
         speechBubble.classList.remove('show');
         setTimeout(() => speechBubble.classList.add('show'), 500);
     }
@@ -1327,6 +1498,9 @@ function showChatGuide() {
     const speechBubble = document.getElementById('speechBubble');
     
     if (!character) return;
+    
+    // Stop repeating messages
+    if (messageInterval) clearInterval(messageInterval);
     
     // Start walking animation
     character.classList.add('walking');
@@ -1363,18 +1537,55 @@ function initializeChatCharacter() {
     
     if (!chatContainer || !character) return;
     
-    // Add mouse move effect for eyes
-    chatContainer.addEventListener('mousemove', (e) => {
-        if (characterState !== 'chat') return;
-        
-        const eyes = character.querySelector('.character-eyes');
-        if (eyes) {
-            const rect = chatContainer.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const deltaX = mouseX - (rect.width / 2);
-            eyes.style.transform = `translateX(${Math.min(Math.max(deltaX / 50, -10), 10)}px)`;
-        }
+    // Remove mouse following and implement message following
+    setupMessageFollowing();
+}
+
+function setupMessageFollowing() {
+    // This will make the character follow messages as they appear
+    const chatWindow = document.getElementById('chatWindow');
+    const character = document.getElementById('animatedCharacter');
+    
+    if (!chatWindow || !character) return;
+    
+    // Observer to watch for new messages
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.addedNodes.length) {
+                mutation.addedNodes.forEach((node) => {
+                    if (node.classList && (node.classList.contains('message') || node.classList.contains('system-msg'))) {
+                        followMessage(node);
+                    }
+                });
+            }
+        });
     });
+    
+    observer.observe(chatWindow, { childList: true });
+}
+
+function followMessage(messageElement) {
+    const character = document.getElementById('animatedCharacter');
+    const eyes = character?.querySelector('.character-eyes');
+    
+    if (!character || !eyes) return;
+    
+    // Get message position
+    const messageRect = messageElement.getBoundingClientRect();
+    const characterRect = character.getBoundingClientRect();
+    
+    // Calculate direction to look
+    const messageCenterX = messageRect.left + messageRect.width / 2;
+    const characterCenterX = characterRect.left + characterRect.width / 2;
+    
+    const deltaX = messageCenterX - characterCenterX;
+    
+    // Move eyes to follow message (limited movement)
+    const eyeMovement = Math.min(Math.max(deltaX / 50, -15), 15);
+    eyes.style.transform = `translateX(${eyeMovement}px)`;
+    
+    // Character reaction
+    characterReactToMessage(messageElement.classList.contains('sent'));
 }
 
 function characterReactToMessage(isMyMessage) {
@@ -1382,6 +1593,7 @@ function characterReactToMessage(isMyMessage) {
     
     const character = document.getElementById('animatedCharacter');
     const rightArm = character?.querySelector('.right-arm');
+    const leftArm = character?.querySelector('.left-arm');
     const speechBubble = document.getElementById('speechBubble');
     
     if (!character || !rightArm) return;
@@ -1390,7 +1602,7 @@ function characterReactToMessage(isMyMessage) {
         // Wave arm when sending message
         rightArm.style.transform = 'rotate(120deg)';
         if (speechBubble) {
-            speechBubble.textContent = 'Message sent!';
+            speechBubble.textContent = 'Nice message! 👍';
             speechBubble.classList.add('show');
         }
         setTimeout(() => {
@@ -1400,20 +1612,23 @@ function characterReactToMessage(isMyMessage) {
             }, 2000);
         }, 1000);
     } else {
-        // Nod when receiving message
+        // Nod and point when receiving message
         character.style.animation = 'nod 1s ease-in-out';
+        leftArm.style.transform = 'rotate(45deg)';
         if (speechBubble) {
-            speechBubble.textContent = 'New message!';
+            speechBubble.textContent = 'New message! 👀';
             speechBubble.classList.add('show');
         }
         setTimeout(() => {
             character.style.animation = 'breathing 4s ease-in-out infinite';
+            leftArm.style.transform = 'rotate(-45deg)';
             setTimeout(() => {
                 if (speechBubble) speechBubble.classList.remove('show');
             }, 2000);
         }, 1000);
     }
 }
+
 // Username and Chat Functions
 function setUsername() {
     const usernameInput = document.getElementById('usernameInput');
@@ -1428,64 +1643,34 @@ function setUsername() {
     const usernameOverlay = document.getElementById('usernameOverlay');
     if (usernameOverlay) usernameOverlay.style.display = 'none';
     
+    // Stop message repetition
+    if (messageInterval) clearInterval(messageInterval);
+    
     showChatGuide();
     initializeChat();
 }
 
 function initializeChat() {
-    socket = io();
-
-    socket.on('connect', function() {
-        console.log('✅ Connected to server');
-        socket.emit('join_chat', { username: myUsername });
-    });
-
-    socket.on('chat_history', function(history) {
-        const chatWindow = document.getElementById('chatWindow');
-        if (chatWindow) {
-            chatWindow.innerHTML = '';
-            history.forEach(msg => {
-                const isSent = msg.from === myUsername;
-                addMessage(msg, isSent);
-            });
-        }
-    });
-
-    socket.on('new_message', function(data) {
-        const isSent = data.from === myUsername;
-        addMessage(data, isSent);
-        if (!isSent) characterReactToMessage(false);
-    });
-
-    socket.on('user_joined', function(data) {
-        addSystemMessage(`${data.username} joined the chat`);
-        updateOnlineCount(data.online_count);
-    });
-
-    socket.on('user_left', function(data) {
-        addSystemMessage(`${data.username} left the chat`);
-        updateOnlineCount(data.online_count);
-    });
-
-    socket.on('user_count_update', function(data) {
-        updateOnlineCount(data.count);
-    });
-
-    socket.on('winner_announced', function(data) {
-        const winners = Array.isArray(data.winners) ? data.winners.join(", ") : data.winners;
-        showWinnerAnnouncement(winners);
-        addSystemMessage(`🏆 WINNER: ${winners}! 🎉`);
-    });
-
-    socket.on('message_error', function(data) {
-        console.error('❌ Message error:', data.error);
-        alert('Message error: ' + data.error);
-    });
-
+    // For demo purposes - in real implementation, you'd connect to your server
+    console.log('💬 Chat initialized for:', myUsername);
+    
+    // Enable chat functionality
+    const chatInput = document.getElementById('chatInput');
+    const sendBtn = document.getElementById('sendBtn');
+    
+    if (chatInput) chatInput.disabled = false;
+    if (sendBtn) sendBtn.disabled = false;
+    
+    if (chatInput) chatInput.focus();
+    
+    // Add welcome message
     addSystemMessage(`Welcome, ${myUsername}! Start chatting.`);
     
-    const chatInput = document.getElementById('chatInput');
-    if (chatInput) chatInput.focus();
+    // Demo: Simulate other users joining (remove in production)
+    setTimeout(() => {
+        addSystemMessage('User "ChatMaster" joined the chat');
+        updateOnlineCount(2);
+    }, 2000);
 }
 
 function updateOnlineCount(count) {
@@ -1499,12 +1684,38 @@ function sendMessage() {
     const messageInput = document.getElementById('chatInput');
     const text = messageInput?.value.trim();
     
-    if (!text || !socket) return;
+    if (!text) return;
     
-    socket.emit('message', { text: text });
+    // Add message to chat
+    addMessage({
+        from: myUsername,
+        text: text,
+        timestamp: new Date()
+    }, true);
+    
+    // Clear input
     messageInput.value = '';
     messageInput.focus();
+    
+    // Character reaction
     characterReactToMessage(true);
+    
+    // Demo: Simulate response (remove in production)
+    setTimeout(() => {
+        const responses = [
+            "Hello there! 👋",
+            "Nice to meet you!",
+            "How's everyone doing?",
+            "Great chat! 💬"
+        ];
+        const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+        
+        addMessage({
+            from: 'ChatBot',
+            text: randomResponse,
+            timestamp: new Date()
+        }, false);
+    }, 1000 + Math.random() * 2000);
 }
 
 function addMessage(msg, isSent) {
@@ -1551,7 +1762,10 @@ function showWinnerSelectionPanel() {
     
     winnerList.innerHTML = '';
     
-    onlineUsers.forEach(user => {
+    // Demo users (replace with actual online users)
+    const demoUsers = ['ChatMaster', 'GamePro', 'TechWizard', 'CodeNinja'];
+    
+    demoUsers.forEach(user => {
         if (user !== myUsername) {
             const winnerItem = document.createElement('div');
             winnerItem.className = `winner-item ${selectedWinners.includes(user) ? 'selected' : ''}`;
@@ -1609,9 +1823,8 @@ function announceSelectedWinners() {
 
     showWinnerAnnouncement(selectedWinners.join(', '));
     
-    if (socket) {
-        socket.emit('announce_winner', { winners: selectedWinners });
-    }
+    // Add winner announcement to chat
+    addSystemMessage(`🏆 WINNER${selectedWinners.length > 1 ? 'S' : ''}: ${selectedWinners.join(', ')}! 🎉`);
 
     selectedWinners = [];
     closeWinnerPanel();
