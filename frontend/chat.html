@@ -645,6 +645,34 @@
         text-shadow: 0 0 20px gold, 0 0 40px orange, 0 0 60px yellow;
     }
 }
+#bell {
+    font-size: 2rem;
+    cursor: pointer;
+    display: inline-block;
+    animation: gentleSwing 4s ease-in-out infinite;
+    background: linear-gradient(45deg, #ffd700, #ffed4e, #ffd700);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+#bell:hover {
+    animation: excitedRing 0.4s ease-in-out infinite;
+    filter: drop-shadow(0 0 20px gold);
+}
+
+@keyframes gentleSwing {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(5deg); }
+    75% { transform: rotate(-5deg); }
+}
+
+@keyframes excitedRing {
+    0%, 100% { transform: rotate(0deg) scale(1.2); }
+    25% { transform: rotate(-12deg) scale(1.2); }
+    75% { transform: rotate(12deg) scale(1.2); }
+}
     </style>
 <head>
     <!-- Your existing head content (title, styles, etc.) -->
