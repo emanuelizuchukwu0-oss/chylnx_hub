@@ -694,10 +694,10 @@
     75% { transform: rotate(12deg) scale(1.2); }
 }
 
-/* ===== FIXED ANIMATED CHARACTER STYLES ===== */
+/* ===== UPDATED BOSS BABY STYLE CHARACTER ===== */
 .animated-character {
     position: fixed;
-    z-index: 5; /* Lower than messages but above background */
+    z-index: 5;
     transition: all 1s ease-in-out;
     pointer-events: none;
     display: block !important;
@@ -706,44 +706,71 @@
 
 .character-body {
     position: relative;
-    width: 100px;
+    width: 120px; /* Slightly wider for bigger head */
     height: 160px;
     filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.3));
 }
 
+/* Big Head like Boss Baby */
 .character-head {
-    width: 60px;
-    height: 70px;
+    width: 80px; /* Bigger head */
+    height: 75px; /* Slightly shorter but wider */
     background: linear-gradient(135deg, #ffdbac 0%, #f1c27d 100%);
-    border-radius: 40% 40% 50% 50%;
-    margin: 0 auto 8px;
+    border-radius: 45% 45% 50% 50%; /* More rounded */
+    margin: 0 auto 5px; /* Less margin for bigger head */
     position: relative;
     border: 2px solid #e0a96d;
     box-shadow: inset -2px -2px 4px rgba(0,0,0,0.1);
+    overflow: hidden;
 }
 
-.character-face {
+/* Baseball Cap */
+.character-cap {
+    position: absolute;
+    top: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 70px;
+    height: 25px;
+    background: linear-gradient(135deg, #2c5aa0 0%, #1e3a8a 100%); /* Blue cap */
+    border-radius: 50% 50% 0 0;
+    z-index: 2;
+}
+
+.cap-bill {
     position: absolute;
     top: 15px;
     left: 50%;
     transform: translateX(-50%);
+    width: 60px;
+    height: 8px;
+    background: #1e3a8a;
+    border-radius: 4px;
+}
+
+.character-face {
+    position: absolute;
+    top: 20px; /* Adjusted for cap */
+    left: 50%;
+    transform: translateX(-50%);
     width: 80%;
-    height: 60%;
+    height: 50%;
 }
 
 .character-eyes {
     position: absolute;
-    top: 8px;
+    top: 5px;
     width: 100%;
     display: flex;
     justify-content: space-around;
-    padding: 0 5px;
+    padding: 0 8px;
     transition: transform 0.3s ease;
+    z-index: 3;
 }
 
 .eye {
-    width: 12px;
-    height: 12px;
+    width: 14px;
+    height: 14px;
     background: white;
     border-radius: 50%;
     position: relative;
@@ -755,84 +782,150 @@
 .eye::after {
     content: '';
     position: absolute;
-    width: 6px;
-    height: 6px;
+    width: 7px;
+    height: 7px;
     background: #333;
     border-radius: 50%;
-    top: 2px;
-    left: 2px;
+    top: 3px;
+    left: 3px;
     transition: all 0.2s ease;
+}
+
+/* Glasses */
+.character-glasses {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 50px;
+    height: 20px;
+    z-index: 4;
+}
+
+.glasses-frame {
+    position: absolute;
+    width: 45px;
+    height: 18px;
+    border: 2px solid #333;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.1);
+}
+
+.glasses-bridge {
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 6px;
+    height: 2px;
+    background: #333;
 }
 
 .character-mouth {
     position: absolute;
-    bottom: 5px;
+    bottom: 2px;
     left: 50%;
     transform: translateX(-50%);
-    width: 20px;
-    height: 8px;
+    width: 18px;
+    height: 6px;
     background: #e75480;
-    border-radius: 0 0 10px 10px;
+    border-radius: 0 0 8px 8px;
     transition: all 0.3s ease;
 }
 
+/* Nerdy Outfit - Button-up shirt and tie */
 .character-body-main {
-    width: 70px;
-    height: 60px;
-    background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
-    border-radius: 25px 25px 20px 20px;
+    width: 65px;
+    height: 55px;
+    background: linear-gradient(135deg, #4a86e8 0%, #3a76d8 100%); /* Blue shirt */
+    border-radius: 20px 20px 15px 15px;
     margin: 0 auto;
-    border: 2px solid #388E3C;
+    border: 2px solid #2c5aa0;
     position: relative;
     box-shadow: inset -2px -2px 4px rgba(0,0,0,0.2);
 }
 
-/* Arms - More realistic */
+/* Shirt Collar */
+.shirt-collar {
+    position: absolute;
+    top: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 40px;
+    height: 8px;
+    background: #4a86e8;
+    border-radius: 4px 4px 0 0;
+}
+
+/* Tie */
+.character-tie {
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 8px;
+    height: 25px;
+    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); /* Red tie */
+    border-radius: 0 0 4px 4px;
+}
+
+.tie-knot {
+    position: absolute;
+    top: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 12px;
+    height: 8px;
+    background: #c0392b;
+    border-radius: 50%;
+}
+
+/* Arms - Dress shirt sleeves */
 .character-arm {
     position: absolute;
-    width: 18px;
-    background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
-    border: 2px solid #388E3C;
-    border-radius: 12px;
+    width: 16px;
+    background: linear-gradient(135deg, #4a86e8 0%, #3a76d8 100%);
+    border: 2px solid #2c5aa0;
+    border-radius: 10px;
     transition: all 0.5s ease;
     transform-origin: top center;
     box-shadow: inset -1px -1px 2px rgba(0,0,0,0.1);
 }
 
 .left-arm {
-    height: 50px;
-    top: 45px;
-    left: -8px;
-    transform: rotate(-20deg);
+    height: 45px;
+    top: 40px;
+    left: -6px;
+    transform: rotate(-25deg);
 }
 
 .right-arm {
-    height: 50px;
-    top: 45px;
-    right: -8px;
-    transform: rotate(20deg);
+    height: 45px;
+    top: 40px;
+    right: -6px;
+    transform: rotate(25deg);
 }
 
-/* Legs - More realistic */
+/* Legs - Dress pants */
 .character-leg {
     position: absolute;
-    width: 20px;
-    background: linear-gradient(135deg, #2E7D32 0%, #1B5E20 100%);
-    border: 2px solid #1B5E20;
-    border-radius: 8px 8px 12px 12px;
-    bottom: -40px;
+    width: 18px;
+    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); /* Dark pants */
+    border: 2px solid #2c3e50;
+    border-radius: 6px 6px 10px 10px;
+    bottom: -35px;
     transform-origin: top center;
     box-shadow: inset 0 -2px 4px rgba(0,0,0,0.3);
 }
 
 .left-leg {
-    height: 40px;
-    left: 18px;
+    height: 35px;
+    left: 16px;
 }
 
 .right-leg {
-    height: 40px;
-    right: 18px;
+    height: 35px;
+    right: 16px;
 }
 
 /* Speech Bubble */
@@ -852,7 +945,7 @@
     transition: all 0.5s ease;
     pointer-events: none;
     border: 2px solid #25D366;
-    z-index: 10001; /* Keep speech bubble above everything */
+    z-index: 10001;
 }
 
 .animated-character.username-guide .speech-bubble {
@@ -886,6 +979,9 @@
     left: 50%;
     transform: translateX(-50%);
 }
+
+/* Keep all the existing animations and responsive styles exactly the same */
+/* ... (all the existing animations and responsive CSS remain unchanged) ... */
 
 /* Character Animations */
 @keyframes gentleSway {
@@ -1409,28 +1505,43 @@ html, body {
         <button id="sendBtn" disabled>➤</button>
     </div>
 
-    <!-- Animated Character - REMOVED display: none -->
-    <div class="animated-character username-guide" id="animatedCharacter">
-        <div class="character-body">
-            <div class="character-head">
-                <div class="character-face">
-                    <div class="character-eyes">
-                        <div class="eye left-eye"></div>
-                        <div class="eye right-eye"></div>
-                    </div>
-                    <div class="character-mouth"></div>
-                </div>
+    <!-- Updated Boss Baby Style Character -->
+<div class="animated-character username-guide" id="animatedCharacter">
+    <div class="character-body">
+        <div class="character-head">
+            <!-- Baseball Cap -->
+            <div class="character-cap">
+                <div class="cap-bill"></div>
             </div>
-            <div class="character-body-main"></div>
-            <div class="character-arm left-arm"></div>
-            <div class="character-arm right-arm"></div>
-            <div class="character-leg left-leg"></div>
-            <div class="character-leg right-leg"></div>
+            <div class="character-face">
+                <!-- Glasses -->
+                <div class="character-glasses">
+                    <div class="glasses-frame"></div>
+                    <div class="glasses-bridge"></div>
+                </div>
+                <div class="character-eyes">
+                    <div class="eye left-eye"></div>
+                    <div class="eye right-eye"></div>
+                </div>
+                <div class="character-mouth"></div>
+            </div>
         </div>
-        <div class="speech-bubble show" id="speechBubble">
-            INPUT A COOL USERNAME! 🎮
+        <!-- Nerdy Outfit with Shirt and Tie -->
+        <div class="character-body-main">
+            <div class="shirt-collar"></div>
+            <div class="character-tie">
+                <div class="tie-knot"></div>
+            </div>
         </div>
+        <div class="character-arm left-arm"></div>
+        <div class="character-arm right-arm"></div>
+        <div class="character-leg left-leg"></div>
+        <div class="character-leg right-leg"></div>
     </div>
+    <div class="speech-bubble show" id="speechBubble">
+        INPUT A COOL USERNAME! 🎮
+    </div>
+</div>
 
     <!-- Winner Modal -->
     <div id="winnerModal">
