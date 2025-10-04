@@ -1524,16 +1524,19 @@ function initializeChat() {
 
     socket.on('user_joined', function(data) {
         addSystemMessage(`🎉 ${data.username} joined the chat!`);
-        updateOnlineUsers(data.onlineUsers);
+        // Update online count from the connected users count
+        updateOnlineCount(Object.keys(data.online_users || {}).length);
     });
 
     socket.on('user_left', function(data) {
         addSystemMessage(`👋 ${data.username} left the chat`);
-        updateOnlineUsers(data.onlineUsers);
+        // Update online count from the connected users count
+        updateOnlineCount(Object.keys(data.online_users || {}).length);
     });
 
-    socket.on('online_users_update', function(data) {
-        updateOnlineUsers(data.onlineUsers);
+    socket.on('user_count_update', function(data) {
+        // This event directly gives us the count
+        updateOnlineCount(data.count);
     });
 
     socket.on('chat_history', function(history) {
@@ -1576,21 +1579,12 @@ function initializeChat() {
     // Add welcome message
     addSystemMessage(`Welcome, ${myUsername}! Start chatting.`);
 }
-function updateOnlineUsers(users) {
-    onlineUsers = users;
-    updateOnlineCount(onlineUsers.length);
-    
-    // Update winner selection panel if open
-    const panel = document.getElementById('winnerSelectionPanel');
-    if (panel && panel.style.display === 'block') {
-        showWinnerSelectionPanel();
-    }
-}
 
 function updateOnlineCount(count) {
     const onlineCountElement = document.getElementById('onlineCount');
     if (onlineCountElement) {
         onlineCountElement.textContent = count + ' online';
+        console.log('👥 Online users updated:', count);
     }
 }
 
@@ -1602,9 +1596,7 @@ function sendMessage() {
     
     // Send message via socket
     socket.emit('message', { 
-        text: text,
-        from: myUsername,
-        timestamp: new Date()
+        text: text
     });
     
     // Clear input
@@ -1660,7 +1652,8 @@ function showWinnerSelectionPanel() {
     winnerList.innerHTML = '';
     
     // Use actual online users (excluding current user)
-    onlineUsers.forEach(user => {
+    const onlineUsernames = Object.keys(onlineUsers);
+    onlineUsernames.forEach(user => {
         if (user !== myUsername) {
             const winnerItem = document.createElement('div');
             winnerItem.className = `winner-item ${selectedWinners.includes(user) ? 'selected' : ''}`;
