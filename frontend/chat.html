@@ -851,12 +851,15 @@
     transform: translateX(-50%);
 }
 
+/* Remove duplicate animated character styles and keep only this version: */
+
 /* Animated Character Styles */
 .animated-character {
     position: fixed;
     z-index: 10000;
     transition: all 1s ease-in-out;
     pointer-events: none;
+    display: block;
 }
 
 /* Username Screen Position */
@@ -868,7 +871,7 @@
 
 /* Chat Screen Position */
 .animated-character.chat-guide {
-    bottom: 20px;
+    bottom: 100px;
     left: 50%;
     transform: translateX(-50%) scale(0.7);
 }
@@ -1141,59 +1144,6 @@
     opacity: 1;
     transform: translateY(0);
 }
-
-/* Winner Announcement Overlay */
-.winner-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0,0,0,0.8);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 10000;
-}
-
-.winner-announcement {
-    background: linear-gradient(135deg, #ffd700, #ffed4e);
-    padding: 30px;
-    border-radius: 15px;
-    text-align: center;
-    box-shadow: 0 0 50px gold;
-    border: 3px solid gold;
-    animation: pulse 1s infinite;
-}
-
-.winner-announcement h2 {
-    color: #333;
-    margin-bottom: 15px;
-    font-size: 2rem;
-}
-
-.winner-name {
-    font-size: 1.5rem;
-    color: #333;
-    margin-bottom: 20px;
-    font-weight: bold;
-}
-
-.winner-announcement button {
-    background: #333;
-    color: gold;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 1rem;
-    font-weight: bold;
-}
-
-@keyframes pulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-}
     </style>
 <head>
     <!-- Your existing head content (title, styles, etc.) -->
@@ -1235,6 +1185,28 @@
         <div class="header-actions">
         <span id="bell" title="Announce Winner">🔔</span>
     </div>
+    <!-- Place this RIGHT BEFORE the closing </body> tag -->
+<!-- Animated Character -->
+<div class="animated-character" id="animatedCharacter" style="display: none;">
+    <div class="character-body">
+        <div class="character-head">
+            <div class="character-eyes">
+                <div class="eye left-eye"></div>
+                <div class="eye right-eye"></div>
+            </div>
+        </div>
+        <div class="character-body-main"></div>
+        <div class="character-arm left-arm"></div>
+        <div class="character-arm right-arm"></div>
+        <div class="character-leg left-leg"></div>
+        <div class="character-leg right-leg"></div>
+    </div>
+    <div class="speech-bubble" id="speechBubble">
+        Enter your username to start chatting!
+    </div>
+</div>
+
+<!-- Remove any duplicate animated character elements -->
 </header>
 
 
@@ -1269,37 +1241,6 @@
             <p id="announcedWinnerName" style="font-size: clamp(24px, 6vw, 32px); color: #000; font-weight: bold;"></p>
             <p style="margin-top: 20px; font-size: clamp(14px, 3vw, 18px);">This announcement will close automatically</p>
         </div>
-        <!-- Animated Character -->
-<div class="animated-character" id="animatedCharacter">
-    <div class="character-body">
-        <div class="character-head"></div>
-        <div class="character-body-main"></div>
-        <div class="character-arm left-arm"></div>
-        <div class="character-arm right-arm"></div>
-        <div class="character-leg left-leg"></div>
-        <div class="character-leg right-leg"></div>
-        <div class="character-eyes">
-            <div class="eye left-eye"></div>
-            <div class="eye right-eye"></div>
-        </div>
-    </div>
-    <div class="speech-bubble" id="speechBubble">
-        Enter your username to start chatting!
-    </div>
-</div>
-
-<!-- Winner Announcement Overlay -->
-<div id="winnerAnnouncementOverlay" class="winner-overlay" style="display: none;">
-    <div class="winner-announcement">
-        <h2>🎉 WINNER ANNOUNCED! 🎉</h2>
-        <div class="winner-name">
-            Congratulations to: <span id="announcedWinnerName"></span>
-        </div>
-        <button onclick="document.getElementById('winnerAnnouncementOverlay').style.display='none'">
-            OK
-        </button>
-    </div>
-</div>
     </div>
 
    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
@@ -1343,9 +1284,7 @@ function initApp() {
     if (usernameInput) usernameInput.focus();
     
     console.log('✅ App initialized successfully');
-}
-
-// Character Functions
+}// Character Functions
 function initializeCharacter() {
     const character = document.getElementById('animatedCharacter');
     if (!character) {
@@ -1353,12 +1292,16 @@ function initializeCharacter() {
         return;
     }
     
+    // Make sure character is visible
+    character.style.display = 'block';
     showUsernameGuide();
     
     // Show speech bubble after a delay
     setTimeout(() => {
         const speechBubble = document.getElementById('speechBubble');
-        if (speechBubble) speechBubble.classList.add('show');
+        if (speechBubble) {
+            speechBubble.classList.add('show');
+        }
     }, 1000);
 }
 
@@ -1370,9 +1313,11 @@ function showUsernameGuide() {
     
     characterState = 'username';
     character.className = 'animated-character username-guide';
+    character.style.display = 'block';
     
     if (speechBubble) {
         speechBubble.textContent = 'Enter your username to start chatting!';
+        speechBubble.classList.remove('show');
         setTimeout(() => speechBubble.classList.add('show'), 500);
     }
 }
@@ -1383,8 +1328,14 @@ function showChatGuide() {
     
     if (!character) return;
     
+    // Start walking animation
     character.classList.add('walking');
     character.style.transition = 'all 2s ease-in-out';
+    
+    // Move character to chat position
+    character.style.bottom = '100px';
+    character.style.left = '50%';
+    character.style.transform = 'translateX(-50%) scale(0.7)';
     
     setTimeout(() => {
         character.classList.remove('walking');
@@ -1393,9 +1344,13 @@ function showChatGuide() {
         
         if (speechBubble) {
             speechBubble.textContent = 'Welcome to the chat! Start typing.';
+            speechBubble.classList.remove('show');
             setTimeout(() => speechBubble.classList.add('show'), 1000);
             
-            setTimeout(() => speechBubble.classList.remove('show'), 5000);
+            // Hide speech bubble after 5 seconds
+            setTimeout(() => {
+                speechBubble.classList.remove('show');
+            }, 5000);
         }
         
         initializeChatCharacter();
@@ -1403,11 +1358,12 @@ function showChatGuide() {
 }
 
 function initializeChatCharacter() {
-    const chatContainer = document.querySelector('.chat-container') || document.getElementById('chatContainer');
+    const chatContainer = document.getElementById('chatContainer');
     const character = document.getElementById('animatedCharacter');
     
     if (!chatContainer || !character) return;
     
+    // Add mouse move effect for eyes
     chatContainer.addEventListener('mousemove', (e) => {
         if (characterState !== 'chat') return;
         
@@ -1426,22 +1382,38 @@ function characterReactToMessage(isMyMessage) {
     
     const character = document.getElementById('animatedCharacter');
     const rightArm = character?.querySelector('.right-arm');
+    const speechBubble = document.getElementById('speechBubble');
     
     if (!character || !rightArm) return;
     
     if (isMyMessage) {
+        // Wave arm when sending message
         rightArm.style.transform = 'rotate(120deg)';
+        if (speechBubble) {
+            speechBubble.textContent = 'Message sent!';
+            speechBubble.classList.add('show');
+        }
         setTimeout(() => {
             rightArm.style.transform = 'rotate(-45deg)';
+            setTimeout(() => {
+                if (speechBubble) speechBubble.classList.remove('show');
+            }, 2000);
         }, 1000);
     } else {
+        // Nod when receiving message
         character.style.animation = 'nod 1s ease-in-out';
+        if (speechBubble) {
+            speechBubble.textContent = 'New message!';
+            speechBubble.classList.add('show');
+        }
         setTimeout(() => {
             character.style.animation = 'breathing 4s ease-in-out infinite';
+            setTimeout(() => {
+                if (speechBubble) speechBubble.classList.remove('show');
+            }, 2000);
         }, 1000);
     }
 }
-
 // Username and Chat Functions
 function setUsername() {
     const usernameInput = document.getElementById('usernameInput');
