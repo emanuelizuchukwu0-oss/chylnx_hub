@@ -1049,23 +1049,24 @@
 </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
-    <script>
+   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<script>
 let myUsername = "";
 let socket = null;
 let selectedWinners = [];
 let onlineUsers = [];
-let isGameStarted = false; // Track if game has started
+let isGameStarted = false;
+let characterState = 'username'; // Track character state
 const ANNOUNCE_PASSCODE = "1234";
 
-// Initialize app - UPDATE THIS FUNCTION
+// Initialize app
 function initApp() {
-    // ✅ FIXED: Proper event listeners
+    console.log('🚀 Initializing app...');
+    
+    // Event listeners
     document.getElementById('sendBtn').addEventListener('click', sendMessage);
     document.getElementById('chatInput').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            sendMessage();
-        }
+        if (e.key === 'Enter') sendMessage();
     });
     
     document.getElementById('bell').addEventListener('click', showWinnerSelectionPanel);
@@ -1080,16 +1081,174 @@ function initApp() {
     // Focus on username input
     document.getElementById('usernameInput').focus();
     
+    // Initialize character
+    initializeCharacter();
+    
     console.log('✅ App initialized successfully');
 }
-// Check timer status from server (ONLY checks original game timer)
+
+// Animated Character Functions
+function initializeCharacter() {
+    const character = document.getElementById('animatedCharacter');
+    const speechBubble = document.getElementById('speechBubble');
+    
+    if (!character) {
+        console.log('⚠️ Character element not found');
+        return;
+    }
+    
+    // Start with username guide
+    showUsernameGuide();
+    
+    // Show speech bubble after a delay
+    setTimeout(() => {
+        if (speechBubble) speechBubble.classList.add('show');
+    }, 1000);
+    
+    // Hide speech bubble when user starts typing username
+    const usernameInput = document.getElementById('usernameInput');
+    if (usernameInput) {
+        usernameInput.addEventListener('focus', () => {
+            if (speechBubble) speechBubble.classList.remove('show');
+        });
+        
+        usernameInput.addEventListener('blur', () => {
+            if (!usernameInput.value && speechBubble) {
+                setTimeout(() => {
+                    speechBubble.classList.add('show');
+                }, 500);
+            }
+        });
+    }
+}
+
+function showUsernameGuide() {
+    const character = document.getElementById('animatedCharacter');
+    const speechBubble = document.getElementById('speechBubble');
+    
+    if (!character) return;
+    
+    characterState = 'username';
+    character.className = 'animated-character username-guide';
+    if (speechBubble) {
+        speechBubble.textContent = 'Enter your username to start chatting!';
+        speechBubble.classList.add('show');
+    }
+    
+    // Point to username input
+    pointToUsernameInput();
+}
+
+function showChatGuide() {
+    const character = document.getElementById('animatedCharacter');
+    const speechBubble = document.getElementById('speechBubble');
+    
+    if (!character) return;
+    
+    // First, walk to new position
+    character.classList.add('walking');
+    character.style.transition = 'all 2s ease-in-out';
+    character.className = 'animated-character walking';
+    
+    // Move to chat position
+    setTimeout(() => {
+        character.classList.remove('walking');
+        characterState = 'chat';
+        character.className = 'animated-character chat-guide';
+        
+        // Update speech bubble
+        if (speechBubble) {
+            speechBubble.textContent = 'Welcome to the chat! Start typing to join the conversation.';
+            setTimeout(() => {
+                speechBubble.classList.add('show');
+            }, 1000);
+            
+            // Hide speech bubble after 5 seconds
+            setTimeout(() => {
+                speechBubble.classList.remove('show');
+            }, 5000);
+        }
+        
+        // Initialize chat character interactions
+        initializeChatCharacter();
+    }, 2000);
+}
+
+function pointToUsernameInput() {
+    const character = document.getElementById('animatedCharacter');
+    const usernameInput = document.getElementById('usernameInput');
+    
+    if (!character || !usernameInput) return;
+    
+    // Position character to point at input
+    character.style.right = 'auto';
+    character.style.left = '60%';
+    character.style.top = '40%';
+}
+
+function initializeChatCharacter() {
+    const chatContainer = document.querySelector('.chat-container') || document.getElementById('chatContainer');
+    const character = document.getElementById('animatedCharacter');
+    
+    if (!chatContainer || !character) return;
+    
+    chatContainer.addEventListener('mousemove', (e) => {
+        if (characterState !== 'chat') return;
+        
+        const rect = chatContainer.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        
+        // Make character look towards mouse
+        const characterRect = character.getBoundingClientRect();
+        const characterX = characterRect.left + characterRect.width / 2;
+        const characterY = characterRect.top + characterRect.height / 2;
+        
+        const deltaX = mouseX - characterX;
+        
+        // Update eyes to look at mouse
+        const eyes = character.querySelector('.character-eyes');
+        if (eyes) {
+            eyes.style.transform = `translateX(${Math.min(Math.max(deltaX / 50, -10), 10)}px)`;
+        }
+    });
+}
+
+function characterReactToMessage(isMyMessage) {
+    if (characterState !== 'chat') return;
+    
+    const character = document.getElementById('animatedCharacter');
+    const rightArm = character?.querySelector('.right-arm');
+    
+    if (!character || !rightArm) return;
+    
+    if (isMyMessage) {
+        // Wave when user sends message
+        rightArm.style.animation = 'none';
+        rightArm.style.transform = 'rotate(120deg)';
+        
+        setTimeout(() => {
+            rightArm.style.animation = '';
+            rightArm.style.transform = '';
+        }, 1000);
+    } else {
+        // Nod when others send messages
+        character.style.animation = 'none';
+        void character.offsetWidth; // Trigger reflow
+        character.style.animation = 'breathing 4s ease-in-out infinite, nod 1s ease-in-out';
+        
+        setTimeout(() => {
+            character.style.animation = 'breathing 4s ease-in-out infinite';
+        }, 1000);
+    }
+}
+
+// Timer Functions
 function checkTimerStatus() {
-    // Create a temporary socket connection to check timer status
     const tempSocket = io();
     
     tempSocket.on('connect', function() {
         console.log('⏰ Checking game timer status...');
-        // Request current game timer state (NOT weekly challenge)
         tempSocket.emit('get_timer');
     });
     
@@ -1097,15 +1256,11 @@ function checkTimerStatus() {
         console.log('📡 Game timer status received:', data);
         
         if (data.is_running && data.remaining_seconds > 0) {
-            // Game timer is still running - block username entry
             showTimerBlockMessage(data.remaining_seconds);
         } else {
-            // Game timer has stopped - allow username entry
             isGameStarted = true;
             enableUsernameEntry();
         }
-        
-        // Close temporary connection
         tempSocket.disconnect();
     });
     
@@ -1116,15 +1271,13 @@ function checkTimerStatus() {
         tempSocket.disconnect();
     });
     
-    // Handle connection errors
     tempSocket.on('connect_error', function(error) {
         console.error('❌ Connection error:', error);
-        // If we can't connect to timer, assume game has started
         isGameStarted = true;
         enableUsernameEntry();
     });
 }
-// Show message when timer is still running
+
 function showTimerBlockMessage(remainingSeconds) {
     const usernameForm = document.getElementById('usernameForm');
     const minutes = Math.floor(remainingSeconds / 60);
@@ -1152,7 +1305,6 @@ function showTimerBlockMessage(remainingSeconds) {
     `;
 }
 
-// Enable username entry when game starts
 function enableUsernameEntry() {
     const usernameForm = document.getElementById('usernameForm');
     usernameForm.innerHTML = `
@@ -1170,50 +1322,61 @@ function enableUsernameEntry() {
     });
     
     document.getElementById('usernameInput').focus();
+    
+    // Show character guide
+    showUsernameGuide();
 }
 
-// Set username
+// Username and Chat Functions
 function setUsername() {
-    if (!isGameStarted) {
-        alert("Please wait for the game to start before joining the chat.");
+    const usernameInput = document.getElementById('usernameInput');
+    const username = usernameInput.value.trim();
+    
+    if (!username) {
+        alert('Please enter a username');
         return;
     }
     
-    const usernameInput = document.getElementById('usernameInput');
-    const username = usernameInput.value.trim();
-    if (!username) return alert("Please enter a username");
-
     myUsername = username;
     document.getElementById('usernameOverlay').style.display = 'none';
+    
+    // Move character to chat position
+    showChatGuide();
+    
+    // Initialize chat
     initializeChat();
 }
 
-// ✅ FIXED: Initialize Socket.IO chat with user join/leave support
 function initializeChat() {
-    document.getElementById('chatInput').disabled = false;
-    document.getElementById('sendBtn').disabled = false;
+    const chatInput = document.getElementById('chatInput');
+    const sendBtn = document.getElementById('sendBtn');
+    
+    if (chatInput) chatInput.disabled = false;
+    if (sendBtn) sendBtn.disabled = false;
 
-    socket = io(); // connect to server    
+    socket = io();
 
     // Debug connection
     socket.on('connect', function() {
         console.log('✅ Connected to server with SID:', socket.id);
         console.log('👤 My username:', myUsername);
+        
+        // Join chat after connection
+        console.log('📤 Emitting join_chat for user:', myUsername);
+        socket.emit('join_chat', { username: myUsername });
     });
-
-    // Join chat
-    console.log('📤 Emitting join_chat for user:', myUsername);
-    socket.emit('join_chat', { username: myUsername });
 
     // Receive chat history
     socket.on('chat_history', function(history) {
         console.log('📜 Received chat history with', history.length, 'messages');
         const chatWindow = document.getElementById('chatWindow');
-        chatWindow.innerHTML = '<div class="system-msg">Welcome to the chat!</div>';
-        history.forEach(msg => {
-            const isSent = msg.from === myUsername;
-            addMessage(msg, isSent);
-        });
+        if (chatWindow) {
+            chatWindow.innerHTML = '<div class="system-msg">Welcome to the chat!</div>';
+            history.forEach(msg => {
+                const isSent = msg.from === myUsername;
+                addMessage(msg, isSent);
+            });
+        }
     });
 
     // Listen for new messages
@@ -1221,32 +1384,44 @@ function initializeChat() {
         console.log('📨 Received new message from:', data.from);
         const isSent = data.from === myUsername;
         addMessage(data, isSent);
+        
+        // Character reaction to others' messages
+        if (!isSent) {
+            characterReactToMessage(false);
+        }
     });
 
-    // ✅ NEW: Listen for user join events
+    // User join/leave events
     socket.on('user_joined', function(data) {
         console.log('👋 User joined:', data.username);
         addSystemMessage(`${data.username} joined the chat`);
-        document.getElementById('onlineCount').textContent = data.online_count + ' online';
+        updateOnlineCount(data.online_count);
+        onlineUsers = data.online_users || [];
     });
 
-    // ✅ NEW: Listen for user leave events  
     socket.on('user_left', function(data) {
         console.log('👋 User left:', data.username);
         addSystemMessage(`${data.username} left the chat`);
-        document.getElementById('onlineCount').textContent = data.online_count + ' online';
+        updateOnlineCount(data.online_count);
     });
 
     // Online count
     socket.on('user_count_update', function(data) {
-        document.getElementById('onlineCount').textContent = data.count + ' online';
-        console.log('👥 Online users count:', data.count);
+        updateOnlineCount(data.count);
+        onlineUsers = data.online_users || [];
     });
 
-    // Add error handling
+    // Error handling
     socket.on('message_error', function(data) {
         console.error('❌ Message error:', data.error);
-        alert('Failed to send message: ' + data.error);
+        if (data.error.includes('already taken')) {
+            document.getElementById('usernameOverlay').style.display = 'flex';
+            alert('Username already taken. Please choose another name.');
+            document.getElementById('usernameInput').value = '';
+            document.getElementById('usernameInput').focus();
+        } else {
+            alert('Failed to send message: ' + data.error);
+        }
     });
 
     // Winner announcements
@@ -1257,20 +1432,106 @@ function initializeChat() {
         addSystemMessage(`🏆 WINNER ANNOUNCEMENT: ${winners}! Congratulations! 🎉`);
     });
 
+    // Connection error handling
+    socket.on('connect_error', function(error) {
+        console.error('❌ Connection error:', error);
+        addSystemMessage('Connection error - trying to reconnect...');
+    });
+
+    socket.on('reconnect', function() {
+        console.log('✅ Reconnected to server');
+        addSystemMessage('Reconnected to chat server');
+        if (myUsername) {
+            socket.emit('join_chat', { username: myUsername });
+        }
+    });
+
     addSystemMessage(`Welcome, ${myUsername}! You can start chatting now.`);
     
     // Focus on chat input
-    document.getElementById('chatInput').focus();
+    if (chatInput) chatInput.focus();
 }
-// Show winner selection panel
+
+function updateOnlineCount(count) {
+    const onlineCountElement = document.getElementById('onlineCount');
+    if (onlineCountElement) {
+        onlineCountElement.textContent = count + ' online';
+    }
+}
+
+function sendMessage() {
+    const messageInput = document.getElementById('chatInput');
+    const text = messageInput?.value.trim();
+    
+    if (!text || !socket) {
+        return;
+    }
+    
+    socket.emit('message', { text: text });
+    messageInput.value = '';
+    messageInput.focus();
+    
+    // Character reaction to own message
+    characterReactToMessage(true);
+}
+
+function addMessage(msg, isSent) {
+    const chatWindow = document.getElementById('chatWindow');
+    if (!chatWindow) return;
+
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${isSent ? 'sent' : 'received'}`;
+
+    const time = new Date(msg.timestamp).toLocaleTimeString([], { 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        hour12: true 
+    });
+
+    const isSelected = selectedWinners.includes(msg.from);
+
+    messageDiv.innerHTML = `
+        ${!isSent ? `<div class="sender-name ${isSelected ? 'username-selected' : ''}" onclick="toggleUserSelection('${msg.from.replace(/'/g, "\\'")}')">${msg.from}</div>` : ''}
+        <div class="message-content">${escapeHtml(msg.text)}</div>
+        <div class="message-time">${time}</div>
+    `;
+
+    chatWindow.appendChild(messageDiv);
+    chatWindow.scrollTop = chatWindow.scrollHeight;
+}
+
+function escapeHtml(unsafe) {
+    return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+function addSystemMessage(text) {
+    const chatWindow = document.getElementById('chatWindow');
+    if (!chatWindow) return;
+
+    const div = document.createElement('div');
+    div.className = 'system-msg';
+    div.textContent = text;
+    chatWindow.appendChild(div);
+    chatWindow.scrollTop = chatWindow.scrollHeight;
+    console.log('💬 System message:', text);
+}
+
+// Winner Selection Functions
 function showWinnerSelectionPanel() {
     const panel = document.getElementById('winnerSelectionPanel');
     const winnerList = document.getElementById('winnerList');
     
+    if (!panel || !winnerList) return;
+    
     // Populate winner list
     winnerList.innerHTML = '';
     
-    // Add current online users (you might want to get this from a socket event)
+    // Add current online users
     onlineUsers.forEach(user => {
         if (user !== myUsername) {
             const winnerItem = document.createElement('div');
@@ -1301,12 +1562,11 @@ function showWinnerSelectionPanel() {
     panel.style.display = 'block';
 }
 
-// Close winner selection panel
 function closeWinnerPanel() {
-    document.getElementById('winnerSelectionPanel').style.display = 'none';
+    const panel = document.getElementById('winnerSelectionPanel');
+    if (panel) panel.style.display = 'none';
 }
 
-// Toggle winner selection
 function toggleWinnerSelection(username, isSelected) {
     if (isSelected) {
         if (!selectedWinners.includes(username)) {
@@ -1316,18 +1576,31 @@ function toggleWinnerSelection(username, isSelected) {
         selectedWinners = selectedWinners.filter(user => user !== username);
     }
     
-    // Update UI
     updateSelectedCount();
     highlightSelectedUsers();
 }
 
-// Update selected count display
-function updateSelectedCount() {
-    const countElement = document.getElementById('selectedCount');
-    countElement.textContent = selectedWinners.length;
+function toggleUserSelection(username) {
+    if (username === myUsername) return;
+    
+    const isSelected = selectedWinners.includes(username);
+    if (isSelected) {
+        selectedWinners = selectedWinners.filter(user => user !== username);
+    } else {
+        selectedWinners.push(username);
+    }
+    
+    highlightSelectedUsers();
+    updateSelectedCount();
 }
 
-// Highlight selected users in chat
+function updateSelectedCount() {
+    const countElement = document.getElementById('selectedCount');
+    if (countElement) {
+        countElement.textContent = selectedWinners.length;
+    }
+}
+
 function highlightSelectedUsers() {
     // Remove all highlights first
     document.querySelectorAll('.sender-name').forEach(name => {
@@ -1344,7 +1617,6 @@ function highlightSelectedUsers() {
     });
 }
 
-// Announce selected winners
 function announceSelectedWinners() {
     if (selectedWinners.length === 0) {
         alert("Please select at least one winner!");
@@ -1361,7 +1633,9 @@ function announceSelectedWinners() {
     showWinnerAnnouncement(selectedWinners.join(', '));
     
     // Emit to server (broadcast to all users)
-    socket.emit('announce_winner', { winners: selectedWinners });
+    if (socket) {
+        socket.emit('announce_winner', { winners: selectedWinners });
+    }
 
     // Clear selection
     selectedWinners = [];
@@ -1369,401 +1643,40 @@ function announceSelectedWinners() {
     highlightSelectedUsers();
 }
 
-// Handle Enter key in input
-function handleKeyPress(e) {
-    if (e.key === 'Enter') sendMessage();
-}
-
-// ✅ FIXED: Send message function - REPLACE YOUR FUNCTION
-function sendMessage() {
-    const messageInput = document.getElementById('chatInput');
-    const text = messageInput.value.trim();
-    
-    console.log('📤 Attempting to send message:', text);
-    
-    if (text && socket) {
-        console.log('📤 Emitting message event to server');
-        socket.emit('message', {
-            text: text
-        });
-        messageInput.value = ''; // Clear input
-        messageInput.focus(); // Keep focus on input
-    } else {
-        console.error('❌ Cannot send message: no text or socket not connected');
-        if (!text) alert('Please enter a message');
-    }
-}
-/// ✅ Make sure this function exists and works
-function addMessage(msg, isSent) {
-    const chatWindow = document.getElementById('chatWindow');
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${isSent ? 'sent' : 'received'}`;
-
-    const time = new Date(msg.timestamp).toLocaleTimeString([], { 
-        hour: '2-digit', 
-        minute: '2-digit', 
-        hour12: true 
-    });
-
-    const isSelected = selectedWinners.includes(msg.from);
-
-    messageDiv.innerHTML = `
-        ${!isSent ? `<div class="sender-name ${isSelected ? 'username-selected' : ''}" onclick="toggleUserSelection('${msg.from}')">${msg.from}</div>` : ''}
-        <div class="message-content">${msg.text}</div>
-        <div class="message-time">${time}</div>
-    `;
-
-    chatWindow.appendChild(messageDiv);
-    chatWindow.scrollTop = chatWindow.scrollHeight;
-    
-    console.log('✅ Message added to chat:', msg.text);
-}
-// Toggle user selection when clicking on username in chat
-function toggleUserSelection(username) {
-    if (username === myUsername) return;
-    
-    const isSelected = selectedWinners.includes(username);
-    if (isSelected) {
-        selectedWinners = selectedWinners.filter(user => user !== username);
-    } else {
-        selectedWinners.push(username);
-    }
-    
-    highlightSelectedUsers();
-    updateSelectedCount();
-}
-
-// ✅ FIXED: System messages function
-function addSystemMessage(text) {
-    const chatWindow = document.getElementById('chatWindow');
-    const div = document.createElement('div');
-    div.className = 'system-msg';
-    div.textContent = text;
-    chatWindow.appendChild(div);
-    chatWindow.scrollTop = chatWindow.scrollHeight;
-    console.log('💬 System message:', text);
-}
-
-// New function to show winner announcement overlay
 function showWinnerAnnouncement(usernames) {
     const overlay = document.getElementById('winnerAnnouncementOverlay');
     const winnerNameElement = document.getElementById('announcedWinnerName');
     
-    winnerNameElement.textContent = usernames;
-    overlay.style.display = 'flex';
-    
-    // Auto-close after 10 seconds
-    setTimeout(() => {
-        overlay.style.display = 'none';
-    }, 10000);
+    if (overlay && winnerNameElement) {
+        winnerNameElement.textContent = usernames;
+        overlay.style.display = 'flex';
+        
+        // Auto-close after 10 seconds
+        setTimeout(() => {
+            overlay.style.display = 'none';
+        }, 10000);
+    }
 }
 
-window.addEventListener('DOMContentLoaded', initApp);
-// Add debug listeners
-socket.on('new_message', function(data) {
-    console.log('📨 Received new message:', data);
-    addMessageToChat(data);
-});
-
-socket.on('message_error', function(data) {
-    console.error('❌ Message error:', data.error);
-    alert('Failed to send message: ' + data.error);
-});
-
-socket.on('connect', function() {
-    console.log('✅ Connected to server');
-});
-
-socket.on('disconnect', function() {
-    console.log('❌ Disconnected from server');
-});
-
-// In initializeChat() function, REPLACE the conflicting message listeners with:
-socket.on('new_message', function(data) {
-    console.log('📨 Received new message:', data);
-    const isSent = data.from === myUsername;
-    addMessage(data, isSent);
-});
-
-socket.on('message_error', function(data) {
-    console.error('❌ Message error:', data.error);
-    alert('Failed to send message: ' + data.error);
-});
-// Add connection error handling
-socket.on('connect_error', function(error) {
-    console.error('❌ Connection error:', error);
-    addSystemMessage('Connection error - trying to reconnect...');
-});
-
-socket.on('reconnect', function() {
-    console.log('✅ Reconnected to server');
-    addSystemMessage('Reconnected to chat server');
-    // Re-join chat after reconnection
-    if (myUsername) {
-        socket.emit('join_chat', { username: myUsername });
-    }
-});
-// Bell interaction
+// Bell animation
 document.addEventListener('DOMContentLoaded', function() {
     const bell = document.getElementById('bell');
     
     if (bell) {
-        // Click to announce winner
         bell.addEventListener('click', function() {
             // Add intense animation on click
             bell.style.animation = 'ringBell 0.2s ease-in-out 5, glow 0.5s ease-in-out 3';
-            
-            // Announce winner (you can connect this to your backend)
-            announceWinner();
             
             // Reset animation after click effect
             setTimeout(() => {
                 bell.style.animation = '';
             }, 2000);
         });
-        
-        // Add notification pulse when there's a new winner
-        function notifyNewWinner() {
-            bell.classList.add('has-notification');
-            setTimeout(() => {
-                bell.classList.remove('has-notification');
-            }, 5000);
-        }
-        
-        // Example: Simulate new winner notification
-        // setTimeout(notifyNewWinner, 3000);
     }
 });
 
-function announceWinner() {
-    // Your winner announcement logic here
-    console.log('🎉 Announcing winner!');
-    // You can trigger a Socket.io event or show a modal here
-}
-// Animated Character Controller
-let characterState = 'username'; // 'username' or 'chat'
-
-function initializeCharacter() {
-    const character = document.getElementById('animatedCharacter');
-    const speechBubble = document.getElementById('speechBubble');
-    
-    if (!character) return;
-    
-    // Start with username guide
-    showUsernameGuide();
-    
-    // Show speech bubble after a delay
-    setTimeout(() => {
-        speechBubble.classList.add('show');
-    }, 1000);
-    
-    // Hide speech bubble when user starts typing username
-    const usernameInput = document.getElementById('usernameInput');
-    if (usernameInput) {
-        usernameInput.addEventListener('focus', () => {
-            speechBubble.classList.remove('show');
-        });
-        
-        usernameInput.addEventListener('blur', () => {
-            if (!usernameInput.value) {
-                setTimeout(() => {
-                    speechBubble.classList.add('show');
-                }, 500);
-            }
-        });
-    }
-}
-
-function showUsernameGuide() {
-    const character = document.getElementById('animatedCharacter');
-    const speechBubble = document.getElementById('speechBubble');
-    
-    if (!character) return;
-    
-    characterState = 'username';
-    character.className = 'animated-character username-guide';
-    speechBubble.textContent = 'Enter your username to start chatting!';
-    
-    // Point to username input
-    pointToUsernameInput();
-}
-
-function showChatGuide() {
-    const character = document.getElementById('animatedCharacter');
-    const speechBubble = document.getElementById('speechBubble');
-    
-    if (!character) return;
-    
-    // First, walk to new position
-    character.classList.add('walking');
-    character.style.transition = 'all 2s ease-in-out';
-    character.className = 'animated-character walking';
-    
-    // Move to chat position
-    setTimeout(() => {
-        character.classList.remove('walking');
-        characterState = 'chat';
-        character.className = 'animated-character chat-guide';
-        
-        // Update speech bubble
-        speechBubble.textContent = 'Welcome to the chat! Start typing to join the conversation.';
-        setTimeout(() => {
-            speechBubble.classList.add('show');
-        }, 1000);
-        
-        // Hide speech bubble after 5 seconds
-        setTimeout(() => {
-            speechBubble.classList.remove('show');
-        }, 5000);
-    }, 2000);
-}
-
-function pointToUsernameInput() {
-    const character = document.getElementById('animatedCharacter');
-    const usernameInput = document.getElementById('usernameInput');
-    
-    if (!character || !usernameInput) return;
-    
-    // Calculate position to point at username input
-    const inputRect = usernameInput.getBoundingClientRect();
-    const characterRect = character.getBoundingClientRect();
-    
-    // Position character to point at input
-    character.style.right = 'auto';
-    character.style.left = (inputRect.left + inputRect.width + 50) + 'px';
-    character.style.top = (inputRect.top - 50) + 'px';
-}
-
-// Update your existing setUsername function to trigger character movement
-function setUsername() {
-    const usernameInput = document.getElementById('usernameInput');
-    const username = usernameInput.value.trim();
-    
-    if (!username) {
-        alert('Please enter a username');
-        return;
-    }
-    
-    myUsername = username;
-    document.getElementById('usernameOverlay').style.display = 'none';
-    
-    // Move character to chat position
-    showChatGuide();
-    
-    // Initialize chat
-    initializeChat();
-    
-    // Join chat room
-    if (socket) {
-        socket.emit('join_chat', { username: username });
-    }
-}
-
-// Make character look at mouse movement in chat
-function initializeChatCharacter() {
-    const chatContainer = document.getElementById('chatContainer');
-    const character = document.getElementById('animatedCharacter');
-    
-    if (!chatContainer || !character) return;
-    
-    chatContainer.addEventListener('mousemove', (e) => {
-        if (characterState !== 'chat') return;
-        
-        const rect = chatContainer.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-        
-        // Make character look towards mouse
-        const characterRect = character.getBoundingClientRect();
-        const characterX = characterRect.left + characterRect.width / 2;
-        const characterY = characterRect.top + characterRect.height / 2;
-        
-        const deltaX = mouseX - characterX;
-        const deltaY = mouseY - characterY;
-        
-        const angle = Math.atan2(deltaY, deltaX) * (180 / Math.PI);
-        
-        // Update eyes to look at mouse
-        const eyes = character.querySelector('.character-eyes');
-        if (eyes) {
-            eyes.style.transform = `translateX(${Math.min(Math.max(deltaX / 50, -10), 10)}px)`;
-        }
-    });
-}
-
-// Character reactions to chat events
-function characterReactToMessage(isMyMessage) {
-    if (characterState !== 'chat') return;
-    
-    const character = document.getElementById('animatedCharacter');
-    const leftArm = character.querySelector('.left-arm');
-    const rightArm = character.querySelector('.right-arm');
-    
-    if (isMyMessage) {
-        // Wave when user sends message
-        rightArm.style.animation = 'none';
-        rightArm.style.transform = 'rotate(120deg)';
-        
-        setTimeout(() => {
-            rightArm.style.animation = '';
-            rightArm.style.transform = '';
-        }, 1000);
-    } else {
-        // Nod when others send messages
-        character.style.animation = 'none';
-        void character.offsetWidth; // Trigger reflow
-        character.style.animation = 'breathing 4s ease-in-out infinite, nod 1s ease-in-out';
-        
-        setTimeout(() => {
-            character.style.animation = 'breathing 4s ease-in-out infinite';
-        }, 1000);
-    }
-}
-
-// Add this CSS for nod animation
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes nod {
-        0%, 100% { transform: translateX(-50%) scale(0.7) rotate(0deg); }
-        50% { transform: translateX(-50%) scale(0.7) rotate(5deg); }
-    }
-`;
-document.head.appendChild(style);
-
-// Update your existing sendMessage function to trigger character reaction
-function sendMessage() {
-    const messageInput = document.getElementById('chatInput');
-    const text = messageInput.value.trim();
-    
-    if (text && socket) {
-        socket.emit('message', {
-            text: text
-        });
-        messageInput.value = '';
-        messageInput.focus();
-        
-        // Character reaction to own message
-        characterReactToMessage(true);
-    }
-}
-
-// Update message reception to trigger character reaction
-socket.on('new_message', function(data) {
-    console.log('📨 Received new message from:', data.from);
-    const isSent = data.from === myUsername;
-    addMessage(data, isSent);
-    
-    // Character reaction to others' messages
-    if (!isSent) {
-        characterReactToMessage(false);
-    }
-});
-
-// Initialize character when page loads
-document.addEventListener('DOMContentLoaded', function() {
-    initializeCharacter();
-    initializeChatCharacter();
-});
-    </script>
+// Initialize app when DOM is loaded
+window.addEventListener('DOMContentLoaded', initApp);
+</script>
 </body>
 </html>
