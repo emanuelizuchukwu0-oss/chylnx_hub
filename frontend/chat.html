@@ -851,6 +851,184 @@
     transform: translateX(-50%);
 }
 
+/* Animated Character Styles */
+.animated-character {
+    position: fixed;
+    z-index: 10000;
+    transition: all 1s ease-in-out;
+    pointer-events: none;
+}
+
+/* Username Screen Position */
+.animated-character.username-guide {
+    top: 40%;
+    right: 10%;
+    transform: scale(0.8);
+}
+
+/* Chat Screen Position */
+.animated-character.chat-guide {
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) scale(0.7);
+}
+
+/* Character Body */
+.character-body {
+    position: relative;
+    width: 80px;
+    height: 120px;
+}
+
+.character-head {
+    width: 50px;
+    height: 50px;
+    background: #4CAF50;
+    border-radius: 50%;
+    margin: 0 auto 10px;
+    position: relative;
+    border: 3px solid #388E3C;
+}
+
+.character-body-main {
+    width: 60px;
+    height: 50px;
+    background: #4CAF50;
+    border-radius: 25px;
+    margin: 0 auto;
+    border: 3px solid #388E3C;
+}
+
+/* Arms */
+.character-arm {
+    position: absolute;
+    width: 15px;
+    background: #4CAF50;
+    border: 2px solid #388E3C;
+    border-radius: 10px;
+    transition: all 0.5s ease;
+}
+
+.left-arm {
+    height: 40px;
+    top: 55px;
+    left: -5px;
+    transform-origin: top center;
+}
+
+.right-arm {
+    height: 40px;
+    top: 55px;
+    right: -5px;
+    transform-origin: top center;
+}
+
+/* Legs */
+.character-leg {
+    position: absolute;
+    width: 15px;
+    background: #4CAF50;
+    border: 2px solid #388E3C;
+    border-radius: 10px;
+    bottom: -35px;
+}
+
+.left-leg {
+    height: 35px;
+    left: 15px;
+    transform-origin: top center;
+}
+
+.right-leg {
+    height: 35px;
+    right: 15px;
+    transform-origin: top center;
+}
+
+/* Eyes */
+.character-eyes {
+    position: absolute;
+    top: 15px;
+    width: 100%;
+    display: flex;
+    justify-content: space-around;
+    padding: 0 8px;
+}
+
+.eye {
+    width: 8px;
+    height: 8px;
+    background: white;
+    border-radius: 50%;
+    position: relative;
+    animation: blink 4s infinite;
+}
+
+.eye::after {
+    content: '';
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: #333;
+    border-radius: 50%;
+    top: 2px;
+    left: 2px;
+}
+
+@keyframes blink {
+    0%, 96%, 100% { transform: scaleY(1); }
+    98% { transform: scaleY(0.1); }
+}
+
+/* Speech Bubble */
+.speech-bubble {
+    position: absolute;
+    background: white;
+    padding: 10px 15px;
+    border-radius: 20px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    font-size: 14px;
+    color: #333;
+    max-width: 200px;
+    text-align: center;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.5s ease;
+    pointer-events: none;
+}
+
+.animated-character.username-guide .speech-bubble {
+    top: -80px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.animated-character.chat-guide .speech-bubble {
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.speech-bubble::after {
+    content: '';
+    position: absolute;
+    border: 10px solid transparent;
+}
+
+.animated-character.username-guide .speech-bubble::after {
+    border-top-color: white;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.animated-character.chat-guide .speech-bubble::after {
+    border-top-color: white;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
 /* Character Animations */
 @keyframes pointDown {
     0%, 100% { 
@@ -912,6 +1090,15 @@
     }
 }
 
+@keyframes nod {
+    0%, 100% { 
+        transform: translateX(-50%) scale(0.7) rotate(0deg); 
+    }
+    50% { 
+        transform: translateX(-50%) scale(0.7) rotate(5deg); 
+    }
+}
+
 /* Active States */
 .animated-character.username-guide {
     animation: pointDown 2s ease-in-out infinite, bounce 3s ease-in-out infinite;
@@ -953,6 +1140,59 @@
 .speech-bubble.show {
     opacity: 1;
     transform: translateY(0);
+}
+
+/* Winner Announcement Overlay */
+.winner-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+}
+
+.winner-announcement {
+    background: linear-gradient(135deg, #ffd700, #ffed4e);
+    padding: 30px;
+    border-radius: 15px;
+    text-align: center;
+    box-shadow: 0 0 50px gold;
+    border: 3px solid gold;
+    animation: pulse 1s infinite;
+}
+
+.winner-announcement h2 {
+    color: #333;
+    margin-bottom: 15px;
+    font-size: 2rem;
+}
+
+.winner-name {
+    font-size: 1.5rem;
+    color: #333;
+    margin-bottom: 20px;
+    font-weight: bold;
+}
+
+.winner-announcement button {
+    background: #333;
+    color: gold;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: bold;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
 }
     </style>
 <head>
@@ -1047,6 +1287,19 @@
         Enter your username to start chatting!
     </div>
 </div>
+
+<!-- Winner Announcement Overlay -->
+<div id="winnerAnnouncementOverlay" class="winner-overlay" style="display: none;">
+    <div class="winner-announcement">
+        <h2>🎉 WINNER ANNOUNCED! 🎉</h2>
+        <div class="winner-name">
+            Congratulations to: <span id="announcedWinnerName"></span>
+        </div>
+        <button onclick="document.getElementById('winnerAnnouncementOverlay').style.display='none'">
+            OK
+        </button>
+    </div>
+</div>
     </div>
 
    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
@@ -1056,70 +1309,57 @@ let socket = null;
 let selectedWinners = [];
 let onlineUsers = [];
 let isGameStarted = false;
-let characterState = 'username'; // Track character state
+let characterState = 'username';
 const ANNOUNCE_PASSCODE = "1234";
 
 // Initialize app
 function initApp() {
     console.log('🚀 Initializing app...');
     
-    // Event listeners
-    document.getElementById('sendBtn').addEventListener('click', sendMessage);
-    document.getElementById('chatInput').addEventListener('keypress', function(e) {
+    // Basic event listeners
+    const sendBtn = document.getElementById('sendBtn');
+    const chatInput = document.getElementById('chatInput');
+    const bell = document.getElementById('bell');
+    const usernameInput = document.getElementById('usernameInput');
+    
+    if (sendBtn) sendBtn.addEventListener('click', sendMessage);
+    if (chatInput) chatInput.addEventListener('keypress', function(e) {
         if (e.key === 'Enter') sendMessage();
     });
     
-    document.getElementById('bell').addEventListener('click', showWinnerSelectionPanel);
-    document.getElementById('usernameInput').addEventListener('keypress', function(e) {
+    if (bell) bell.addEventListener('click', showWinnerSelectionPanel);
+    if (usernameInput) usernameInput.addEventListener('keypress', function(e) {
         if (e.key === 'Enter') setUsername();
     });
 
     // Show username overlay
-    document.getElementById('usernameOverlay').style.display = 'flex';
-    checkTimerStatus();
-    
-    // Focus on username input
-    document.getElementById('usernameInput').focus();
+    const usernameOverlay = document.getElementById('usernameOverlay');
+    if (usernameOverlay) usernameOverlay.style.display = 'flex';
     
     // Initialize character
     initializeCharacter();
     
+    // Focus on username input
+    if (usernameInput) usernameInput.focus();
+    
     console.log('✅ App initialized successfully');
 }
 
-// Animated Character Functions
+// Character Functions
 function initializeCharacter() {
     const character = document.getElementById('animatedCharacter');
-    const speechBubble = document.getElementById('speechBubble');
-    
     if (!character) {
         console.log('⚠️ Character element not found');
         return;
     }
     
-    // Start with username guide
     showUsernameGuide();
     
     // Show speech bubble after a delay
     setTimeout(() => {
+        const speechBubble = document.getElementById('speechBubble');
         if (speechBubble) speechBubble.classList.add('show');
     }, 1000);
-    
-    // Hide speech bubble when user starts typing username
-    const usernameInput = document.getElementById('usernameInput');
-    if (usernameInput) {
-        usernameInput.addEventListener('focus', () => {
-            if (speechBubble) speechBubble.classList.remove('show');
-        });
-        
-        usernameInput.addEventListener('blur', () => {
-            if (!usernameInput.value && speechBubble) {
-                setTimeout(() => {
-                    speechBubble.classList.add('show');
-                }, 500);
-            }
-        });
-    }
 }
 
 function showUsernameGuide() {
@@ -1130,13 +1370,11 @@ function showUsernameGuide() {
     
     characterState = 'username';
     character.className = 'animated-character username-guide';
+    
     if (speechBubble) {
         speechBubble.textContent = 'Enter your username to start chatting!';
-        speechBubble.classList.add('show');
+        setTimeout(() => speechBubble.classList.add('show'), 500);
     }
-    
-    // Point to username input
-    pointToUsernameInput();
 }
 
 function showChatGuide() {
@@ -1145,45 +1383,23 @@ function showChatGuide() {
     
     if (!character) return;
     
-    // First, walk to new position
     character.classList.add('walking');
     character.style.transition = 'all 2s ease-in-out';
-    character.className = 'animated-character walking';
     
-    // Move to chat position
     setTimeout(() => {
         character.classList.remove('walking');
         characterState = 'chat';
         character.className = 'animated-character chat-guide';
         
-        // Update speech bubble
         if (speechBubble) {
-            speechBubble.textContent = 'Welcome to the chat! Start typing to join the conversation.';
-            setTimeout(() => {
-                speechBubble.classList.add('show');
-            }, 1000);
+            speechBubble.textContent = 'Welcome to the chat! Start typing.';
+            setTimeout(() => speechBubble.classList.add('show'), 1000);
             
-            // Hide speech bubble after 5 seconds
-            setTimeout(() => {
-                speechBubble.classList.remove('show');
-            }, 5000);
+            setTimeout(() => speechBubble.classList.remove('show'), 5000);
         }
         
-        // Initialize chat character interactions
         initializeChatCharacter();
     }, 2000);
-}
-
-function pointToUsernameInput() {
-    const character = document.getElementById('animatedCharacter');
-    const usernameInput = document.getElementById('usernameInput');
-    
-    if (!character || !usernameInput) return;
-    
-    // Position character to point at input
-    character.style.right = 'auto';
-    character.style.left = '60%';
-    character.style.top = '40%';
 }
 
 function initializeChatCharacter() {
@@ -1195,20 +1411,11 @@ function initializeChatCharacter() {
     chatContainer.addEventListener('mousemove', (e) => {
         if (characterState !== 'chat') return;
         
-        const rect = chatContainer.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-        
-        // Make character look towards mouse
-        const characterRect = character.getBoundingClientRect();
-        const characterX = characterRect.left + characterRect.width / 2;
-        const characterY = characterRect.top + characterRect.height / 2;
-        
-        const deltaX = mouseX - characterX;
-        
-        // Update eyes to look at mouse
         const eyes = character.querySelector('.character-eyes');
         if (eyes) {
+            const rect = chatContainer.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const deltaX = mouseX - (rect.width / 2);
             eyes.style.transform = `translateX(${Math.min(Math.max(deltaX / 50, -10), 10)}px)`;
         }
     });
@@ -1223,114 +1430,22 @@ function characterReactToMessage(isMyMessage) {
     if (!character || !rightArm) return;
     
     if (isMyMessage) {
-        // Wave when user sends message
-        rightArm.style.animation = 'none';
         rightArm.style.transform = 'rotate(120deg)';
-        
         setTimeout(() => {
-            rightArm.style.animation = '';
-            rightArm.style.transform = '';
+            rightArm.style.transform = 'rotate(-45deg)';
         }, 1000);
     } else {
-        // Nod when others send messages
-        character.style.animation = 'none';
-        void character.offsetWidth; // Trigger reflow
-        character.style.animation = 'breathing 4s ease-in-out infinite, nod 1s ease-in-out';
-        
+        character.style.animation = 'nod 1s ease-in-out';
         setTimeout(() => {
             character.style.animation = 'breathing 4s ease-in-out infinite';
         }, 1000);
     }
 }
 
-// Timer Functions
-function checkTimerStatus() {
-    const tempSocket = io();
-    
-    tempSocket.on('connect', function() {
-        console.log('⏰ Checking game timer status...');
-        tempSocket.emit('get_timer');
-    });
-    
-    tempSocket.on('timer_update', function(data) {
-        console.log('📡 Game timer status received:', data);
-        
-        if (data.is_running && data.remaining_seconds > 0) {
-            showTimerBlockMessage(data.remaining_seconds);
-        } else {
-            isGameStarted = true;
-            enableUsernameEntry();
-        }
-        tempSocket.disconnect();
-    });
-    
-    tempSocket.on('game_started', function(data) {
-        console.log('🎉 Game started - allowing username entry');
-        isGameStarted = true;
-        enableUsernameEntry();
-        tempSocket.disconnect();
-    });
-    
-    tempSocket.on('connect_error', function(error) {
-        console.error('❌ Connection error:', error);
-        isGameStarted = true;
-        enableUsernameEntry();
-    });
-}
-
-function showTimerBlockMessage(remainingSeconds) {
-    const usernameForm = document.getElementById('usernameForm');
-    const minutes = Math.floor(remainingSeconds / 60);
-    const seconds = remainingSeconds % 60;
-    
-    usernameForm.innerHTML = `
-        <h3>⏰ Game Starting Soon</h3>
-        <div style="text-align: center; margin: 20px 0;">
-            <div style="font-size: 2rem; color: #25D366; font-weight: bold; margin: 10px 0;">
-                ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}
-            </div>
-            <p style="color: #666; margin: 15px 0;">
-                Please wait for the timer to finish before joining the chat.
-            </p>
-            <p style="color: #888; font-size: 0.9rem;">
-                Game will start automatically when timer reaches zero.
-            </p>
-        </div>
-        <button onclick="checkTimerStatus()" style="width: 100%; padding: 12px; background: #25D366; color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 16px;">
-            Refresh Status
-        </button>
-        <div class="form-note">
-            You'll be able to join when the game starts
-        </div>
-    `;
-}
-
-function enableUsernameEntry() {
-    const usernameForm = document.getElementById('usernameForm');
-    usernameForm.innerHTML = `
-        <h3>Join the Chat</h3>
-        <input type="text" id="usernameInput" placeholder="Enter your username" autocomplete="off">
-        <button onclick="setUsername()">Start Chatting</button>
-        <div class="form-note">
-            Choose a cool name to get started!
-        </div>
-    `;
-    
-    // Re-attach event listeners
-    document.getElementById('usernameInput').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') setUsername();
-    });
-    
-    document.getElementById('usernameInput').focus();
-    
-    // Show character guide
-    showUsernameGuide();
-}
-
 // Username and Chat Functions
 function setUsername() {
     const usernameInput = document.getElementById('usernameInput');
-    const username = usernameInput.value.trim();
+    const username = usernameInput?.value.trim();
     
     if (!username) {
         alert('Please enter a username');
@@ -1338,40 +1453,25 @@ function setUsername() {
     }
     
     myUsername = username;
-    document.getElementById('usernameOverlay').style.display = 'none';
+    const usernameOverlay = document.getElementById('usernameOverlay');
+    if (usernameOverlay) usernameOverlay.style.display = 'none';
     
-    // Move character to chat position
     showChatGuide();
-    
-    // Initialize chat
     initializeChat();
 }
 
 function initializeChat() {
-    const chatInput = document.getElementById('chatInput');
-    const sendBtn = document.getElementById('sendBtn');
-    
-    if (chatInput) chatInput.disabled = false;
-    if (sendBtn) sendBtn.disabled = false;
-
     socket = io();
 
-    // Debug connection
     socket.on('connect', function() {
-        console.log('✅ Connected to server with SID:', socket.id);
-        console.log('👤 My username:', myUsername);
-        
-        // Join chat after connection
-        console.log('📤 Emitting join_chat for user:', myUsername);
+        console.log('✅ Connected to server');
         socket.emit('join_chat', { username: myUsername });
     });
 
-    // Receive chat history
     socket.on('chat_history', function(history) {
-        console.log('📜 Received chat history with', history.length, 'messages');
         const chatWindow = document.getElementById('chatWindow');
         if (chatWindow) {
-            chatWindow.innerHTML = '<div class="system-msg">Welcome to the chat!</div>';
+            chatWindow.innerHTML = '';
             history.forEach(msg => {
                 const isSent = msg.from === myUsername;
                 addMessage(msg, isSent);
@@ -1379,76 +1479,40 @@ function initializeChat() {
         }
     });
 
-    // Listen for new messages
     socket.on('new_message', function(data) {
-        console.log('📨 Received new message from:', data.from);
         const isSent = data.from === myUsername;
         addMessage(data, isSent);
-        
-        // Character reaction to others' messages
-        if (!isSent) {
-            characterReactToMessage(false);
-        }
+        if (!isSent) characterReactToMessage(false);
     });
 
-    // User join/leave events
     socket.on('user_joined', function(data) {
-        console.log('👋 User joined:', data.username);
         addSystemMessage(`${data.username} joined the chat`);
         updateOnlineCount(data.online_count);
-        onlineUsers = data.online_users || [];
     });
 
     socket.on('user_left', function(data) {
-        console.log('👋 User left:', data.username);
         addSystemMessage(`${data.username} left the chat`);
         updateOnlineCount(data.online_count);
     });
 
-    // Online count
     socket.on('user_count_update', function(data) {
         updateOnlineCount(data.count);
-        onlineUsers = data.online_users || [];
     });
 
-    // Error handling
-    socket.on('message_error', function(data) {
-        console.error('❌ Message error:', data.error);
-        if (data.error.includes('already taken')) {
-            document.getElementById('usernameOverlay').style.display = 'flex';
-            alert('Username already taken. Please choose another name.');
-            document.getElementById('usernameInput').value = '';
-            document.getElementById('usernameInput').focus();
-        } else {
-            alert('Failed to send message: ' + data.error);
-        }
-    });
-
-    // Winner announcements
     socket.on('winner_announced', function(data) {
-        console.log('🎉 Received winner announcement:', data);
         const winners = Array.isArray(data.winners) ? data.winners.join(", ") : data.winners;
         showWinnerAnnouncement(winners);
-        addSystemMessage(`🏆 WINNER ANNOUNCEMENT: ${winners}! Congratulations! 🎉`);
+        addSystemMessage(`🏆 WINNER: ${winners}! 🎉`);
     });
 
-    // Connection error handling
-    socket.on('connect_error', function(error) {
-        console.error('❌ Connection error:', error);
-        addSystemMessage('Connection error - trying to reconnect...');
+    socket.on('message_error', function(data) {
+        console.error('❌ Message error:', data.error);
+        alert('Message error: ' + data.error);
     });
 
-    socket.on('reconnect', function() {
-        console.log('✅ Reconnected to server');
-        addSystemMessage('Reconnected to chat server');
-        if (myUsername) {
-            socket.emit('join_chat', { username: myUsername });
-        }
-    });
-
-    addSystemMessage(`Welcome, ${myUsername}! You can start chatting now.`);
+    addSystemMessage(`Welcome, ${myUsername}! Start chatting.`);
     
-    // Focus on chat input
+    const chatInput = document.getElementById('chatInput');
     if (chatInput) chatInput.focus();
 }
 
@@ -1463,15 +1527,11 @@ function sendMessage() {
     const messageInput = document.getElementById('chatInput');
     const text = messageInput?.value.trim();
     
-    if (!text || !socket) {
-        return;
-    }
+    if (!text || !socket) return;
     
     socket.emit('message', { text: text });
     messageInput.value = '';
     messageInput.focus();
-    
-    // Character reaction to own message
     characterReactToMessage(true);
 }
 
@@ -1484,29 +1544,19 @@ function addMessage(msg, isSent) {
 
     const time = new Date(msg.timestamp).toLocaleTimeString([], { 
         hour: '2-digit', 
-        minute: '2-digit', 
-        hour12: true 
+        minute: '2-digit' 
     });
 
     const isSelected = selectedWinners.includes(msg.from);
 
     messageDiv.innerHTML = `
-        ${!isSent ? `<div class="sender-name ${isSelected ? 'username-selected' : ''}" onclick="toggleUserSelection('${msg.from.replace(/'/g, "\\'")}')">${msg.from}</div>` : ''}
-        <div class="message-content">${escapeHtml(msg.text)}</div>
+        ${!isSent ? `<div class="sender-name ${isSelected ? 'username-selected' : ''}">${msg.from}</div>` : ''}
+        <div class="message-content">${msg.text}</div>
         <div class="message-time">${time}</div>
     `;
 
     chatWindow.appendChild(messageDiv);
     chatWindow.scrollTop = chatWindow.scrollHeight;
-}
-
-function escapeHtml(unsafe) {
-    return unsafe
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
 }
 
 function addSystemMessage(text) {
@@ -1518,7 +1568,6 @@ function addSystemMessage(text) {
     div.textContent = text;
     chatWindow.appendChild(div);
     chatWindow.scrollTop = chatWindow.scrollHeight;
-    console.log('💬 System message:', text);
 }
 
 // Winner Selection Functions
@@ -1528,10 +1577,8 @@ function showWinnerSelectionPanel() {
     
     if (!panel || !winnerList) return;
     
-    // Populate winner list
     winnerList.innerHTML = '';
     
-    // Add current online users
     onlineUsers.forEach(user => {
         if (user !== myUsername) {
             const winnerItem = document.createElement('div');
@@ -1540,22 +1587,13 @@ function showWinnerSelectionPanel() {
                 <input type="checkbox" class="winner-checkbox" ${selectedWinners.includes(user) ? 'checked' : ''} value="${user}">
                 <span>${user}</span>
             `;
-            winnerItem.addEventListener('click', function(e) {
-                if (e.target.type !== 'checkbox') {
-                    const checkbox = this.querySelector('.winner-checkbox');
-                    checkbox.checked = !checkbox.checked;
-                    toggleWinnerSelection(user, checkbox.checked);
-                }
+            winnerItem.addEventListener('click', function() {
+                const checkbox = this.querySelector('.winner-checkbox');
+                checkbox.checked = !checkbox.checked;
+                toggleWinnerSelection(user, checkbox.checked);
             });
             winnerList.appendChild(winnerItem);
         }
-    });
-    
-    // Add click event for checkboxes
-    winnerList.querySelectorAll('.winner-checkbox').forEach(checkbox => {
-        checkbox.addEventListener('change', function() {
-            toggleWinnerSelection(this.value, this.checked);
-        });
     });
     
     updateSelectedCount();
@@ -1575,22 +1613,6 @@ function toggleWinnerSelection(username, isSelected) {
     } else {
         selectedWinners = selectedWinners.filter(user => user !== username);
     }
-    
-    updateSelectedCount();
-    highlightSelectedUsers();
-}
-
-function toggleUserSelection(username) {
-    if (username === myUsername) return;
-    
-    const isSelected = selectedWinners.includes(username);
-    if (isSelected) {
-        selectedWinners = selectedWinners.filter(user => user !== username);
-    } else {
-        selectedWinners.push(username);
-    }
-    
-    highlightSelectedUsers();
     updateSelectedCount();
 }
 
@@ -1601,46 +1623,26 @@ function updateSelectedCount() {
     }
 }
 
-function highlightSelectedUsers() {
-    // Remove all highlights first
-    document.querySelectorAll('.sender-name').forEach(name => {
-        name.classList.remove('username-selected');
-    });
-    
-    // Add highlight to selected users
-    selectedWinners.forEach(username => {
-        document.querySelectorAll('.sender-name').forEach(name => {
-            if (name.textContent === username) {
-                name.classList.add('username-selected');
-            }
-        });
-    });
-}
-
 function announceSelectedWinners() {
     if (selectedWinners.length === 0) {
-        alert("Please select at least one winner!");
+        alert("Please select winners!");
         return;
     }
     
-    const entered = prompt("Enter passcode to announce the winners:");
+    const entered = prompt("Enter passcode:");
     if (entered !== ANNOUNCE_PASSCODE) {
-        alert("❌ Wrong passcode! You are not allowed to announce.");
+        alert("❌ Wrong passcode!");
         return;
     }
 
-    // Show the announcement overlay immediately
     showWinnerAnnouncement(selectedWinners.join(', '));
     
-    // Emit to server (broadcast to all users)
     if (socket) {
         socket.emit('announce_winner', { winners: selectedWinners });
     }
 
-    // Clear selection
     selectedWinners = [];
     closeWinnerPanel();
-    highlightSelectedUsers();
 }
 
 function showWinnerAnnouncement(usernames) {
@@ -1651,31 +1653,13 @@ function showWinnerAnnouncement(usernames) {
         winnerNameElement.textContent = usernames;
         overlay.style.display = 'flex';
         
-        // Auto-close after 10 seconds
         setTimeout(() => {
             overlay.style.display = 'none';
         }, 10000);
     }
 }
 
-// Bell animation
-document.addEventListener('DOMContentLoaded', function() {
-    const bell = document.getElementById('bell');
-    
-    if (bell) {
-        bell.addEventListener('click', function() {
-            // Add intense animation on click
-            bell.style.animation = 'ringBell 0.2s ease-in-out 5, glow 0.5s ease-in-out 3';
-            
-            // Reset animation after click effect
-            setTimeout(() => {
-                bell.style.animation = '';
-            }, 2000);
-        });
-    }
-});
-
-// Initialize app when DOM is loaded
+// Initialize when page loads
 window.addEventListener('DOMContentLoaded', initApp);
 </script>
 </body>
