@@ -1567,7 +1567,10 @@ def handle_set_weekly_message(data):
             'success': False,
             'error': str(e)
         })
-
+# In your backend/app.py, add this route:
+@app.route('/styles.css')
+def styles_css():
+    return "", 404  # Or serve a minimal CSS file
 # ---------------- Run ----------------
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
