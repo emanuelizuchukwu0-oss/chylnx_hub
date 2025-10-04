@@ -593,6 +593,58 @@
 #usernameForm .refresh-btn:hover {
     background: #20bd5a;
 }
+#bell {
+    font-size: 1.8rem;
+    cursor: pointer;
+    display: inline-block;
+    animation: bounce 2s ease-in-out infinite, shimmer 3s ease-in-out infinite;
+    text-shadow: 0 0 10px gold;
+}
+
+#bell:hover {
+    animation: ringShake 0.3s ease-in-out infinite, intenseGlow 0.8s ease-in-out infinite;
+}
+
+@keyframes bounce {
+    0%, 100% { 
+        transform: translateY(0);
+    }
+    50% { 
+        transform: translateY(-5px);
+    }
+}
+
+@keyframes shimmer {
+    0%, 100% { 
+        opacity: 1;
+        text-shadow: 0 0 10px gold;
+    }
+    50% { 
+        opacity: 0.8;
+        text-shadow: 0 0 20px orange, 0 0 30px yellow;
+    }
+}
+
+@keyframes ringShake {
+    0%, 100% { 
+        transform: rotate(0deg) scale(1.3);
+    }
+    25% { 
+        transform: rotate(-8deg) scale(1.3);
+    }
+    75% { 
+        transform: rotate(8deg) scale(1.3);
+    }
+}
+
+@keyframes intenseGlow {
+    0%, 100% { 
+        text-shadow: 0 0 10px gold, 0 0 20px orange;
+    }
+    50% { 
+        text-shadow: 0 0 20px gold, 0 0 40px orange, 0 0 60px yellow;
+    }
+}
     </style>
 <head>
     <!-- Your existing head content (title, styles, etc.) -->
@@ -632,9 +684,10 @@
            <span id="onlineCount">Loading...</span>
         </div>
         <div class="header-actions">
-            <span id="bell" title="Announce Winner">🔔</span>
-        </div>
-    </header>
+        <span id="bell" title="Announce Winner">🔔</span>
+    </div>
+</header>
+
 
     <!-- Chat Container -->
     <div id="chatContainer">
@@ -1123,6 +1176,43 @@ socket.on('reconnect', function() {
         socket.emit('join_chat', { username: myUsername });
     }
 });
+// Bell interaction
+document.addEventListener('DOMContentLoaded', function() {
+    const bell = document.getElementById('bell');
+    
+    if (bell) {
+        // Click to announce winner
+        bell.addEventListener('click', function() {
+            // Add intense animation on click
+            bell.style.animation = 'ringBell 0.2s ease-in-out 5, glow 0.5s ease-in-out 3';
+            
+            // Announce winner (you can connect this to your backend)
+            announceWinner();
+            
+            // Reset animation after click effect
+            setTimeout(() => {
+                bell.style.animation = '';
+            }, 2000);
+        });
+        
+        // Add notification pulse when there's a new winner
+        function notifyNewWinner() {
+            bell.classList.add('has-notification');
+            setTimeout(() => {
+                bell.classList.remove('has-notification');
+            }, 5000);
+        }
+        
+        // Example: Simulate new winner notification
+        // setTimeout(notifyNewWinner, 3000);
+    }
+});
+
+function announceWinner() {
+    // Your winner announcement logic here
+    console.log('🎉 Announcing winner!');
+    // You can trigger a Socket.io event or show a modal here
+}
     </script>
 </body>
 </html>
