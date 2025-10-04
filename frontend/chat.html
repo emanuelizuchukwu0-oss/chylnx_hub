@@ -1145,125 +1145,12 @@
 .character-excited {
     animation: excitedJump 0.5s ease-in-out 3 !important;
 }
-/* Character Positioning inside Username Form */
-#usernameOverlay {
-    position: relative; /* This is important for positioning the character */
-}
-
-#usernameOverlay .animated-character {
-    position: absolute;
-    top: 50%;
-    right: -80px; /* Position to the right of the form */
-    transform: translateY(-50%) scale(0.7);
-    z-index: 2001; /* Above the form but within overlay */
-}
-
-#usernameOverlay .animated-character.username-guide {
-    animation: pointToForm 2s ease-in-out infinite, bounce 3s ease-in-out infinite;
-}
-
-#usernameOverlay .animated-character.username-guide .right-arm {
-    animation: pointToForm 2s ease-in-out infinite;
-    transform: rotate(60deg);
-}
-
-/* Pointing animation towards the form */
-@keyframes pointToForm {
-    0%, 100% { 
-        transform: translateY(-50%) scale(0.7) translateX(0px); 
-    }
-    50% { 
-        transform: translateY(-50%) scale(0.7) translateX(-10px); 
-    }
-}
-
-/* Adjust speech bubble for form positioning */
-#usernameOverlay .speech-bubble {
-    position: absolute;
-    top: -100px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: white;
-    padding: 12px 18px;
-    border-radius: 20px;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.2);
-    font-size: 14px;
-    font-weight: bold;
-    color: #333;
-    max-width: 220px;
-    text-align: center;
-    opacity: 0;
-    border: 2px solid #25D366;
-    z-index: 2002;
-}
-
-#usernameOverlay .speech-bubble::after {
-    content: '';
-    position: absolute;
-    border: 12px solid transparent;
-    border-top-color: white;
-    top: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-}
-
-/* Mobile adjustments for form character */
-@media (max-width: 768px) {
-    #usernameOverlay .animated-character {
-        right: -60px;
-        transform: translateY(-50%) scale(0.6);
-    }
-    
-    #usernameOverlay .speech-bubble {
-        top: -80px;
-        max-width: 180px;
-        font-size: 12px;
-    }
-}
-
-@media (max-width: 480px) {
-    #usernameOverlay .animated-character {
-        display: none; /* Hide on very small screens */
-    }
-}
 
     </style>
 <head>
     <!-- Your existing head content (title, styles, etc.) -->
 </head>
 <body data-paid="false">
-    <!-- Multiple Winner Selection Panel -->
-    <div id="winnerSelectionPanel" class="winner-selection-panel">...</div>
-
-    <!-- Username Form Overlay WITH CHARACTER INSIDE -->
-    <div id="usernameOverlay">
-        <div id="usernameForm">...</div>
-        <!-- ANIMATED CHARACTER GOES HERE -->
-        <div class="animated-character" id="animatedCharacter" style="display: none;">
-            <!-- character elements -->
-        </div>
-    </div>
-
-    <!-- Fixed Header -->
-    <header>...</header>
-
-    <!-- Chat Container -->
-    <div id="chatContainer">...</div>
-
-    <!-- Fixed Input Area -->
-    <div id="inputArea">...</div>
-
-    <!-- Winner Modal -->
-    <div id="winnerModal">...</div>
-
-    <!-- Winner Announcement Overlay -->
-    <div id="winnerAnnouncementOverlay">...</div>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
-    <script>
-        // Your JavaScript code
-    </script>
-</body>
     <!-- Multiple Winner Selection Panel -->
     <div id="winnerSelectionPanel" class="winner-selection-panel">
         <div class="winner-panel-header">
@@ -1279,40 +1166,18 @@
         </div>
     </div>
 
-   <!-- Username Form Overlay -->
-<div id="usernameOverlay">
-    <div id="usernameForm">
-        <h3>Join the Chat</h3>
-        <input type="text" id="usernameInput" placeholder="Enter your username" autocomplete="off">
-        <button onclick="setUsername()">Start Chatting</button>
-        <div class="form-note">
-            Choose a cool name to get started!
-        </div>
-    </div>
-    
-    <!-- ADD THE ANIMATED CHARACTER INSIDE THE OVERLAY -->
-    <div class="animated-character" id="animatedCharacter" style="display: none;">
-        <div class="character-body">
-            <div class="character-head">
-                <div class="character-face">
-                    <div class="character-eyes">
-                        <div class="eye left-eye"></div>
-                        <div class="eye right-eye"></div>
-                    </div>
-                    <div class="character-mouth"></div>
-                </div>
+    <!-- Username Form Overlay -->
+    <div id="usernameOverlay">
+        <div id="usernameForm">
+            <h3>Join the Chat</h3>
+            <input type="text" id="usernameInput" placeholder="Enter your username" autocomplete="off">
+            <button onclick="setUsername()">Start Chatting</button>
+            <div class="form-note">
+                Choose a cool name to get started!
             </div>
-            <div class="character-body-main"></div>
-            <div class="character-arm left-arm"></div>
-            <div class="character-arm right-arm"></div>
-            <div class="character-leg left-leg"></div>
-            <div class="character-leg right-leg"></div>
-        </div>
-        <div class="speech-bubble" id="speechBubble">
-            INPUT A COOL USERNAME! 🎮
         </div>
     </div>
-</div>
+
     <!-- Fixed Header -->
     <header>
         <div class="header-info">
