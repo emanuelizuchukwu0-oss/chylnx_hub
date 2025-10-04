@@ -856,7 +856,7 @@
 /* Updated Realistic Character Styles */
 .animated-character {
     position: fixed;
-    z-index: 10000;
+    z-index: 5; /* Reduced from 10000 to be behind messages */
     transition: all 1s ease-in-out;
     pointer-events: none;
     display: block;
@@ -1010,7 +1010,7 @@
     transition: all 0.5s ease;
     pointer-events: none;
     border: 2px solid #25D366;
-    z-index: 10001;
+    z-index: 10001; /* Keep speech bubble above everything */
 }
 
 .animated-character.username-guide .speech-bubble {
@@ -1146,6 +1146,253 @@
     animation: excitedJump 0.5s ease-in-out 3 !important;
 }
 
+/* ===== FIX FOR CHARACTER BEHIND MESSAGES ON SMALL SCREENS ===== */
+
+/* Ensure messages are above character on all screens */
+.message {
+    position: relative;
+    z-index: 10; /* Higher than character's z-index of 5 */
+    background: inherit; /* Ensure background covers character */
+}
+
+.message.sent {
+    background: #dcf8c6;
+}
+
+.message.received {
+    background: white;
+}
+
+.sender-name {
+    position: relative;
+    z-index: 15; /* Even higher for clickable areas */
+}
+
+/* Small screens: ensure character stays behind messages */
+@media (max-width: 768px) {
+    .animated-character {
+        z-index: 2 !important; /* Even lower on small screens */
+    }
+    
+    .message {
+        z-index: 10 !important;
+        background: inherit !important;
+    }
+    
+    .message.sent {
+        background: #dcf8c6 !important;
+    }
+    
+    .message.received {
+        background: white !important;
+    }
+    
+    .sender-name {
+        z-index: 15 !important;
+    }
+    
+    /* Make character smaller and position appropriately */
+    .animated-character.chat-guide {
+        bottom: 70px !important;
+        transform: translateX(-50%) scale(0.5) !important;
+    }
+}
+
+/* Very small screens */
+@media (max-width: 480px) {
+    .message {
+        max-width: 90% !important;
+        margin: 4px 0;
+    }
+    
+    #chatWindow {
+        padding: 8px 6px !important;
+        gap: 4px;
+    }
+    
+    .message-content {
+        font-size: 14px !important;
+        line-height: 1.3;
+    }
+    
+    .sender-name {
+        font-size: 11px !important;
+    }
+    
+    .message-time {
+        font-size: 9px !important;
+    }
+    
+    .animated-character {
+        transform: scale(0.5) !important;
+    }
+    
+    .animated-character.chat-guide {
+        bottom: 60px !important;
+    }
+}
+
+/* Extra small screens */
+@media (max-width: 320px) {
+    .message {
+        max-width: 95% !important;
+    }
+    
+    #chatWindow {
+        padding: 6px 4px !important;
+    }
+    
+    .message-content {
+        font-size: 13px !important;
+    }
+    
+    .animated-character {
+        transform: scale(0.4) !important;
+    }
+    
+    .animated-character.chat-guide {
+        bottom: 50px !important;
+    }
+}
+
+/* Tablet screens */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .animated-character.chat-guide {
+        bottom: 90px !important;
+        transform: translateX(-50%) scale(0.6) !important;
+    }
+}
+
+/* Large screens - character can be in front */
+@media (min-width: 1025px) {
+    .animated-character {
+        z-index: 10000; /* Back to high z-index on large screens */
+    }
+    
+    .animated-character.chat-guide {
+        bottom: 100px !important;
+        transform: translateX(-50%) scale(0.7) !important;
+    }
+}
+
+/* Mobile landscape mode - hide character to save space */
+@media (max-height: 500px) and (orientation: landscape) {
+    .animated-character {
+        display: none !important;
+    }
+}
+
+/* Mobile keyboard open state - hide character */
+body.keyboard-open .animated-character {
+    display: none !important;
+}
+
+/* Ensure chat container has proper z-index */
+#chatContainer {
+    position: relative;
+    z-index: 1;
+}
+
+#chatWindow {
+    position: relative;
+    z-index: 1;
+}
+
+/* Mobile Keyboard Optimization */
+@media (max-height: 700px) {
+    #chatContainer {
+        margin-bottom: 50px !important;
+    }
+    
+    .animated-character.chat-guide {
+        bottom: 60px !important;
+    }
+    
+    #inputArea {
+        height: 50px !important;
+    }
+}
+
+/* Mobile Landscape */
+@media (max-height: 500px) and (orientation: landscape) {
+    #chatContainer {
+        margin-top: 50px !important;
+        margin-bottom: 45px !important;
+    }
+    
+    header {
+        height: 45px !important;
+    }
+    
+    #inputArea {
+        height: 45px !important;
+    }
+    
+    .animated-character {
+        display: none !important; /* Hide character in landscape to save space */
+    }
+}
+
+/* Small Screen Character Positioning */
+@media (max-width: 768px) {
+    .animated-character {
+        z-index: 5 !important; /* Behind messages but above background */
+    }
+    
+    .message {
+        z-index: 10 !important; /* Above character */
+        position: relative;
+    }
+    
+    .sender-name {
+        z-index: 15 !important;
+    }
+}
+
+/* Enhanced Character Positioning for Different Screens */
+.animated-character.chat-guide {
+    z-index: 5;
+    pointer-events: none;
+}
+
+/* Ensure messages are above character */
+.message {
+    position: relative;
+    z-index: 10;
+}
+
+.sender-name {
+    position: relative;
+    z-index: 15;
+}
+
+/* Touch-friendly button sizes for mobile */
+#sendBtn {
+    min-width: 40px;
+    min-height: 40px;
+}
+
+#chatInput {
+    min-height: 40px;
+}
+
+/* Prevent horizontal scrolling on mobile */
+html, body {
+    overflow-x: hidden;
+    max-width: 100%;
+    position: relative;
+}
+
+/* Enhanced Username Selection */
+.username-selected {
+    background: linear-gradient(135deg, #ffd700, #ffed4e) !important;
+    color: #000 !important;
+    font-weight: bold !important;
+    padding: 3px 8px !important;
+    border-radius: 15px !important;
+    box-shadow: 0 2px 8px rgba(255, 215, 0, 0.5) !important;
+    border: 2px solid #ff8c00 !important;
+}
     </style>
 <head>
     <!-- Your existing head content (title, styles, etc.) -->
@@ -1367,10 +1614,16 @@ function showChatGuide() {
     character.classList.add('walking');
     character.style.transition = 'all 2s ease-in-out';
     
+    // Adjust position based on screen size
+    const isMobile = window.innerWidth <= 768;
+    const bottomPosition = isMobile ? '70px' : '100px';
+    const scale = isMobile ? '0.5' : '0.7';
+    
     // Move character to chat position
-    character.style.bottom = '100px';
+    character.style.bottom = bottomPosition;
     character.style.left = '50%';
-    character.style.transform = 'translateX(-50%) scale(0.7)';
+    character.style.transform = `translateX(-50%) scale(${scale})`;
+    character.style.zIndex = '5'; // Ensure behind messages
     
     setTimeout(() => {
         character.classList.remove('walking');
@@ -1622,24 +1875,53 @@ function addMessage(msg, isSent) {
     const isSelected = selectedWinners.includes(msg.from);
 
     messageDiv.innerHTML = `
-        ${!isSent ? `<div class="sender-name ${isSelected ? 'username-selected' : ''}">${msg.from}</div>` : ''}
+        ${!isSent ? `<div class="sender-name ${isSelected ? 'username-selected' : ''}" data-username="${msg.from}">${msg.from}</div>` : ''}
         <div class="message-content">${msg.text}</div>
         <div class="message-time">${time}</div>
     `;
+
+    // Add click event to username for winner selection
+    if (!isSent) {
+        const senderName = messageDiv.querySelector('.sender-name');
+        senderName.addEventListener('click', function() {
+            const username = this.getAttribute('data-username');
+            toggleWinnerSelection(username);
+            
+            // Toggle visual selection
+            this.classList.toggle('username-selected');
+            
+            // Show feedback
+            if (selectedWinners.includes(username)) {
+                showSelectionFeedback(`${username} selected as winner!`);
+            }
+        });
+        
+        // Add hover effect
+        senderName.style.cursor = 'pointer';
+        senderName.title = 'Click to select as winner';
+    }
 
     chatWindow.appendChild(messageDiv);
     chatWindow.scrollTop = chatWindow.scrollHeight;
 }
 
-function addSystemMessage(text) {
+function showSelectionFeedback(message) {
+    // Create a temporary feedback message
+    const feedback = document.createElement('div');
+    feedback.className = 'system-msg';
+    feedback.textContent = message;
+    feedback.style.background = 'rgba(255, 215, 0, 0.2)';
+    feedback.style.color = '#333';
+    
     const chatWindow = document.getElementById('chatWindow');
-    if (!chatWindow) return;
-
-    const div = document.createElement('div');
-    div.className = 'system-msg';
-    div.textContent = text;
-    chatWindow.appendChild(div);
-    chatWindow.scrollTop = chatWindow.scrollHeight;
+    chatWindow.appendChild(feedback);
+    
+    // Remove after 2 seconds
+    setTimeout(() => {
+        if (feedback.parentNode) {
+            feedback.remove();
+        }
+    }, 2000);
 }
 
 // Winner Selection Functions
@@ -1743,6 +2025,83 @@ window.addEventListener('beforeunload', function() {
 
 // Initialize when page loads
 window.addEventListener('DOMContentLoaded', initApp);
+// Mobile keyboard handling
+function setupMobileKeyboard() {
+    const chatInput = document.getElementById('chatInput');
+    const chatContainer = document.getElementById('chatContainer');
+    const character = document.getElementById('animatedCharacter');
+    
+    if (!chatInput || !chatContainer) return;
+    
+    // Handle focus (keyboard opens)
+    chatInput.addEventListener('focus', function() {
+        if (window.innerWidth <= 768) {
+            // Add class to adjust layout for keyboard
+            document.body.classList.add('keyboard-open');
+            
+            // Hide character when keyboard is open on small screens
+            if (character && window.innerHeight < 700) {
+                character.style.display = 'none';
+            }
+            
+            // Scroll to bottom when keyboard opens
+            setTimeout(() => {
+                const chatWindow = document.getElementById('chatWindow');
+                if (chatWindow) {
+                    chatWindow.scrollTop = chatWindow.scrollHeight;
+                }
+            }, 300);
+        }
+    });
+    
+    // Handle blur (keyboard closes)
+    chatInput.addEventListener('blur', function() {
+        document.body.classList.remove('keyboard-open');
+        
+        // Show character again
+        if (character) {
+            character.style.display = 'block';
+        }
+    });
+}
+
+// Update your initApp function to include mobile keyboard setup
+function initApp() {
+    console.log('🚀 Initializing app...');
+    
+    // Basic event listeners
+    const sendBtn = document.getElementById('sendBtn');
+    const chatInput = document.getElementById('chatInput');
+    const bell = document.getElementById('bell');
+    const usernameInput = document.getElementById('usernameInput');
+    
+    if (sendBtn) sendBtn.addEventListener('click', sendMessage);
+    if (chatInput) {
+        chatInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') sendMessage();
+        });
+    }
+    
+    if (bell) bell.addEventListener('click', showWinnerSelectionPanel);
+    if (usernameInput) usernameInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') setUsername();
+    });
+
+    // Show username overlay
+    const usernameOverlay = document.getElementById('usernameOverlay');
+    if (usernameOverlay) usernameOverlay.style.display = 'flex';
+    
+    // Initialize character with repeated messages
+    initializeCharacter();
+    
+    // Setup mobile keyboard handling
+    setupMobileKeyboard();
+    
+    // Focus on username input
+    if (usernameInput) usernameInput.focus();
+    
+    console.log('✅ App initialized successfully');
+}
 </script>
 </body>
 </html>
