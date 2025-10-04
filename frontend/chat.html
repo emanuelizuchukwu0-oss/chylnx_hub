@@ -1274,11 +1274,7 @@ function initApp() {
         chatInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') sendMessage();
         });
-        // Enable chat input immediately
-        chatInput.disabled = false;
     }
-    
-    if (sendBtn) sendBtn.disabled = false;
     
     if (bell) bell.addEventListener('click', showWinnerSelectionPanel);
     if (usernameInput) usernameInput.addEventListener('keypress', function(e) {
@@ -1467,7 +1463,7 @@ function characterReactToMessage(isMyMessage) {
         // Wave arm when sending message
         rightArm.style.transform = 'rotate(120deg)';
         if (speechBubble) {
-            speechBubble.textContent = 'Nice message! 👍';
+            speechBubble.textContent = 'Message sent! 📤';
             speechBubble.classList.add('show');
         }
         setTimeout(() => {
@@ -1516,9 +1512,58 @@ function setUsername() {
 }
 
 function initializeChat() {
-    // For demo purposes - in real implementation, you'd connect to your server
-    console.log('💬 Chat initialized for:', myUsername);
+    // Connect to Socket.IO server
+    socket = io();
     
+    // Socket event listeners
+    socket.on('connect', function() {
+        console.log('✅ Connected to server');
+        // Join chat with username - backend will create user automatically
+        socket.emit('join_chat', { username: myUsername });
+    });
+
+    socket.on('user_joined', function(data) {
+        addSystemMessage(`🎉 ${data.username} joined the chat!`);
+        updateOnlineUsers(data.onlineUsers);
+    });
+
+    socket.on('user_left', function(data) {
+        addSystemMessage(`👋 ${data.username} left the chat`);
+        updateOnlineUsers(data.onlineUsers);
+    });
+
+    socket.on('online_users_update', function(data) {
+        updateOnlineUsers(data.onlineUsers);
+    });
+
+    socket.on('chat_history', function(history) {
+        const chatWindow = document.getElementById('chatWindow');
+        if (chatWindow) {
+            chatWindow.innerHTML = '';
+            history.forEach(msg => {
+                const isSent = msg.from === myUsername;
+                addMessage(msg, isSent);
+            });
+        }
+    });
+
+    socket.on('new_message', function(data) {
+        const isSent = data.from === myUsername;
+        addMessage(data, isSent);
+        if (!isSent) characterReactToMessage(false);
+    });
+
+    socket.on('winner_announced', function(data) {
+        const winners = Array.isArray(data.winners) ? data.winners.join(", ") : data.winners;
+        showWinnerAnnouncement(winners);
+        addSystemMessage(`🏆 WINNER: ${winners}! 🎉`);
+    });
+
+    socket.on('message_error', function(data) {
+        console.error('❌ Message error:', data.error);
+        alert('Message error: ' + data.error);
+    });
+
     // Enable chat functionality
     const chatInput = document.getElementById('chatInput');
     const sendBtn = document.getElementById('sendBtn');
@@ -1530,6 +1575,16 @@ function initializeChat() {
     
     // Add welcome message
     addSystemMessage(`Welcome, ${myUsername}! Start chatting.`);
+}
+function updateOnlineUsers(users) {
+    onlineUsers = users;
+    updateOnlineCount(onlineUsers.length);
+    
+    // Update winner selection panel if open
+    const panel = document.getElementById('winnerSelectionPanel');
+    if (panel && panel.style.display === 'block') {
+        showWinnerSelectionPanel();
+    }
 }
 
 function updateOnlineCount(count) {
@@ -1543,14 +1598,14 @@ function sendMessage() {
     const messageInput = document.getElementById('chatInput');
     const text = messageInput?.value.trim();
     
-    if (!text) return;
+    if (!text || !socket) return;
     
-    // Add message to chat
-    addMessage({
-        from: myUsername,
+    // Send message via socket
+    socket.emit('message', { 
         text: text,
+        from: myUsername,
         timestamp: new Date()
-    }, true);
+    });
     
     // Clear input
     messageInput.value = '';
@@ -1604,10 +1659,8 @@ function showWinnerSelectionPanel() {
     
     winnerList.innerHTML = '';
     
-    // Demo users (replace with actual online users)
-    const demoUsers = []; // Empty now since we removed chatbot
-    
-    demoUsers.forEach(user => {
+    // Use actual online users (excluding current user)
+    onlineUsers.forEach(user => {
         if (user !== myUsername) {
             const winnerItem = document.createElement('div');
             winnerItem.className = `winner-item ${selectedWinners.includes(user) ? 'selected' : ''}`;
@@ -1665,8 +1718,10 @@ function announceSelectedWinners() {
 
     showWinnerAnnouncement(selectedWinners.join(', '));
     
-    // Add winner announcement to chat
-    addSystemMessage(`🏆 WINNER${selectedWinners.length > 1 ? 'S' : ''}: ${selectedWinners.join(', ')}! 🎉`);
+    // Broadcast winner announcement
+    if (socket) {
+        socket.emit('announce_winner', { winners: selectedWinners });
+    }
 
     selectedWinners = [];
     closeWinnerPanel();
@@ -1685,6 +1740,13 @@ function showWinnerAnnouncement(usernames) {
         }, 10000);
     }
 }
+
+// Handle page refresh/close
+window.addEventListener('beforeunload', function() {
+    if (socket && myUsername) {
+        socket.emit('leave_chat', { username: myUsername });
+    }
+});
 
 // Initialize when page loads
 window.addEventListener('DOMContentLoaded', initApp);

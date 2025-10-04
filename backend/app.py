@@ -1017,21 +1017,33 @@ def handle_join(data):
     if not username:
         return
 
+    # FIX: Create user if they don't exist instead of blocking them
     user = execute_query("SELECT id FROM users WHERE username=%s LIMIT 1", (username,), fetch=True)
-    if user:
-        user_id = user[0]["id"]
-        online_users[username] = {
-            'user_id': user_id,
-            'connected_at': datetime.utcnow().isoformat(),
-            'sid': request.sid
-        }
-        user_activity[username] = time.time()
+    if not user:
+        # Create the user automatically if they don't exist
+        success = execute_query("INSERT INTO users (username) VALUES (%s) RETURNING id", (username,), fetch=True)
+        if success:
+            user = execute_query("SELECT id FROM users WHERE username=%s LIMIT 1", (username,), fetch=True)
+        else:
+            # If we can't create the user, still allow them to join but with limited functionality
+            print(f"⚠️ Could not create user {username}, but allowing chat access")
+            user = [{"id": None}]  # Allow without user ID
+
+    user_id = user[0]["id"] if user and user[0]["id"] else None
+    
+    # Always allow joining, even if user creation failed
+    online_users[username] = {
+        'user_id': user_id,
+        'connected_at': datetime.utcnow().isoformat(),
+        'sid': request.sid
+    }
+    user_activity[username] = time.time()
 
     connected_users[username] = request.sid
     print("✅ {} joined, total users: {}".format(username, len(connected_users)))
 
     # Enhanced chat history with WhatsApp-like features
-    history = execute_query("""
+    history_query = """
         SELECT 
             m.id,
             u.username AS "from", 
@@ -1041,10 +1053,29 @@ def handle_join(data):
         FROM messages m
         JOIN users u ON m.user_id = u.id
         LEFT JOIN message_status ms ON m.id = ms.message_id AND ms.user_id = %s
-        WHERE m.created_at >= NOW() - INTERVAL '7 days'  -- Last 7 days only
+        WHERE m.created_at >= NOW() - INTERVAL '7 days'
         ORDER BY m.created_at DESC
-        LIMIT 200  -- Recent messages first, limit for performance
-    """, (user[0]["id"] if user else None,), fetch=True) or []
+        LIMIT 200
+    """
+    
+    # Only try to get history if user_id exists
+    if user_id:
+        history = execute_query(history_query, (user_id,), fetch=True) or []
+    else:
+        # If no user_id, just get recent messages without personal status
+        history = execute_query("""
+            SELECT 
+                m.id,
+                u.username AS "from", 
+                m.message AS text, 
+                m.created_at AS timestamp,
+                'delivered' AS status
+            FROM messages m
+            JOIN users u ON m.user_id = u.id
+            WHERE m.created_at >= NOW() - INTERVAL '7 days'
+            ORDER BY m.created_at DESC
+            LIMIT 200
+        """, fetch=True) or []
 
     # Convert to WhatsApp-like format and reverse for chronological order
     formatted_history = []
@@ -1052,7 +1083,6 @@ def handle_join(data):
         if h.get("timestamp") is not None and isinstance(h["timestamp"], datetime):
             h["timestamp"] = h["timestamp"].isoformat()
         
-        # Add message ID and status for frontend tracking
         formatted_history.append({
             "id": h["id"],
             "from": h["from"],
@@ -1066,16 +1096,15 @@ def handle_join(data):
 
     emit("chat_history", formatted_history, to=request.sid)
     
-    # Update message status to 'read' for all messages this user is seeing
-    if user:
+    # Update message status to 'read' only if user_id exists
+    if user_id:
         execute_query("""
             UPDATE message_status 
             SET status = 'read' 
             WHERE user_id = %s AND status = 'delivered'
-        """, (user[0]["id"],))
+        """, (user_id,))
     
     socketio.emit("user_count_update", {"count": len(connected_users)})
-
 @socketio.on("message")
 def handle_message(data):
     try:
@@ -1103,30 +1132,45 @@ def handle_message(data):
         if username in user_activity:
             user_activity[username] = time.time()
 
-        # Get user from database
+        # Get or create user from database
         user = execute_query("SELECT id FROM users WHERE username=%s LIMIT 1", (username,), fetch=True)
         if not user:
-            emit('message_error', {'error': 'User not found'})
-            return
+            # Create user automatically if they don't exist
+            success = execute_query("INSERT INTO users (username) VALUES (%s) RETURNING id", (username,), fetch=True)
+            if success:
+                user = execute_query("SELECT id FROM users WHERE username=%s LIMIT 1", (username,), fetch=True)
+            else:
+                # If we can't create user, still allow message but with limited functionality
+                print(f"⚠️ Could not create user {username}, but allowing message")
+                user = [{"id": None}]
 
-        user_id = user[0]["id"]
+        user_id = user[0]["id"] if user and user[0]["id"] else None
         
         # Insert message into database
-        message_result = execute_query(
-            "INSERT INTO messages (user_id, username, message) VALUES (%s, %s, %s) RETURNING id, created_at",
-            (user_id, username, text),
-            fetch=True
-        )
+        if user_id:
+            message_result = execute_query(
+                "INSERT INTO messages (user_id, username, message) VALUES (%s, %s, %s) RETURNING id, created_at",
+                (user_id, username, text),
+                fetch=True
+            )
+        else:
+            # If no user_id, insert with NULL user_id but still record the username
+            message_result = execute_query(
+                "INSERT INTO messages (user_id, username, message) VALUES (NULL, %s, %s) RETURNING id, created_at",
+                (username, text),
+                fetch=True
+            )
         
         if message_result:
             message_id = message_result[0]['id']
             created_at = message_result[0]['created_at']
             
-            # Mark message as sent for the sender immediately
-            execute_query(
-                "INSERT INTO message_status (message_id, user_id, status) VALUES (%s, %s, %s)",
-                (message_id, user_id, 'sent')
-            )
+            # Mark message as sent for the sender immediately (if user_id exists)
+            if user_id:
+                execute_query(
+                    "INSERT INTO message_status (message_id, user_id, status) VALUES (%s, %s, %s)",
+                    (message_id, user_id, 'sent')
+                )
             
             # Create message object for broadcasting
             msg = {
@@ -1142,7 +1186,7 @@ def handle_message(data):
             # Broadcast to all connected users including sender
             socketio.emit("new_message", msg)
             
-            # Update status to 'delivered' for all other online users
+            # Update status to 'delivered' for all other online users (if they have user_id)
             for online_username, user_info in online_users.items():
                 if online_username != username:
                     online_user_id = user_info.get('user_id')
