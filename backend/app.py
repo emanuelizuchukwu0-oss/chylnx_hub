@@ -3,6 +3,7 @@ import uuid
 import time
 import threading
 import traceback
+import re
 from datetime import datetime, timedelta
 from flask import Flask, render_template, session, request, redirect, url_for, jsonify, flash
 from flask_socketio import SocketIO, emit
@@ -10,6 +11,13 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import psycopg2
 import psycopg2.extras
 import requests
+
+# ---------------- Security Configuration ----------------
+# Remove hardcoded defaults for secrets
+REQUIRED_ENV_VARS = ['SECRET_KEY', 'DATABASE_URL', 'PAYSTACK_SECRET_KEY']
+for var in REQUIRED_ENV_VARS:
+    if not os.getenv(var):
+        raise ValueError(f"❌ Missing required environment variable: {var}")
 
 # ---------------- Paths ----------------
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -40,7 +48,7 @@ app = Flask(
     template_folder=TEMPLATE_DIR,
     static_folder=STATIC_DIR
 )
-app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "secret123")
+app.config['SECRET_KEY'] = os.getenv("SECRET_KEY")
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['SESSION_PERMANENT'] = False
 
@@ -56,17 +64,20 @@ else:
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 def get_db_connection():
+    """Get database connection with proper error handling"""
     try:
-        return psycopg2.connect(DATABASE_URL)
+        conn = psycopg2.connect(DATABASE_URL)
+        return conn
     except Exception as e:
         print(f"❌ DB connection failed: {e}")
-        return None
+        # Don't return None, let the exception propagate for proper handling
+        raise
 
 def execute_query(query, params=None, fetch=False):
-    conn = get_db_connection()
-    if not conn:
-        return None
+    """Execute database query with proper error handling"""
+    conn = None
     try:
+        conn = get_db_connection()
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
             cursor.execute(query, params or ())
             if fetch:
@@ -78,10 +89,42 @@ def execute_query(query, params=None, fetch=False):
     except Exception as e:
         print(f"❌ Query failed: {e}")
         traceback.print_exc()
-        conn.rollback()
-        return None
+        if conn:
+            conn.rollback()
+        # Return appropriate empty values instead of None
+        return [] if fetch else False
     finally:
-        conn.close()
+        if conn:
+            conn.close()
+
+# ---------------- Input Validation Functions ----------------
+def validate_username(username):
+    """Validate username format"""
+    if not username or len(username.strip()) < 2 or len(username.strip()) > 50:
+        return False
+    # Only allow alphanumeric, underscores, and hyphens
+    return bool(re.match(r'^[a-zA-Z0-9_-]+$', username.strip()))
+
+def validate_email(email):
+    """Basic email validation"""
+    if not email:
+        return False
+    return bool(re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email.strip()))
+
+def validate_message(text):
+    """Validate message content"""
+    if not text or len(text.strip()) == 0:
+        return False
+    if len(text) > 1000:  # Reasonable limit
+        return False
+    # Basic content validation - prevent empty or whitespace-only messages
+    return bool(text.strip())
+
+def validate_password(password):
+    """Validate password strength"""
+    if not password or len(password) < 6:
+        return False
+    return True
 
 # ---------------- Weekly Challenge Message Functions ----------------
 def get_weekly_challenge_message():
@@ -96,6 +139,8 @@ def get_weekly_challenge_message():
 
 def set_weekly_challenge_message(message):
     """Set the weekly challenge message in database"""
+    if not validate_message(message):
+        return False
     return execute_query(
         """INSERT INTO app_settings (setting_key, setting_value) 
            VALUES ('weekly_challenge_message', %s) 
@@ -106,11 +151,9 @@ def set_weekly_challenge_message(message):
 
 # ---------------- Initialize DB ----------------
 def init_db():
-    conn = get_db_connection()
-    if not conn:
-        print("❌ init_db: no DB connection")
-        return
+    conn = None
     try:
+        conn = get_db_connection()
         with conn.cursor() as cursor:
             # ... your existing table creation code ...
             
@@ -125,16 +168,6 @@ def init_db():
                 $$ LANGUAGE plpgsql;
             """)
             
-            # ✅ ADD: Create a scheduled job (if your PostgreSQL version supports it)
-            cursor.execute("""
-                DO $$ 
-                BEGIN
-                    -- Drop existing job if it exists
-                    DROP EVENT TRIGGER IF EXISTS message_cleanup_trigger;
-                EXCEPTION
-                    WHEN others THEN NULL;
-                END $$;
-            """)
         with conn.cursor() as cursor:
             # Existing tables
             cursor.execute("""
@@ -245,12 +278,11 @@ def init_db():
     except Exception as e:
         print("❌ DB init failed:", e)
         traceback.print_exc()
-        try:
+        if conn:
             conn.rollback()
-        except:
-            pass
     finally:
-        conn.close()
+        if conn:
+            conn.close()
 
 # Initialize database when app starts
 init_db()
@@ -361,19 +393,6 @@ def check_day_timer_expired():
         })
         return True
     return False
-
-def cleanup_old_messages():
-    """Clean up messages older than 30 days (like WhatsApp)"""
-    try:
-        result = execute_query(
-            "DELETE FROM messages WHERE created_at < NOW() - INTERVAL '30 days'"
-        )
-        if result:
-            print("✅ Cleaned up old messages")
-        return result
-    except Exception as e:
-        print(f"❌ Error cleaning up old messages: {e}")
-        return None
 
 # ---------------- Weekly Challenge Functions ----------------
 def get_current_weekly_challenge():
@@ -529,8 +548,10 @@ def payment_required():
 def set_username():
     if request.method == "POST":
         username = (request.form.get("username") or "").strip()
-        if not username:
-            flash("Username required", "error")
+        
+        # Input validation
+        if not username or not validate_username(username):
+            flash("Username must be 2-50 characters and contain only letters, numbers, underscores, and hyphens", "error")
             return redirect(url_for("set_username"))
 
         existing = execute_query("SELECT * FROM users WHERE username=%s LIMIT 1", (username,), fetch=True)
@@ -563,8 +584,17 @@ def register():
         email = (request.form.get("email") or "").strip()
         password = (request.form.get("password") or "").strip()
 
-        if not username or not email or not password:
-            flash("All fields required", "error")
+        # Input validation
+        if not username or not validate_username(username):
+            flash("Username must be 2-50 characters and contain only letters, numbers, underscores, and hyphens", "error")
+            return redirect(url_for("register"))
+            
+        if not email or not validate_email(email):
+            flash("Please enter a valid email address", "error")
+            return redirect(url_for("register"))
+            
+        if not password or not validate_password(password):
+            flash("Password must be at least 6 characters long", "error")
             return redirect(url_for("register"))
 
         existing = execute_query("SELECT id FROM users WHERE username=%s OR email=%s", (username, email), fetch=True)
@@ -584,6 +614,11 @@ def login():
     if request.method == "POST":
         username = (request.form.get("username") or "").strip()
         password = (request.form.get("password") or "").strip()
+        
+        if not username or not password:
+            flash("Please enter both username and password", "error")
+            return redirect(url_for("login"))
+            
         user = execute_query("SELECT * FROM users WHERE username=%s LIMIT 1", (username,), fetch=True)
         if user:
             user = user[0]
@@ -598,7 +633,9 @@ def login():
 @app.route("/admin_login", methods=["GET", "POST"])
 def admin_login():
     if request.method == "POST":
-        if request.form.get("passcode") == "12345":
+        # Use environment variable for admin passcode
+        admin_passcode = os.getenv("ADMIN_PASSCODE", "12345")  # Default for development only
+        if request.form.get("passcode") == admin_passcode:
             session["admin_logged_in"] = True
             return redirect(url_for("admin_dashboard"))
         flash("Wrong passcode", "error")
@@ -711,25 +748,7 @@ def admin_cleanup_status():
         "retention_period": "24 hours"
     })
 
-def check_day_timer_expired():
-    """Check if day timer has expired and handle it - call this periodically"""
-    timer = get_current_day_timer()
-    if not timer:
-        return False
-    
-    remaining = get_day_remaining_time()
-    if remaining <= 0:
-        # Timer expired, update database and broadcast
-        execute_query("UPDATE day_timer SET is_running = FALSE WHERE id = %s", (timer['id'],))
-        print("🎉 Day timer expired automatically")
-        
-        # Broadcast to all connected clients
-        socketio.emit('day_timer_complete', {
-            'message': 'DAY TIMER COMPLETED',
-            'timestamp': datetime.utcnow().isoformat()
-        })
-        return True
-    return False
+# REMOVED DUPLICATE FUNCTION: check_day_timer_expired() was defined twice
 
 @app.route('/get_online_users')
 def get_online_users():
@@ -813,7 +832,7 @@ def check_and_broadcast_timer_status():
     return False
 
 @socketio.on("connect")
-def handle_connect(auth=None):  # Add this parameter
+def handle_connect(auth=None):
     """Send current timer states when client connects"""
     print("🔔 Client connected")
     
@@ -1014,7 +1033,8 @@ def handle_get_weekly_challenge():
 @socketio.on("join_chat")
 def handle_join(data):
     username = data.get("username")
-    if not username:
+    if not username or not validate_username(username):
+        emit('join_error', {'error': 'Invalid username'})
         return
 
     # FIX: Create user if they don't exist instead of blocking them
@@ -1105,6 +1125,7 @@ def handle_join(data):
         """, (user_id,))
     
     socketio.emit("user_count_update", {"count": len(connected_users)})
+
 @socketio.on("message")
 def handle_message(data):
     try:
@@ -1124,8 +1145,10 @@ def handle_message(data):
                 return
 
         text = (data.get("text") or "").strip()
-        if not text:
-            emit('message_error', {'error': 'Message cannot be empty'})
+        
+        # Input validation
+        if not validate_message(text):
+            emit('message_error', {'error': 'Message cannot be empty or too long'})
             return
 
         # Update user activity
@@ -1239,6 +1262,11 @@ def handle_announce_winner(data):
     try:
         winners = data.get("winners")
         if not winners:
+            return
+            
+        # Validate winners data
+        if not isinstance(winners, list) or len(winners) == 0:
+            emit('winner_error', {'error': 'Invalid winners data'})
             return
             
         print(f"🎉 Broadcasting winner announcement: {winners}")
@@ -1363,7 +1391,7 @@ def handle_message_read(data):
 def handle_typing_start(data):
     """Handle typing indicator"""
     username = data.get('username')
-    if username:
+    if username and validate_username(username):
         socketio.emit("user_typing", {
             'username': username,
             'is_typing': True
@@ -1373,14 +1401,14 @@ def handle_typing_start(data):
 def handle_typing_stop(data):
     """Handle typing stop indicator"""
     username = data.get('username')
-    if username:
+    if username and validate_username(username):
         socketio.emit("user_typing", {
             'username': username,
             'is_typing': False
         })
 
 # ---------------- Payment Routes ----------------
-PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY", "sk_test_...")
+PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY")
 
 @app.route("/initialize_payment", methods=["POST"])
 def initialize_payment():
@@ -1529,6 +1557,11 @@ def handle_manual_weekly_complete(data):
     try:
         custom_message = data.get('message', 'WEEKLY CHALLENGE: COMPLETED')
         
+        # Validate message
+        if not validate_message(custom_message):
+            emit('weekly_challenge_error', {'message': 'Invalid message format'})
+            return
+            
         print(f"🎉 Manually triggering weekly challenge completion: {custom_message}")
         
         # Save message to database for persistence
@@ -1585,6 +1618,14 @@ def handle_set_weekly_message(data):
     try:
         message = data.get('message', 'WEEKLY CHALLENGE: COMPLETED')
         
+        # Validate message
+        if not validate_message(message):
+            emit('set_weekly_message_response', {
+                'success': False,
+                'error': 'Invalid message format'
+            })
+            return
+            
         # Save to database
         success = set_weekly_challenge_message(message)
         
@@ -1611,10 +1652,9 @@ def handle_set_weekly_message(data):
             'success': False,
             'error': str(e)
         })
-# In your backend/app.py, add this route:
-@app.route('/styles.css')
-def styles_css():
-    return "", 404  # Or serve a minimal CSS file
+
+# REMOVED MIXED CONTENT: Deleted the JavaScript/HTML at the end of Python file
+
 # ---------------- Run ----------------
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))

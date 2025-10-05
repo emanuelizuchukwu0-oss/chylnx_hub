@@ -4,7 +4,6 @@
     <title>Chylnx Hub Chat</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        /* Modern WhatsApp-like Styles */
         * {
             margin: 0;
             padding: 0;
@@ -20,7 +19,6 @@
             overflow: hidden;
         }
 
-        /* Fixed Header Styles */
         header {
             background: #25D366;
             color: white;
@@ -53,7 +51,6 @@
             font-size: clamp(16px, 4vw, 18px);
         }
 
-        /* Updated Chat Container with Safe Margins */
         #chatContainer {
             flex: 1;
             display: flex;
@@ -83,7 +80,6 @@
             margin-right: 0;
         }
 
-        /* Updated Message Styles with Character-Safe Widths */
         .message {
             max-width: min(65%, 380px);
             padding: clamp(6px, 2vw, 8px) clamp(10px, 2vw, 12px);
@@ -157,7 +153,6 @@
             border-radius: 12px;
         }
 
-        /* Fixed Input Area */
         #inputArea {
             background: #f0f0f0;
             padding: clamp(8px, 2vw, 10px) clamp(12px, 3vw, 16px);
@@ -209,7 +204,6 @@
             cursor: not-allowed;
         }
 
-        /* System messages with safe margins */
         .system-msg {
             text-align: center;
             color: #667781;
@@ -219,7 +213,6 @@
             padding: 0 10px;
         }
 
-        /* Winner announcements with safe margins */
         .winner-announcement {
             background: linear-gradient(135deg, #ffd700, #ff8c00);
             color: #000;
@@ -238,7 +231,6 @@
             100% { transform: scale(1); }
         }
 
-        /* Overlays */
         #usernameOverlay {
             position: fixed;
             top: 0;
@@ -306,7 +298,6 @@
             font-size: clamp(12px, 2.5vw, 14px);
         }
 
-        /* Scrollbar Styling */
         #chatWindow::-webkit-scrollbar {
             width: 6px;
         }
@@ -320,7 +311,6 @@
             border-radius: 3px;
         }
 
-        /* Winner Selection Modal */
         #winnerModal {
             position: fixed;
             top: 0;
@@ -363,7 +353,6 @@
             font-size: clamp(14px, 3vw, 16px);
         }
 
-        /* Winner Announcement Overlay */
         #winnerAnnouncementOverlay {
             position: fixed;
             top: 0;
@@ -426,143 +415,6 @@
             50% { transform: translateY(-10px); }
         }
 
-        /* Mobile-specific adjustments with safer margins */
-        @media (max-width: 480px) {
-            .message {
-                max-width: 80% !important;
-                margin-left: 8px;
-                margin-right: 8px;
-            }
-            
-            .message.sent {
-                margin-right: 15px;
-            }
-            
-            .message.received {
-                margin-left: 15px;
-            }
-            
-            #chatWindow {
-                padding: 12px 8px !important;
-            }
-            
-            #chatContainer {
-                padding-left: 5px;
-                padding-right: 5px;
-            }
-            
-            .header-info {
-                gap: 8px;
-            }
-            
-            .header-actions {
-                gap: 12px;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .message {
-                max-width: 75% !important;
-            }
-            
-            #chatWindow {
-                padding-left: 10px;
-                padding-right: 10px;
-            }
-        }
-
-        /* Extra small screens - even safer margins */
-        @media (max-width: 320px) {
-            .message {
-                max-width: 70% !important;
-                margin-left: 5px;
-                margin-right: 5px;
-            }
-            
-            .message.sent {
-                margin-right: 8px;
-            }
-            
-            .message.received {
-                margin-left: 8px;
-            }
-            
-            #chatWindow {
-                padding: 8px 4px !important;
-            }
-            
-            #chatContainer {
-                padding-left: 2px;
-                padding-right: 2px;
-            }
-            
-            #usernameForm {
-                padding: 20px 15px;
-            }
-        }
-
-        /* Tablet screens */
-        @media (min-width: 769px) and (max-width: 1024px) {
-            .message {
-                max-width: 70% !important;
-            }
-            
-            #chatWindow {
-                padding-left: 15px;
-                padding-right: 15px;
-            }
-        }
-
-        /* Large screens */
-        @media (min-width: 1025px) {
-            .message {
-                max-width: 60% !important;
-            }
-            
-            #chatWindow {
-                padding-left: 20px;
-                padding-right: 20px;
-            }
-            
-            #chatContainer {
-                margin-top: 60px;
-                margin-bottom: 70px;
-            }
-            
-            header {
-                padding: 10px 16px;
-                height: 60px;
-            }
-            
-            #inputArea {
-                padding: 10px 16px;
-                height: 70px;
-            }
-        }
-
-        /* Mobile landscape mode - prevent character overlap */
-        @media (max-height: 500px) and (orientation: landscape) {
-            .message {
-                max-width: 60% !important;
-            }
-            
-            #chatWindow {
-                padding: 10px 5px !important;
-            }
-            
-            #chatContainer {
-                padding-left: 5px;
-                padding-right: 5px;
-            }
-        }
-
-        /* Prevent horizontal scrolling */
-        html, body {
-            max-width: 100%;
-            overflow-x: hidden;
-        }
-
-        /* Multiple Winner Selection Styles */
         .winner-selection-panel {
             position: fixed;
             top: 60px;
@@ -652,7 +504,6 @@
             margin-left: 10px;
         }
 
-        /* Selected username highlight in chat */
         .username-selected {
             background: linear-gradient(135deg, #ffd700, #ffed4e) !important;
             color: #000 !important;
@@ -669,7 +520,6 @@
             50% { box-shadow: 0 2px 15px rgba(255, 215, 0, 0.8); }
         }
 
-        /* Timer Block Message Styles */
         #usernameForm .timer-display {
             font-size: 2rem;
             color: #25D366;
@@ -729,7 +579,6 @@
             75% { transform: rotate(12deg) scale(1.2); }
         }
 
-        /* ===== UPDATED BOSS BABY STYLE CHARACTER ===== */
         .animated-character {
             position: fixed;
             z-index: 5;
@@ -746,7 +595,6 @@
             filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.3));
         }
 
-        /* Big Head like Boss Baby */
         .character-head {
             width: 80px;
             height: 75px;
@@ -759,7 +607,6 @@
             overflow: hidden;
         }
 
-        /* Baseball Cap */
         .character-cap {
             position: absolute;
             top: -8px;
@@ -826,7 +673,6 @@
             transition: all 0.2s ease;
         }
 
-        /* Glasses */
         .character-glasses {
             position: absolute;
             top: 0;
@@ -868,7 +714,6 @@
             transition: all 0.3s ease;
         }
 
-        /* Nerdy Outfit - Button-up shirt and tie */
         .character-body-main {
             width: 65px;
             height: 55px;
@@ -880,7 +725,6 @@
             box-shadow: inset -2px -2px 4px rgba(0,0,0,0.2);
         }
 
-        /* Shirt Collar */
         .shirt-collar {
             position: absolute;
             top: -4px;
@@ -892,7 +736,6 @@
             border-radius: 4px 4px 0 0;
         }
 
-        /* Tie */
         .character-tie {
             position: absolute;
             top: 8px;
@@ -915,7 +758,6 @@
             border-radius: 50%;
         }
 
-        /* Arms - Dress shirt sleeves */
         .character-arm {
             position: absolute;
             width: 16px;
@@ -941,7 +783,6 @@
             transform: rotate(25deg);
         }
 
-        /* Legs - Dress pants */
         .character-leg {
             position: absolute;
             width: 18px;
@@ -963,7 +804,6 @@
             right: 16px;
         }
 
-        /* Speech Bubble */
         .speech-bubble {
             position: absolute;
             background: white;
@@ -1018,7 +858,6 @@
             transform: translateX(-50%);
         }
 
-        /* Character positioning updates to ensure they stay in safe zones */
         .animated-character.username-guide {
             top: 40% !important;
             left: 50% !important;
@@ -1039,42 +878,6 @@
             pointer-events: none;
         }
 
-        /* Mobile speech bubble adjustments */
-        @media (max-width: 768px) {
-            .speech-bubble {
-                max-width: 180px !important;
-                font-size: 13px !important;
-                padding: 10px 14px !important;
-            }
-            
-            .animated-character.username-guide {
-                transform: translate(-50%, -50%) scale(0.7) !important;
-            }
-            
-            .animated-character.chat-guide {
-                bottom: 95px !important;
-                transform: translateX(-50%) scale(0.6) !important;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .speech-bubble {
-                max-width: 160px !important;
-                font-size: 12px !important;
-                padding: 8px 12px !important;
-            }
-            
-            .animated-character.username-guide {
-                transform: translate(-50%, -50%) scale(0.6) !important;
-            }
-            
-            .animated-character.chat-guide {
-                bottom: 90px !important;
-                transform: translateX(-50%) scale(0.5) !important;
-            }
-        }
-
-        /* Character Animations */
         @keyframes gentleSway {
             0%, 100% { transform: translateX(0px) rotate(0deg); }
             25% { transform: translateX(-3px) rotate(-1deg); }
@@ -1103,7 +906,22 @@
             100% { transform: scale(1); opacity: 1; }
         }
 
-        /* Active States */
+        /* ADD MISSING ANIMATIONS */
+        @keyframes blink {
+            0%, 90%, 100% { transform: scaleY(1); }
+            95% { transform: scaleY(0.1); }
+        }
+
+        @keyframes pointDown {
+            0%, 100% { transform: rotate(90deg); }
+            50% { transform: rotate(100deg); }
+        }
+
+        @keyframes nod {
+            0%, 100% { transform: rotate(0deg); }
+            50% { transform: rotate(5deg); }
+        }
+
         .animated-character.username-guide {
             animation: gentleSway 3s ease-in-out infinite, excitedJump 2s ease-in-out infinite;
         }
@@ -1121,7 +939,6 @@
             animation: gentleSway 6s ease-in-out infinite;
         }
 
-        /* Walking Animation for Transition */
         .animated-character.walking {
             animation: walk 0.6s ease-in-out infinite;
         }
@@ -1134,14 +951,12 @@
             animation: walk 0.6s ease-in-out infinite reverse;
         }
 
-        /* Show speech bubble */
         .speech-bubble.show {
             opacity: 1;
             transform: translateY(0);
             animation: typing 0.5s ease-in-out;
         }
 
-        /* Character Reactions */
         .character-talking .character-mouth {
             animation: talk 0.3s ease-in-out infinite;
         }
@@ -1155,7 +970,6 @@
             animation: excitedJump 0.5s ease-in-out 3 !important;
         }
 
-        /* ===== DANCING ANIMATIONS ===== */
         .animated-character.dancing {
             animation: danceMove 1s ease-in-out infinite !important;
         }
@@ -1231,7 +1045,6 @@
             50% { transform: translateX(-50%) scale(1.1); }
         }
 
-        /* Bell notification badge */
         .bell-notification {
             position: absolute;
             top: -5px;
@@ -1253,7 +1066,6 @@
             50% { transform: scale(1.1); }
         }
 
-        /* Ensure messages are above character on all screens */
         .message {
             position: relative;
             z-index: 20 !important;
@@ -1274,7 +1086,136 @@
             z-index: 25 !important;
         }
 
-        /* Mobile Keyboard Optimization */
+        @media (max-width: 480px) {
+            .message {
+                max-width: 80% !important;
+                margin-left: 8px;
+                margin-right: 8px;
+            }
+            
+            .message.sent {
+                margin-right: 15px;
+            }
+            
+            .message.received {
+                margin-left: 15px;
+            }
+            
+            #chatWindow {
+                padding: 12px 8px !important;
+            }
+            
+            #chatContainer {
+                padding-left: 5px;
+                padding-right: 5px;
+            }
+            
+            .header-info {
+                gap: 8px;
+            }
+            
+            .header-actions {
+                gap: 12px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .message {
+                max-width: 75% !important;
+            }
+            
+            #chatWindow {
+                padding-left: 10px;
+                padding-right: 10px;
+            }
+        }
+
+        @media (max-width: 320px) {
+            .message {
+                max-width: 70% !important;
+                margin-left: 5px;
+                margin-right: 5px;
+            }
+            
+            .message.sent {
+                margin-right: 8px;
+            }
+            
+            .message.received {
+                margin-left: 8px;
+            }
+            
+            #chatWindow {
+                padding: 8px 4px !important;
+            }
+            
+            #chatContainer {
+                padding-left: 2px;
+                padding-right: 2px;
+            }
+            
+            #usernameForm {
+                padding: 20px 15px;
+            }
+        }
+
+        @media (min-width: 769px) and (max-width: 1024px) {
+            .message {
+                max-width: 70% !important;
+            }
+            
+            #chatWindow {
+                padding-left: 15px;
+                padding-right: 15px;
+            }
+        }
+
+        @media (min-width: 1025px) {
+            .message {
+                max-width: 60% !important;
+            }
+            
+            #chatWindow {
+                padding-left: 20px;
+                padding-right: 20px;
+            }
+            
+            #chatContainer {
+                margin-top: 60px;
+                margin-bottom: 70px;
+            }
+            
+            header {
+                padding: 10px 16px;
+                height: 60px;
+            }
+            
+            #inputArea {
+                padding: 10px 16px;
+                height: 70px;
+            }
+        }
+
+        @media (max-height: 500px) and (orientation: landscape) {
+            .message {
+                max-width: 60% !important;
+            }
+            
+            #chatWindow {
+                padding: 10px 5px !important;
+            }
+            
+            #chatContainer {
+                padding-left: 5px;
+                padding-right: 5px;
+            }
+        }
+
+        html, body {
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+
         @media (max-height: 700px) {
             #chatContainer {
                 margin-bottom: 50px !important;
@@ -1289,7 +1230,6 @@
             }
         }
 
-        /* Mobile Landscape */
         @media (max-height: 500px) and (orientation: landscape) {
             #chatContainer {
                 margin-top: 50px !important;
@@ -1320,7 +1260,6 @@
             }
         }
 
-        /* Touch-friendly button sizes for mobile */
         #sendBtn {
             min-width: 40px;
             min-height: 40px;
@@ -1330,22 +1269,53 @@
             min-height: 40px;
         }
 
-        /* Fix for character display - ALWAYS VISIBLE */
         #animatedCharacter {
             display: block !important;
             visibility: visible !important;
         }
+
+        @media (max-width: 768px) {
+            .speech-bubble {
+                max-width: 180px !important;
+                font-size: 13px !important;
+                padding: 10px 14px !important;
+            }
+            
+            .animated-character.username-guide {
+                transform: translate(-50%, -50%) scale(0.7) !important;
+            }
+            
+            .animated-character.chat-guide {
+                bottom: 95px !important;
+                transform: translateX(-50%) scale(0.6) !important;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .speech-bubble {
+                max-width: 160px !important;
+                font-size: 12px !important;
+                padding: 8px 12px !important;
+            }
+            
+            .animated-character.username-guide {
+                transform: translate(-50%, -50%) scale(0.6) !important;
+            }
+            
+            .animated-character.chat-guide {
+                bottom: 90px !important;
+                transform: translateX(-50%) scale(0.5) !important;
+            }
+        }
     </style>
 </head>
 <body data-paid="false">
-    <!-- Multiple Winner Selection Panel -->
     <div id="winnerSelectionPanel" class="winner-selection-panel">
         <div class="winner-panel-header">
             <h3>Select Winners <span id="selectedCount" class="selected-count">0</span></h3>
             <span onclick="closeWinnerPanel()" style="cursor: pointer; font-size: 18px;">×</span>
         </div>
         <div class="winner-list" id="winnerList">
-            <!-- Winner list will be populated dynamically -->
         </div>
         <div class="winner-actions">
             <button id="cancelWinners" onclick="closeWinnerPanel()">Cancel</button>
@@ -1353,7 +1323,6 @@
         </div>
     </div>
 
-    <!-- Username Form Overlay -->
     <div id="usernameOverlay">
         <div id="usernameForm">
             <h3>Join the Chat</h3>
@@ -1365,7 +1334,6 @@
         </div>
     </div>
 
-    <!-- Fixed Header -->
     <header>
         <div class="header-info">
             <h2>💬 Chylnx Chat</h2>
@@ -1379,29 +1347,24 @@
         </div>
     </header>
 
-    <!-- Chat Container -->
     <div id="chatContainer">
         <div id="chatWindow">
             <div class="system-msg">Welcome to the chat! Type a message to begin.</div>
         </div>
     </div>
 
-    <!-- Fixed Input Area -->
     <div id="inputArea">
         <input id="chatInput" type="text" placeholder="Type a message..." disabled>
         <button id="sendBtn" disabled>➤</button>
     </div>
 
-    <!-- Updated Boss Baby Style Character -->
     <div class="animated-character username-guide" id="animatedCharacter">
         <div class="character-body">
             <div class="character-head">
-                <!-- Baseball Cap -->
                 <div class="character-cap">
                     <div class="cap-bill"></div>
                 </div>
                 <div class="character-face">
-                    <!-- Glasses -->
                     <div class="character-glasses">
                         <div class="glasses-frame"></div>
                         <div class="glasses-bridge"></div>
@@ -1413,7 +1376,6 @@
                     <div class="character-mouth"></div>
                 </div>
             </div>
-            <!-- Nerdy Outfit with Shirt and Tie -->
             <div class="character-body-main">
                 <div class="shirt-collar"></div>
                 <div class="character-tie">
@@ -1430,7 +1392,6 @@
         </div>
     </div>
 
-    <!-- Winner Modal -->
     <div id="winnerModal">
         <div class="winner-modal-content">
             <h2>🎉 Winner Selected! 🎉</h2>
@@ -1439,7 +1400,6 @@
         </div>
     </div>
 
-    <!-- Winner Announcement Overlay -->
     <div id="winnerAnnouncementOverlay">
         <div class="winner-announcement-content">
             <div class="winner-trophy">🏆</div>
@@ -1452,7 +1412,6 @@
 
    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
 <script>
-    // Your existing JavaScript code remains exactly the same
     let myUsername = "";
     let socket = null;
     let selectedWinners = [];
@@ -1462,11 +1421,9 @@
     const ANNOUNCE_PASSCODE = "1234";
     let messageInterval;
 
-    // Initialize app
     function initApp() {
         console.log('🚀 Initializing app...');
         
-        // Basic event listeners
         const sendBtn = document.getElementById('sendBtn');
         const chatInput = document.getElementById('chatInput');
         const bell = document.getElementById('bell');
@@ -1484,23 +1441,18 @@
             if (e.key === 'Enter') setUsername();
         });
 
-        // Show username overlay
         const usernameOverlay = document.getElementById('usernameOverlay');
         if (usernameOverlay) usernameOverlay.style.display = 'flex';
         
-        // Initialize character with repeated messages
         initializeCharacter();
         
-        // Setup mobile keyboard handling WITHOUT hiding character
         setupMobileKeyboard();
         
-        // Focus on username input
         if (usernameInput) usernameInput.focus();
         
         console.log('✅ App initialized successfully');
     }
 
-    // Character Functions
     function initializeCharacter() {
         const character = document.getElementById('animatedCharacter');
         if (!character) {
@@ -1508,14 +1460,11 @@
             return;
         }
         
-        // Make sure character is visible - NO display none
         character.style.display = 'block';
         character.style.visibility = 'visible';
         
-        // Start with username guide
         showUsernameGuide();
         
-        // Start repeating messages
         startRepeatingMessages();
     }
 
@@ -1530,7 +1479,6 @@
         let messageIndex = 0;
         const speechBubble = document.getElementById('speechBubble');
         
-        // Clear any existing interval
         if (messageInterval) clearInterval(messageInterval);
         
         messageInterval = setInterval(() => {
@@ -1538,12 +1486,11 @@
                 speechBubble.textContent = messages[messageIndex];
                 speechBubble.classList.add('show');
                 
-                // Add typing animation
                 speechBubble.style.animation = 'typing 0.5s ease-in-out';
                 
                 messageIndex = (messageIndex + 1) % messages.length;
             }
-        }, 3000); // Change message every 3 seconds
+        }, 3000);
     }
 
     function showUsernameGuide() {
@@ -1557,7 +1504,6 @@
         character.style.display = 'block';
         character.style.visibility = 'visible';
         
-        // Center position for username screen
         character.style.top = '40%';
         character.style.left = '50%';
         character.style.right = 'auto';
@@ -1577,25 +1523,21 @@
         
         if (!character) return;
         
-        // Stop repeating messages
         if (messageInterval) clearInterval(messageInterval);
         
-        // Start walking animation
         character.classList.add('walking');
         character.style.transition = 'all 2s ease-in-out';
         
-        // Adjust position based on screen size - ALWAYS CENTERED
         const isMobile = window.innerWidth <= 768;
         const bottomPosition = isMobile ? '85px' : '90px';
         const scale = isMobile ? '0.6' : '0.7';
         
-        // Move character to chat position - CENTERED AT BOTTOM
         character.style.bottom = bottomPosition;
         character.style.left = '50%';
         character.style.right = 'auto';
         character.style.top = 'auto';
         character.style.transform = `translateX(-50%) scale(${scale})`;
-        character.style.zIndex = '5'; // Ensure behind messages
+        character.style.zIndex = '5';
         
         setTimeout(() => {
             character.classList.remove('walking');
@@ -1607,7 +1549,6 @@
                 speechBubble.classList.remove('show');
                 setTimeout(() => speechBubble.classList.add('show'), 1000);
                 
-                // Hide speech bubble after 5 seconds
                 setTimeout(() => {
                     speechBubble.classList.remove('show');
                 }, 5000);
@@ -1623,18 +1564,15 @@
         
         if (!chatContainer || !character) return;
         
-        // Remove mouse following and implement message following
         setupMessageFollowing();
     }
 
     function setupMessageFollowing() {
-        // This will make the character follow messages as they appear
         const chatWindow = document.getElementById('chatWindow');
         const character = document.getElementById('animatedCharacter');
         
         if (!chatWindow || !character) return;
         
-        // Observer to watch for new messages
         const observer = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
                 if (mutation.addedNodes.length) {
@@ -1656,21 +1594,17 @@
         
         if (!character || !eyes) return;
         
-        // Get message position
         const messageRect = messageElement.getBoundingClientRect();
         const characterRect = character.getBoundingClientRect();
         
-        // Calculate direction to look
         const messageCenterX = messageRect.left + messageRect.width / 2;
         const characterCenterX = characterRect.left + characterRect.width / 2;
         
         const deltaX = messageCenterX - characterCenterX;
         
-        // Move eyes to follow message (limited movement)
         const eyeMovement = Math.min(Math.max(deltaX / 50, -15), 15);
         eyes.style.transform = `translateX(${eyeMovement}px)`;
         
-        // Character reaction
         characterReactToMessage(messageElement.classList.contains('sent'));
     }
 
@@ -1685,7 +1619,6 @@
         if (!character || !rightArm) return;
         
         if (isMyMessage) {
-            // Wave arm when sending message
             rightArm.style.transform = 'rotate(120deg)';
             if (speechBubble) {
                 speechBubble.textContent = 'Message sent! 📤';
@@ -1698,7 +1631,6 @@
                 }, 2000);
             }, 1000);
         } else {
-            // Nod and point when receiving message
             character.style.animation = 'nod 1s ease-in-out';
             leftArm.style.transform = 'rotate(45deg)';
             if (speechBubble) {
@@ -1715,7 +1647,6 @@
         }
     }
 
-    // Character Dance Function
     function startCharacterDance() {
         const character = document.getElementById('animatedCharacter');
         const speechBubble = document.getElementById('speechBubble');
@@ -1724,16 +1655,13 @@
         
         console.log('💃 Starting character dance!');
         
-        // Add dancing class
         character.classList.add('dancing');
         
-        // Update speech bubble for celebration
         if (speechBubble) {
             speechBubble.textContent = "🎉 CONGRATULATIONS! 🎉";
             speechBubble.classList.add('show');
         }
         
-        // Dance for 8 seconds, then return to normal
         setTimeout(() => {
             stopCharacterDance();
         }, 8000);
@@ -1747,13 +1675,10 @@
         
         console.log('💃 Stopping character dance');
         
-        // Remove dancing class
         character.classList.remove('dancing');
         
-        // Return to normal breathing animation
         character.style.animation = 'breathing 4s ease-in-out infinite';
         
-        // Hide speech bubble after dance
         if (speechBubble) {
             setTimeout(() => {
                 speechBubble.classList.remove('show');
@@ -1761,19 +1686,15 @@
         }
     }
 
-    // Mobile keyboard handling - WITHOUT hiding character
     function setupMobileKeyboard() {
         const chatInput = document.getElementById('chatInput');
         
         if (!chatInput) return;
         
-        // Handle focus (keyboard opens) - NO character hiding
         chatInput.addEventListener('focus', function() {
             if (window.innerWidth <= 768) {
-                // Add class to adjust layout for keyboard
                 document.body.classList.add('keyboard-open');
                 
-                // Scroll to bottom when keyboard opens
                 setTimeout(() => {
                     const chatWindow = document.getElementById('chatWindow');
                     if (chatWindow) {
@@ -1783,13 +1704,11 @@
             }
         });
         
-        // Handle blur (keyboard closes)
         chatInput.addEventListener('blur', function() {
             document.body.classList.remove('keyboard-open');
         });
     }
 
-    // Username and Chat Functions
     function setUsername() {
         const usernameInput = document.getElementById('usernameInput');
         const username = usernameInput?.value.trim();
@@ -1803,7 +1722,6 @@
         const usernameOverlay = document.getElementById('usernameOverlay');
         if (usernameOverlay) usernameOverlay.style.display = 'none';
         
-        // Stop message repetition
         if (messageInterval) clearInterval(messageInterval);
         
         showChatGuide();
@@ -1811,30 +1729,25 @@
     }
 
     function initializeChat() {
-        // Connect to Socket.IO server
         socket = io();
         
-        // Socket event listeners
         socket.on('connect', function() {
             console.log('✅ Connected to server');
-            // Join chat with username - backend will create user automatically
             socket.emit('join_chat', { username: myUsername });
         });
 
         socket.on('user_joined', function(data) {
             addSystemMessage(`🎉 ${data.username} joined the chat!`);
-            // Update online count from the connected users count
             updateOnlineCount(Object.keys(data.online_users || {}).length);
         });
 
         socket.on('user_left', function(data) {
+            // FIXED: Corrected the string quote mismatch
             addSystemMessage(`👋 ${data.username} left the chat`);
-            // Update online count from the connected users count
             updateOnlineCount(Object.keys(data.online_users || {}).length);
         });
 
         socket.on('user_count_update', function(data) {
-            // This event directly gives us the count
             updateOnlineCount(data.count);
         });
 
@@ -1866,7 +1779,6 @@
             alert('Message error: ' + data.error);
         });
 
-        // Enable chat functionality
         const chatInput = document.getElementById('chatInput');
         const sendBtn = document.getElementById('sendBtn');
         
@@ -1875,7 +1787,6 @@
         
         if (chatInput) chatInput.focus();
         
-        // Add welcome message
         addSystemMessage(`Welcome, ${myUsername}! Start chatting.`);
     }
 
@@ -1893,16 +1804,13 @@
         
         if (!text || !socket) return;
         
-        // Send message via socket
         socket.emit('message', { 
             text: text
         });
         
-        // Clear input
         messageInput.value = '';
         messageInput.focus();
         
-        // Character reaction
         characterReactToMessage(true);
     }
 
@@ -1926,20 +1834,16 @@
             <div class="message-time">${time}</div>
         `;
 
-        // Add click event to username for winner selection
         if (!isSent) {
             const senderName = messageDiv.querySelector('.sender-name');
             senderName.addEventListener('click', function() {
                 const username = this.getAttribute('data-username');
                 toggleWinnerSelection(username);
                 
-                // Toggle visual selection
                 this.classList.toggle('username-selected');
                 
-                // Update bell notification
                 updateBellNotification();
                 
-                // Show feedback
                 if (selectedWinners.includes(username)) {
                     showSelectionFeedback(`${username} selected as winner!`);
                 } else {
@@ -1947,7 +1851,6 @@
                 }
             });
             
-            // Add hover effect
             senderName.style.cursor = 'pointer';
             senderName.title = 'Click to select as winner';
         }
@@ -1969,7 +1872,6 @@
     }
 
     function showSelectionFeedback(message) {
-        // Create a temporary feedback message
         const feedback = document.createElement('div');
         feedback.className = 'system-msg';
         feedback.textContent = message;
@@ -1979,7 +1881,6 @@
         const chatWindow = document.getElementById('chatWindow');
         chatWindow.appendChild(feedback);
         
-        // Remove after 2 seconds
         setTimeout(() => {
             if (feedback.parentNode) {
                 feedback.remove();
@@ -1987,7 +1888,6 @@
         }, 2000);
     }
 
-    // Bell notification functions
     function updateBellNotification() {
         const bellNotification = document.getElementById('bellNotification');
         if (bellNotification) {
@@ -2000,57 +1900,46 @@
         }
     }
 
-    // Winner Selection Functions
-    function showWinnerSelectionPanel() {
-        const panel = document.getElementById('winnerSelectionPanel');
-        const winnerList = document.getElementById('winnerList');
-        
-        if (!panel || !winnerList) return;
-        
-        winnerList.innerHTML = '';
-        
-        // Collect all unique usernames from chat messages
-        const allUsernames = new Set();
-        const senderNames = document.querySelectorAll('.sender-name');
-        senderNames.forEach(sender => {
-            const username = sender.getAttribute('data-username');
-            if (username && username !== myUsername) {
-                allUsernames.add(username);
-            }
-        });
-        
-        // Add online users
-        Object.keys(onlineUsers).forEach(user => {
-            if (user !== myUsername) {
-                allUsernames.add(user);
-            }
-        });
-        
-        // Create winner items
-        allUsernames.forEach(user => {
-            const winnerItem = document.createElement('div');
-            winnerItem.className = `winner-item ${selectedWinners.includes(user) ? 'selected' : ''}`;
-            winnerItem.innerHTML = `
-                <input type="checkbox" class="winner-checkbox" ${selectedWinners.includes(user) ? 'checked' : ''} value="${user}">
-                <span>${user}</span>
-            `;
-            winnerItem.addEventListener('click', function() {
-                const checkbox = this.querySelector('.winner-checkbox');
-                checkbox.checked = !checkbox.checked;
-                toggleWinnerSelection(user, checkbox.checked);
-                
-                // Update visual selection in chat
-                updateChatUsernameSelection(user, checkbox.checked);
-                
-                // Update bell notification
-                updateBellNotification();
-            });
-            winnerList.appendChild(winnerItem);
-        });
-        
-        updateSelectedCount();
-        panel.style.display = 'block';
+function showWinnerSelectionPanel() {
+    const entered = prompt("Enter passcode to announce a random winner:");
+    if (entered !== ANNOUNCE_PASSCODE) {
+        if (entered !== null) {
+            alert("❌ Wrong passcode!");
+        }
+        return;
     }
+
+    const allUsernames = new Set();
+    const senderNames = document.querySelectorAll('.sender-name');
+    senderNames.forEach(sender => {
+        const username = sender.getAttribute('data-username');
+        if (username && username !== myUsername) {
+            allUsernames.add(username);
+        }
+    });
+
+    Object.keys(onlineUsers).forEach(user => {
+        if (user !== myUsername) {
+            allUsernames.add(user);
+        }
+    });
+
+    if (allUsernames.size === 0) {
+        alert("No users available to select as winner!");
+        return;
+    }
+
+    const usersArray = Array.from(allUsernames);
+    const randomWinner = usersArray[Math.floor(Math.random() * usersArray.length)];
+    
+    showWinnerAnnouncement(randomWinner);
+    
+    if (socket) {
+        socket.emit('announce_winner', { winners: [randomWinner] });
+    }
+    
+    showSelectionFeedback(`Random winner announced: ${randomWinner}!`);
+}
 
     function closeWinnerPanel() {
         const panel = document.getElementById('winnerSelectionPanel');
@@ -2076,7 +1965,6 @@
     }
 
     function updateChatUsernameSelection(username, isSelected) {
-        // Update all instances of this username in the chat
         const senderNames = document.querySelectorAll(`.sender-name[data-username="${username}"]`);
         senderNames.forEach(senderName => {
             if (isSelected) {
@@ -2101,23 +1989,19 @@
 
         showWinnerAnnouncement(selectedWinners.join(', '));
         
-        // Broadcast winner announcement
         if (socket) {
             socket.emit('announce_winner', { winners: selectedWinners });
         }
 
-        // Clear selections after announcement
         selectedWinners.forEach(username => {
             updateChatUsernameSelection(username, false);
         });
         selectedWinners = [];
         
-        // Update UI
         updateSelectedCount();
         updateBellNotification();
         closeWinnerPanel();
         
-        // Show success message
         showSelectionFeedback('Winners announced successfully!');
     }
 
@@ -2129,14 +2013,12 @@
             winnerNameElement.textContent = usernames;
             overlay.style.display = 'flex';
             
-            // Start character dance after overlay disappears
             setTimeout(() => {
                 overlay.style.display = 'none';
-                // Start dancing after a short delay
                 setTimeout(() => {
                     startCharacterDance();
                 }, 500);
-            }, 10000); // Overlay shows for 10 seconds
+            }, 10000);
         }
     }
 
@@ -2145,17 +2027,14 @@
         if (modal) modal.style.display = 'none';
     }
 
-    // Handle page refresh/close
     window.addEventListener('beforeunload', function() {
         if (socket && myUsername) {
             socket.emit('leave_chat', { username: myUsername });
         }
     });
 
-    // Initialize when page loads
     window.addEventListener('DOMContentLoaded', initApp);
 
-    // Handle window resize for character positioning
     window.addEventListener('resize', function() {
         const character = document.getElementById('animatedCharacter');
         if (character && characterState === 'chat') {
@@ -2168,6 +2047,100 @@
             character.style.transform = `translateX(-50%) scale(${scale})`;
         }
     });
+
+function cleanupOldMessages() {
+    const chatWindow = document.getElementById('chatWindow');
+    if (!chatWindow) return;
+    
+    const messages = chatWindow.querySelectorAll('.message, .system-msg');
+    const now = new Date().getTime();
+    const twentyFourHours = 24 * 60 * 60 * 1000;
+    
+    messages.forEach(message => {
+        const messageTimeElement = message.querySelector('.message-time');
+        if (messageTimeElement) {
+            const timeText = messageTimeElement.textContent;
+            const messageTime = parseMessageTime(timeText);
+            if (messageTime && (now - messageTime > twentyFourHours)) {
+                message.remove();
+            }
+        }
+    });
+}
+
+function parseMessageTime(timeText) {
+    try {
+        const now = new Date();
+        const [timePart, modifier] = timeText.split(' ');
+        let [hours, minutes] = timePart.split(':').map(Number);
+        
+        if (modifier === 'PM' && hours < 12) hours += 12;
+        if (modifier === 'AM' && hours === 12) hours = 0;
+        
+        const messageDate = new Date(now);
+        messageDate.setHours(hours, minutes, 0, 0);
+        
+        if (messageDate > now) {
+            messageDate.setDate(messageDate.getDate() - 1);
+        }
+        
+        return messageDate.getTime();
+    } catch (error) {
+        console.error('Error parsing message time:', error);
+        return null;
+    }
+}
+
+// Only add socket event listener if socket exists
+if (socket) {
+    socket.on('cleanup_old_messages', function() {
+        cleanupOldMessages();
+    });
+}
+
+setInterval(cleanupOldMessages, 60 * 60 * 1000);
+
+function checkTimerState() {
+    const isTimerRunning = localStorage.getItem('gameTimerRunning') === 'true';
+    const usernameOverlay = document.getElementById('usernameOverlay');
+    const usernameForm = document.getElementById('usernameForm');
+    
+    if (isTimerRunning && usernameOverlay && usernameForm) {
+        usernameForm.innerHTML = `
+            <h3>⏰ Game Timer Active</h3>
+            <div class="timer-display" id="blockedTimerDisplay">Checking...</div>
+            <div class="waiting-message">
+                Please wait for the game timer to finish before joining the chat.
+            </div>
+            <button class="refresh-btn" onclick="checkTimerState()">Check Again</button>
+            <div class="form-note">
+                The chat will open automatically when the timer ends.
+            </div>
+        `;
+        
+        updateBlockedTimerDisplay();
+        
+        const timerCheckInterval = setInterval(() => {
+            const stillRunning = localStorage.getItem('gameTimerRunning') === 'true';
+            if (!stillRunning) {
+                clearInterval(timerCheckInterval);
+                location.reload();
+            }
+            updateBlockedTimerDisplay();
+        }, 5000);
+    }
+}
+
+function updateBlockedTimerDisplay() {
+    const countdownElement = document.getElementById('blockedTimerDisplay');
+    if (countdownElement) {
+        const countdown = localStorage.getItem('gameCountdown') || 'Timer running...';
+        countdownElement.textContent = countdown;
+    }
+}
+
+// Initialize when page loads
+window.addEventListener('DOMContentLoaded', initApp);
 </script>
 </body>
 </html>
