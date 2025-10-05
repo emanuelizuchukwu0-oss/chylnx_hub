@@ -2000,58 +2000,57 @@
         }
     }
 
-    // Replace the existing showWinnerSelectionPanel function with this:
-function showWinnerSelectionPanel() {
-    // Instead of showing selection panel, directly prompt for winner announcement
-    const entered = prompt("Enter passcode to announce a random winner:");
-    if (entered !== ANNOUNCE_PASSCODE) {
-        if (entered !== null) { // Only alert if user actually entered something
-            alert("❌ Wrong passcode!");
-        }
-        return;
+    // Winner Selection Functions
+    function showWinnerSelectionPanel() {
+        const panel = document.getElementById('winnerSelectionPanel');
+        const winnerList = document.getElementById('winnerList');
+        
+        if (!panel || !winnerList) return;
+        
+        winnerList.innerHTML = '';
+        
+        // Collect all unique usernames from chat messages
+        const allUsernames = new Set();
+        const senderNames = document.querySelectorAll('.sender-name');
+        senderNames.forEach(sender => {
+            const username = sender.getAttribute('data-username');
+            if (username && username !== myUsername) {
+                allUsernames.add(username);
+            }
+        });
+        
+        // Add online users
+        Object.keys(onlineUsers).forEach(user => {
+            if (user !== myUsername) {
+                allUsernames.add(user);
+            }
+        });
+        
+        // Create winner items
+        allUsernames.forEach(user => {
+            const winnerItem = document.createElement('div');
+            winnerItem.className = `winner-item ${selectedWinners.includes(user) ? 'selected' : ''}`;
+            winnerItem.innerHTML = `
+                <input type="checkbox" class="winner-checkbox" ${selectedWinners.includes(user) ? 'checked' : ''} value="${user}">
+                <span>${user}</span>
+            `;
+            winnerItem.addEventListener('click', function() {
+                const checkbox = this.querySelector('.winner-checkbox');
+                checkbox.checked = !checkbox.checked;
+                toggleWinnerSelection(user, checkbox.checked);
+                
+                // Update visual selection in chat
+                updateChatUsernameSelection(user, checkbox.checked);
+                
+                // Update bell notification
+                updateBellNotification();
+            });
+            winnerList.appendChild(winnerItem);
+        });
+        
+        updateSelectedCount();
+        panel.style.display = 'block';
     }
-
-    // Get all unique usernames from chat
-    const allUsernames = new Set();
-    const senderNames = document.querySelectorAll('.sender-name');
-    senderNames.forEach(sender => {
-        const username = sender.getAttribute('data-username');
-        if (username && username !== myUsername) {
-            allUsernames.add(username);
-        }
-    });
-
-    // Add online users
-    Object.keys(onlineUsers).forEach(user => {
-        if (user !== myUsername) {
-            allUsernames.add(user);
-        }
-    });
-
-    if (allUsernames.size === 0) {
-        alert("No users available to select as winner!");
-        return;
-    }
-
-    // Convert to array and pick random winner
-    const usersArray = Array.from(allUsernames);
-    const randomWinner = usersArray[Math.floor(Math.random() * usersArray.length)];
-    
-    // Announce the random winner
-    showWinnerAnnouncement(randomWinner);
-    
-    // Broadcast winner announcement
-    if (socket) {
-        socket.emit('announce_winner', { winners: [randomWinner] });
-    }
-    
-    // Show success message
-    showSelectionFeedback(`Random winner announced: ${randomWinner}!`);
-}
-
-// Also update the bell event listener to ensure it's using the new function
-// In your initApp function, make sure this line exists:
-if (bell) bell.addEventListener('click', showWinnerSelectionPanel);
 
     function closeWinnerPanel() {
         const panel = document.getElementById('winnerSelectionPanel');
@@ -2169,122 +2168,6 @@ if (bell) bell.addEventListener('click', showWinnerSelectionPanel);
             character.style.transform = `translateX(-50%) scale(${scale})`;
         }
     });
-    // Add this function to clean up old messages
-function cleanupOldMessages() {
-    const chatWindow = document.getElementById('chatWindow');
-    if (!chatWindow) return;
-    
-    const messages = chatWindow.querySelectorAll('.message, .system-msg');
-    const now = new Date().getTime();
-    const twentyFourHours = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
-    
-    messages.forEach(message => {
-        const messageTimeElement = message.querySelector('.message-time');
-        if (messageTimeElement) {
-            const timeText = messageTimeElement.textContent;
-            // Parse the time (assuming format like "HH:MM AM/PM")
-            const messageTime = parseMessageTime(timeText);
-            if (messageTime && (now - messageTime > twentyFourHours)) {
-                message.remove();
-            }
-        }
-    });
-}
-
-// Helper function to parse time text
-function parseMessageTime(timeText) {
-    try {
-        // Parse time in format like "2:30 PM" or "14:30"
-        const now = new Date();
-        const [timePart, modifier] = timeText.split(' ');
-        let [hours, minutes] = timePart.split(':').map(Number);
-        
-        // Convert to 24-hour format if PM
-        if (modifier === 'PM' && hours < 12) hours += 12;
-        if (modifier === 'AM' && hours === 12) hours = 0;
-        
-        // Create date object for today with this time
-        const messageDate = new Date(now);
-        messageDate.setHours(hours, minutes, 0, 0);
-        
-        // If message time appears to be after current time, assume it's from yesterday
-        if (messageDate > now) {
-            messageDate.setDate(messageDate.getDate() - 1);
-        }
-        
-        return messageDate.getTime();
-    } catch (error) {
-        console.error('Error parsing message time:', error);
-        return null;
-    }
-}
-
-// Server-side message cleanup (you'll need to implement this in your backend)
-// Add this socket event listener in your initializeChat function:
-socket.on('cleanup_old_messages', function() {
-    cleanupOldMessages();
-});
-
-// Auto-cleanup every hour
-setInterval(cleanupOldMessages, 60 * 60 * 1000); // Run every hour
-
-// Also clean up when new messages are added
-function addMessage(msg, isSent) {
-    const chatWindow = document.getElementById('chatWindow');
-    if (!chatWindow) return;
-
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${isSent ? 'sent' : 'received'}`;
-
-    const time = new Date(msg.timestamp).toLocaleTimeString([], { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-    });
-
-    const isSelected = selectedWinners.includes(msg.from);
-
-    messageDiv.innerHTML = `
-        ${!isSent ? `<div class="sender-name ${isSelected ? 'username-selected' : ''}" data-username="${msg.from}">${msg.from}</div>` : ''}
-        <div class="message-content">${msg.text}</div>
-        <div class="message-time">${time}</div>
-    `;
-
-    // Add data attribute for easier cleanup
-    messageDiv.setAttribute('data-timestamp', new Date(msg.timestamp).getTime());
-
-    // Add click event to username for winner selection
-    if (!isSent) {
-        const senderName = messageDiv.querySelector('.sender-name');
-        senderName.addEventListener('click', function() {
-            const username = this.getAttribute('data-username');
-            toggleWinnerSelection(username);
-            
-            // Toggle visual selection
-            this.classList.toggle('username-selected');
-            
-            // Update bell notification
-            updateBellNotification();
-            
-            // Show feedback
-            if (selectedWinners.includes(username)) {
-                showSelectionFeedback(`${username} selected as winner!`);
-            } else {
-                showSelectionFeedback(`${username} removed from selection`);
-            }
-        });
-        
-        // Add hover effect
-        senderName.style.cursor = 'pointer';
-        senderName.title = 'Click to select as winner';
-    }
-
-    chatWindow.appendChild(messageDiv);
-    chatWindow.scrollTop = chatWindow.scrollHeight;
-    
-    // Check if we need to cleanup old messages after adding new one
-    setTimeout(cleanupOldMessages, 1000);
-}
-
 </script>
 </body>
 </html>
