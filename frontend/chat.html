@@ -1335,9 +1335,78 @@
             display: block !important;
             visibility: visible !important;
         }
+         /* ALL YOUR EXISTING CSS STAYS EXACTLY THE SAME */
+        /* ... [Your complete CSS remains here] ... */
+
+        /* Add timer block styles */
+        .timer-block-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 3000;
+            color: white;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .timer-block-content {
+            background: linear-gradient(135deg, #25D366, #128C7E);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .timer-block-content h2 {
+            font-size: 2rem;
+            margin-bottom: 20px;
+            color: white;
+        }
+
+        .timer-block-content p {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+
+        .game-countdown {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #ffcc00;
+            margin: 20px 0;
+            text-shadow: 0 0 10px rgba(255, 204, 0, 0.7);
+        }
+
+        .waiting-message {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            margin-top: 20px;
+        }
     </style>
 </head>
-<body data-paid="false">
+body data-paid="false">
+    <!-- ALL YOUR EXISTING HTML STAYS EXACTLY THE SAME -->
+    <!-- ... [Your complete HTML remains here] ... -->
+
+    <!-- Add Timer Block Overlay -->
+    <div id="timerBlockOverlay" class="timer-block-overlay" style="display: none;">
+        <div class="timer-block-content">
+            <h2>⏰ GAME IN PROGRESS</h2>
+            <p>Please wait for the current game to finish</p>
+            <div class="game-countdown" id="gameTimerDisplay">05:00</div>
+            <p>You'll be able to join the chat when the timer reaches zero</p>
+            <div class="waiting-message">
+                🔄 This page will refresh automatically when the game ends
+            </div>
+        </div>
+    </div>
     <!-- Multiple Winner Selection Panel -->
     <div id="winnerSelectionPanel" class="winner-selection-panel">
         <div class="winner-panel-header">
@@ -1449,24 +1518,26 @@
             <p style="margin-top: 20px; font-size: clamp(14px, 3vw, 18px);">This announcement will close automatically</p>
         </div>
     </div>
-
-   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
 <script>
-    // FIXED CHAT CODE - Messaging and Character Working
+    // FIXED CHAT CODE - With Message Following and Timer Blocking
     let myUsername = "";
     let socket = null;
     let selectedWinners = [];
     let onlineUsers = [];
-    let isGameStarted = true;
+    let isGameStarted = false; // Changed back to false for timer blocking
     let characterState = 'username';
     const ANNOUNCE_PASSCODE = "1234";
     let messageInterval;
+    let characterAnimationInterval;
+    let gameTimerInterval;
+    let gameTimeRemaining = 0;
 
     // Initialize app
     function initApp() {
         console.log('🚀 Initializing app...');
         
-        // Show username overlay
+        // Show username overlay but check timer first
         document.getElementById('usernameOverlay').style.display = 'flex';
         
         // Initialize character
@@ -1475,10 +1546,98 @@
         // Setup event listeners
         setupEventListeners();
         
-        // Focus on username input
-        document.getElementById('usernameInput').focus();
+        // Check timer status
+        checkTimerStatus();
         
         console.log('✅ App initialized successfully');
+    }
+
+    // TIMER BLOCKING FUNCTIONS - ADDED BACK
+    function checkTimerStatus() {
+        // Create a temporary socket connection to check timer status
+        const tempSocket = io();
+        
+        tempSocket.on('connect', function() {
+            console.log('⏰ Checking timer status...');
+            tempSocket.emit('get_timer');
+        });
+        
+        tempSocket.on('timer_update', function(data) {
+            console.log('📡 Timer status received:', data);
+            
+            if (data.is_running && data.remaining_seconds > 0) {
+                // Timer is running - block username entry
+                gameTimeRemaining = data.remaining_seconds;
+                showTimerBlock();
+                startGameTimerCountdown();
+            } else {
+                // Timer has stopped - allow username entry
+                isGameStarted = true;
+                hideTimerBlock();
+            }
+            
+            tempSocket.disconnect();
+        });
+        
+        tempSocket.on('game_started', function(data) {
+            console.log('🎉 Game started - allowing username entry');
+            isGameStarted = true;
+            hideTimerBlock();
+            tempSocket.disconnect();
+        });
+        
+        tempSocket.on('connect_error', function(error) {
+            console.error('❌ Connection error:', error);
+            // If we can't connect to timer, assume game has started
+            isGameStarted = true;
+            hideTimerBlock();
+        });
+    }
+
+    function showTimerBlock() {
+        const timerBlock = document.getElementById('timerBlockOverlay');
+        const usernameOverlay = document.getElementById('usernameOverlay');
+        
+        if (timerBlock) timerBlock.style.display = 'flex';
+        if (usernameOverlay) usernameOverlay.style.display = 'none';
+    }
+
+    function hideTimerBlock() {
+        const timerBlock = document.getElementById('timerBlockOverlay');
+        const usernameOverlay = document.getElementById('usernameOverlay');
+        
+        if (timerBlock) timerBlock.style.display = 'none';
+        if (usernameOverlay && !myUsername) {
+            usernameOverlay.style.display = 'flex';
+        }
+    }
+
+    function startGameTimerCountdown() {
+        clearInterval(gameTimerInterval);
+        
+        gameTimerInterval = setInterval(() => {
+            if (gameTimeRemaining <= 0) {
+                clearInterval(gameTimerInterval);
+                isGameStarted = true;
+                hideTimerBlock();
+                return;
+            }
+            
+            gameTimeRemaining--;
+            updateGameTimerDisplay();
+        }, 1000);
+        
+        updateGameTimerDisplay();
+    }
+
+    function updateGameTimerDisplay() {
+        const timerDisplay = document.getElementById('gameTimerDisplay');
+        if (timerDisplay) {
+            const minutes = Math.floor(gameTimeRemaining / 60);
+            const seconds = gameTimeRemaining % 60;
+            timerDisplay.textContent = 
+                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
     }
 
     function setupEventListeners() {
@@ -1502,7 +1661,7 @@
         }
     }
 
-    // Character Functions - FIXED
+    // CHARACTER FUNCTIONS - WITH MESSAGE FOLLOWING ADDED BACK
     function initializeCharacter() {
         const character = document.getElementById('animatedCharacter');
         if (!character) return;
@@ -1520,7 +1679,6 @@
         
         if (!character) return;
         
-        // Clear any existing interval
         if (messageInterval) clearInterval(messageInterval);
         
         messageInterval = setInterval(() => {
@@ -1540,7 +1698,6 @@
         
         if (!speechBubble) return;
         
-        // Change speech bubble messages
         const messages = [
             "INPUT A COOL USERNAME! 🎮",
             "CHOOSE AN AWESOME NAME! ✨", 
@@ -1553,7 +1710,6 @@
         speechBubble.textContent = randomMessage;
         speechBubble.classList.add('show');
         
-        // Animate character
         if (mouth) {
             mouth.style.height = '8px';
             setTimeout(() => { if(mouth) mouth.style.height = '6px'; }, 500);
@@ -1566,6 +1722,48 @@
         }
     }
 
+    // MESSAGE FOLLOWING FUNCTIONALITY - ADDED BACK
+    function setupMessageFollowing() {
+        const chatWindow = document.getElementById('chatWindow');
+        const character = document.getElementById('animatedCharacter');
+        
+        if (!chatWindow || !character) return;
+        
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.addedNodes.length) {
+                    mutation.addedNodes.forEach((node) => {
+                        if (node.classList && (node.classList.contains('message') || node.classList.contains('system-msg'))) {
+                            followMessage(node);
+                        }
+                    });
+                }
+            });
+        });
+        
+        observer.observe(chatWindow, { childList: true });
+    }
+
+    function followMessage(messageElement) {
+        const character = document.getElementById('animatedCharacter');
+        const eyes = character?.querySelector('.character-eyes');
+        
+        if (!character || !eyes) return;
+        
+        const messageRect = messageElement.getBoundingClientRect();
+        const characterRect = character.getBoundingClientRect();
+        
+        const messageCenterX = messageRect.left + messageRect.width / 2;
+        const characterCenterX = characterRect.left + characterRect.width / 2;
+        
+        const deltaX = messageCenterX - characterCenterX;
+        
+        const eyeMovement = Math.min(Math.max(deltaX / 50, -15), 15);
+        eyes.style.transform = `translateX(${eyeMovement}px)`;
+        
+        characterReactToMessage(messageElement.classList.contains('sent'));
+    }
+
     function animateChatCharacter() {
         const character = document.getElementById('animatedCharacter');
         const eyes = character?.querySelector('.character-eyes');
@@ -1573,7 +1771,6 @@
         
         if (!character) return;
         
-        // Random idle animations
         if (eyes && Math.random() > 0.7) {
             const randomX = (Math.random() - 0.5) * 8;
             eyes.style.transform = `translateX(${randomX}px)`;
@@ -1629,6 +1826,9 @@
         character.style.transform = `translateX(-50%) scale(${scale})`;
         character.style.zIndex = '5';
         
+        // Setup message following when entering chat
+        setupMessageFollowing();
+        
         if (speechBubble) {
             speechBubble.textContent = 'Welcome to the chat! Start typing.';
             speechBubble.classList.add('show');
@@ -1639,7 +1839,7 @@
         }
     }
 
-    // Character reaction to messages - FIXED
+    // Character reaction to messages
     function characterReactToMessage(isMyMessage) {
         if (characterState !== 'chat') return;
         
@@ -1652,7 +1852,6 @@
         if (!character) return;
         
         if (isMyMessage) {
-            // Sent message reaction
             if (rightArm) rightArm.style.transform = 'rotate(60deg)';
             if (mouth) mouth.style.height = '8px';
             
@@ -1671,7 +1870,6 @@
             }, 1000);
             
         } else {
-            // Received message reaction
             if (leftArm) leftArm.style.transform = 'rotate(-60deg)';
             if (mouth) mouth.style.height = '8px';
             
@@ -1691,8 +1889,13 @@
         }
     }
 
-    // Set username function
+    // Set username function with timer check
     function setUsername() {
+        if (!isGameStarted) {
+            alert("⏰ Please wait for the game to start before joining the chat.");
+            return;
+        }
+        
         const usernameInput = document.getElementById('usernameInput');
         const username = usernameInput?.value.trim();
         
@@ -1708,14 +1911,12 @@
         initializeChat();
     }
 
-    // Chat Functions - FIXED
+    // Chat Functions
     function initializeChat() {
         console.log('💬 Initializing chat...');
         
-        // Connect to Socket.IO server
         socket = io();
         
-        // Socket event listeners
         socket.on('connect', function() {
             console.log('✅ Connected to server');
             socket.emit('join_chat', { username: myUsername });
@@ -1763,7 +1964,27 @@
             }
         });
 
-        // Enable chat functionality
+        // Listen for timer updates in chat
+        socket.on('timer_update', function(data) {
+            console.log('📡 Timer update in chat:', data);
+            if (data.is_running && data.remaining_seconds > 0) {
+                gameTimeRemaining = data.remaining_seconds;
+                if (!isGameStarted) {
+                    showTimerBlock();
+                    startGameTimerCountdown();
+                }
+            } else {
+                isGameStarted = true;
+                hideTimerBlock();
+            }
+        });
+
+        socket.on('game_started', function(data) {
+            console.log('🎮 Game started - unblocking chat');
+            isGameStarted = true;
+            hideTimerBlock();
+        });
+
         const chatInput = document.getElementById('chatInput');
         const sendBtn = document.getElementById('sendBtn');
         
