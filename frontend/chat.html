@@ -2223,49 +2223,26 @@ body data-paid="false">
         }, 100);
     }
 
-    function addMessage(msg, isSent) {
-        const chatWindow = document.getElementById('chatWindow');
-        if (!chatWindow) return;
-
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${isSent ? 'sent' : 'received'}`;
-
-        const time = new Date(msg.timestamp || Date.now()).toLocaleTimeString([], { 
-            hour: '2-digit', 
-            minute: '2-digit' 
-        });
-
-        const isSelected = selectedWinners.includes(msg.from);
-
-        messageDiv.innerHTML = `
-            ${!isSent ? `<div class="sender-name ${isSelected ? 'username-selected' : ''}" data-username="${msg.from}">${msg.from}</div>` : ''}
-            <div class="message-content">${msg.text}</div>
-            <div class="message-time">${time}</div>
-        `;
-
-        if (!isSent) {
-            const senderName = messageDiv.querySelector('.sender-name');
-            if (senderName) {
-                senderName.addEventListener('click', function() {
-                    const username = this.getAttribute('data-username');
-                    toggleWinnerSelection(username);
-                    this.classList.toggle('username-selected');
-                    updateBellNotification();
-                    
-                    if (selectedWinners.includes(username)) {
-                        showSelectionFeedback(`${username} selected as winner!`);
-                    } else {
-                        showSelectionFeedback(`${username} removed from selection`);
-                    }
-                });
-                
-                senderName.style.cursor = 'pointer';
-                senderName.title = 'Click to select as winner';
+   // In your addMessage() function, update the senderName click handler:
+if (!isSent) {
+    const senderName = messageDiv.querySelector('.sender-name');
+    if (senderName) {
+        senderName.addEventListener('click', function() {
+            const username = this.getAttribute('data-username');
+            toggleWinnerSelection(username);
+            this.classList.toggle('username-selected');
+            
+            if (selectedWinners.includes(username)) {
+                showSelectionFeedback(`✅ ${username} selected! Click bell to announce.`);
+            } else {
+                showSelectionFeedback(`❌ ${username} removed from selection`);
             }
-        }
-
-        chatWindow.appendChild(messageDiv);
+        });
+        
+        senderName.style.cursor = 'pointer';
+        senderName.title = 'Click to select/deselect as winner';
     }
+}
 
     function addSystemMessage(text) {
         const chatWindow = document.getElementById('chatWindow');
@@ -2309,49 +2286,77 @@ body data-paid="false">
     }
 
     // Winner Selection Functions
-    function showWinnerSelectionPanel() {
-        const panel = document.getElementById('winnerSelectionPanel');
-        const winnerList = document.getElementById('winnerList');
+   function showWinnerSelectionPanel() {
+    // If we already have selected winners from clicking usernames, announce them immediately
+    if (selectedWinners.length > 0) {
+        const entered = prompt("Enter passcode to announce winners:");
+        if (entered !== ANNOUNCE_PASSCODE) {
+            alert("❌ Wrong passcode!");
+            return;
+        }
+
+        showWinnerAnnouncement(selectedWinners.join(', '));
         
-        if (!panel || !winnerList) return;
-        
-        winnerList.innerHTML = '';
-        
-        const allUsernames = new Set();
-        const senderNames = document.querySelectorAll('.sender-name');
-        senderNames.forEach(sender => {
-            const username = sender.getAttribute('data-username');
-            if (username && username !== myUsername) {
-                allUsernames.add(username);
-            }
+        if (socket) {
+            socket.emit('announce_winner', { winners: selectedWinners });
+        }
+
+        // Clear selection after announcement
+        selectedWinners.forEach(username => {
+            updateChatUsernameSelection(username, false);
         });
-        
-        Object.keys(onlineUsers).forEach(user => {
-            if (user !== myUsername) {
-                allUsernames.add(user);
-            }
-        });
-        
-        allUsernames.forEach(user => {
-            const winnerItem = document.createElement('div');
-            winnerItem.className = `winner-item ${selectedWinners.includes(user) ? 'selected' : ''}`;
-            winnerItem.innerHTML = `
-                <input type="checkbox" class="winner-checkbox" ${selectedWinners.includes(user) ? 'checked' : ''} value="${user}">
-                <span>${user}</span>
-            `;
-            winnerItem.addEventListener('click', function() {
-                const checkbox = this.querySelector('.winner-checkbox');
-                checkbox.checked = !checkbox.checked;
-                toggleWinnerSelection(user, checkbox.checked);
-                updateChatUsernameSelection(user, checkbox.checked);
-                updateBellNotification();
-            });
-            winnerList.appendChild(winnerItem);
-        });
+        selectedWinners = [];
         
         updateSelectedCount();
-        panel.style.display = 'block';
+        updateBellNotification();
+        
+        showSelectionFeedback('Winners announced successfully!');
+        return;
     }
+
+    // Only show the selection panel if no winners are already selected
+    const panel = document.getElementById('winnerSelectionPanel');
+    const winnerList = document.getElementById('winnerList');
+    
+    if (!panel || !winnerList) return;
+    
+    winnerList.innerHTML = '';
+    
+    const allUsernames = new Set();
+    const senderNames = document.querySelectorAll('.sender-name');
+    senderNames.forEach(sender => {
+        const username = sender.getAttribute('data-username');
+        if (username && username !== myUsername) {
+            allUsernames.add(username);
+        }
+    });
+    
+    Object.keys(onlineUsers).forEach(user => {
+        if (user !== myUsername) {
+            allUsernames.add(user);
+        }
+    });
+    
+    allUsernames.forEach(user => {
+        const winnerItem = document.createElement('div');
+        winnerItem.className = `winner-item ${selectedWinners.includes(user) ? 'selected' : ''}`;
+        winnerItem.innerHTML = `
+            <input type="checkbox" class="winner-checkbox" ${selectedWinners.includes(user) ? 'checked' : ''} value="${user}">
+            <span>${user}</span>
+        `;
+        winnerItem.addEventListener('click', function() {
+            const checkbox = this.querySelector('.winner-checkbox');
+            checkbox.checked = !checkbox.checked;
+            toggleWinnerSelection(user, checkbox.checked);
+            updateChatUsernameSelection(user, checkbox.checked);
+            updateBellNotification();
+        });
+        winnerList.appendChild(winnerItem);
+    });
+    
+    updateSelectedCount();
+    panel.style.display = 'block';
+}
 
     function closeWinnerPanel() {
         const panel = document.getElementById('winnerSelectionPanel');
@@ -2359,6 +2364,15 @@ body data-paid="false">
     }
 
     function toggleWinnerSelection(username, isSelected) {
+    if (isSelected === undefined) {
+        // Toggle if no specific state provided
+        if (selectedWinners.includes(username)) {
+            selectedWinners = selectedWinners.filter(user => user !== username);
+        } else {
+            selectedWinners.push(username);
+        }
+    } else {
+        // Set specific state
         if (isSelected) {
             if (!selectedWinners.includes(username)) {
                 selectedWinners.push(username);
@@ -2366,8 +2380,10 @@ body data-paid="false">
         } else {
             selectedWinners = selectedWinners.filter(user => user !== username);
         }
-        updateSelectedCount();
     }
+    updateSelectedCount();
+    updateBellNotification();
+}
 
     function updateSelectedCount() {
         const countElement = document.getElementById('selectedCount');
