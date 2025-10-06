@@ -1678,6 +1678,7 @@ body data-paid="false">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
 <script>
     // FIXED CHAT CODE - With Stable Mobile Layout
+    // Add these variables for typing detection
     let myUsername = "";
     let socket = null;
     let selectedWinners = [];
@@ -1689,28 +1690,35 @@ body data-paid="false">
     let characterAnimationInterval;
     let gameTimerInterval;
     let gameTimeRemaining = 0;
+    let isUserTyping = false;
+    let typingTimeout;
+    let walkingAnimationInterval;
+
 
     // Initialize app
-    function initApp() {
-        console.log('🚀 Initializing app...');
-        
-        // Show username overlay but check timer first
-        document.getElementById('usernameOverlay').style.display = 'flex';
-        
-        // Initialize character
-        initializeCharacter();
-        
-        // Setup event listeners
-        setupEventListeners();
-        
-        // Setup mobile keyboard handling
-        setupMobileKeyboard();
-        
-        // Check timer status
-        checkTimerStatus();
-        
-        console.log('✅ App initialized successfully');
-    }
+   function initApp() {
+    console.log('🚀 Initializing app...');
+    
+    // Show username overlay but check timer first
+    document.getElementById('usernameOverlay').style.display = 'flex';
+    
+    // Initialize character
+    initializeCharacter();
+    
+    // Setup event listeners
+    setupEventListeners();
+    
+    // Setup mobile keyboard handling
+    setupMobileKeyboard();
+    
+    // Setup typing detection - ADD THIS LINE
+    setupTypingDetection();
+    
+    // Check timer status
+    checkTimerStatus();
+    
+    console.log('✅ App initialized successfully');
+}
 
     // MOBILE KEYBOARD HANDLING - IMPROVED
     function setupMobileKeyboard() {
@@ -1995,36 +2003,39 @@ body data-paid="false">
     }
 
     function showChatGuide() {
-        const character = document.getElementById('animatedCharacter');
-        const speechBubble = document.getElementById('speechBubble');
+    const character = document.getElementById('animatedCharacter');
+    const speechBubble = document.getElementById('speechBubble');
+    
+    if (!character) return;
+    
+    characterState = 'chat';
+    character.className = 'animated-character chat-guide';
+    
+    const isMobile = window.innerWidth <= 768;
+    const bottomPosition = isMobile ? '85px' : '90px';
+    const scale = isMobile ? '0.6' : '0.7';
+    
+    character.style.bottom = bottomPosition;
+    character.style.left = '50%';
+    character.style.right = 'auto';
+    character.style.top = 'auto';
+    character.style.transform = `translateX(-50%) scale(${scale})`;
+    character.style.zIndex = '5';
+    
+    // Reset any walking state when entering chat
+    stopWalkingAnimation();
+    
+    setupMessageFollowing();
+    
+    if (speechBubble) {
+        speechBubble.textContent = 'Welcome to the chat! Start typing.';
+        speechBubble.classList.add('show');
         
-        if (!character) return;
-        
-        characterState = 'chat';
-        character.className = 'animated-character chat-guide';
-        
-        const isMobile = window.innerWidth <= 768;
-        const bottomPosition = isMobile ? '85px' : '90px';
-        const scale = isMobile ? '0.6' : '0.7';
-        
-        character.style.bottom = bottomPosition;
-        character.style.left = '50%';
-        character.style.right = 'auto';
-        character.style.top = 'auto';
-        character.style.transform = `translateX(-50%) scale(${scale})`;
-        character.style.zIndex = '5';
-        
-        setupMessageFollowing();
-        
-        if (speechBubble) {
-            speechBubble.textContent = 'Welcome to the chat! Start typing.';
-            speechBubble.classList.add('show');
-            
-            setTimeout(() => {
-                speechBubble.classList.remove('show');
-            }, 5000);
-        }
+        setTimeout(() => {
+            speechBubble.classList.remove('show');
+        }, 5000);
     }
+}
 
     function characterReactToMessage(isMyMessage) {
         if (characterState !== 'chat') return;
@@ -2535,6 +2546,124 @@ body data-paid="false">
             character.style.transform = `translateX(-50%) scale(${scale})`;
         }
     });
+    // Typing detection function
+function setupTypingDetection() {
+    const chatInput = document.getElementById('chatInput');
+    
+    chatInput.addEventListener('focus', function() {
+        startTyping();
+    });
+    
+    chatInput.addEventListener('input', function() {
+        startTyping();
+        resetTypingTimeout();
+    });
+    
+    chatInput.addEventListener('blur', function() {
+        stopTyping();
+    });
+    
+    // Also detect when send button is clicked
+    const sendBtn = document.getElementById('sendBtn');
+    if (sendBtn) {
+        sendBtn.addEventListener('click', function() {
+            stopTyping();
+        });
+    }
+}
+
+function startTyping() {
+    if (!isUserTyping) {
+        isUserTyping = true;
+        startWalkingAnimation();
+    }
+    resetTypingTimeout();
+}
+
+function stopTyping() {
+    isUserTyping = false;
+    clearTimeout(typingTimeout);
+    stopWalkingAnimation();
+}
+
+function resetTypingTimeout() {
+    clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(function() {
+        stopTyping();
+    }, 2000); // Stop walking 2 seconds after last keystroke
+}
+
+function startWalkingAnimation() {
+    const character = document.getElementById('animatedCharacter');
+    if (!character) return;
+    
+    // Only start walking if we're in chat mode
+    if (characterState !== 'chat') return;
+    
+    character.classList.add('walking');
+    
+    // Clear any existing interval
+    if (walkingAnimationInterval) {
+        clearInterval(walkingAnimationInterval);
+    }
+    
+    // Set up walking back and forth
+    let walkingDirection = 1; // 1 for right, -1 for left
+    let walkDistance = 0;
+    const maxWalkDistance = 100; // Maximum pixels to walk from center
+    
+    walkingAnimationInterval = setInterval(function() {
+        if (!isUserTyping) {
+            clearInterval(walkingAnimationInterval);
+            return;
+        }
+        
+        const currentTransform = character.style.transform || '';
+        const currentTranslateX = parseFloat(currentTransform.match(/translateX\(([^)]+)px\)/)?.[1]) || 0;
+        
+        // Calculate new position
+        walkDistance += walkingDirection * 2;
+        
+        // Reverse direction when reaching boundaries
+        if (Math.abs(walkDistance) >= maxWalkDistance) {
+            walkingDirection *= -1;
+        }
+        
+        // Update character position while maintaining scale and other transforms
+        const currentScale = currentTransform.match(/scale\(([^)]+)\)/)?.[1] || '0.7';
+        character.style.transform = `translateX(${walkDistance}px) scale(${currentScale})`;
+        
+    }, 100);
+}
+
+function stopWalkingAnimation() {
+    const character = document.getElementById('animatedCharacter');
+    if (!character) return;
+    
+    character.classList.remove('walking');
+    
+    if (walkingAnimationInterval) {
+        clearInterval(walkingAnimationInterval);
+        walkingAnimationInterval = null;
+    }
+    
+    // Smoothly return to center position
+    const currentTransform = character.style.transform || '';
+    const currentTranslateX = parseFloat(currentTransform.match(/translateX\(([^)]+)px\)/)?.[1]) || 0;
+    const currentScale = currentTransform.match(/scale\(([^)]+)\)/)?.[1] || '0.7';
+    
+    let currentPos = currentTranslateX;
+    const returnInterval = setInterval(function() {
+        currentPos *= 0.8; // Smooth return
+        
+        character.style.transform = `translateX(${currentPos}px) scale(${currentScale})`;
+        
+        if (Math.abs(currentPos) < 1) {
+            character.style.transform = `translateX(0px) scale(${currentScale})`;
+            clearInterval(returnInterval);
+        }
+    }, 16);
+}
 </script>
 </body>
 </html>
