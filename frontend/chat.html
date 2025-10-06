@@ -1389,6 +1389,163 @@
             opacity: 0.9;
             margin-top: 20px;
         }
+          /* ALL YOUR EXISTING CSS STAYS EXACTLY THE SAME */
+        /* ... [Your complete CSS remains here] ... */
+
+        /* Add timer block styles */
+        .timer-block-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 3000;
+            color: white;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .timer-block-content {
+            background: linear-gradient(135deg, #25D366, #128C7E);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .timer-block-content h2 {
+            font-size: 2rem;
+            margin-bottom: 20px;
+            color: white;
+        }
+
+        .timer-block-content p {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+
+        .game-countdown {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #ffcc00;
+            margin: 20px 0;
+            text-shadow: 0 0 10px rgba(255, 204, 0, 0.7);
+        }
+
+        .waiting-message {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            margin-top: 20px;
+        }
+
+        /* FIXED CHAT LAYOUT FOR MOBILE - ADDED */
+        body {
+            height: 100vh;
+            overflow: hidden; /* Prevent body scrolling */
+        }
+
+        #chatContainer {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" opacity="0.05"><path fill="%23007bff" d="M30,30 Q50,10 70,30 Q90,50 70,70 Q50,90 30,70 Q10,50 30,30 Z"/></svg>');
+            background-color: #e5ddd5;
+            margin-top: clamp(50px, 12vw, 60px);
+            margin-bottom: clamp(60px, 15vw, 70px);
+            height: calc(100vh - clamp(50px, 12vw, 60px) - clamp(60px, 15vw, 70px));
+            position: relative;
+            z-index: 1;
+            padding-left: 10px;
+            padding-right: 10px;
+            overflow: hidden; /* Prevent container scrolling */
+        }
+
+        #chatWindow {
+            flex: 1;
+            padding: clamp(15px, 3vw, 20px);
+            overflow-y: auto; /* Only chat window scrolls when needed */
+            display: flex;
+            flex-direction: column;
+            gap: clamp(6px, 2vw, 8px);
+            height: 100%;
+            position: relative;
+            z-index: 10;
+            margin-left: 0;
+            margin-right: 0;
+            -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+        }
+
+        /* Improved mobile input area */
+        #inputArea {
+            background: #f0f0f0;
+            padding: clamp(8px, 2vw, 10px) clamp(12px, 3vw, 16px);
+            display: flex;
+            align-items: center;
+            gap: clamp(8px, 2vw, 10px);
+            border-top: 1px solid #d1d7db;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: clamp(60px, 15vw, 70px);
+            z-index: 1000;
+            /* Prevent layout shift on mobile */
+            transform: translateZ(0);
+            -webkit-transform: translateZ(0);
+        }
+
+        /* Better mobile keyboard handling */
+        @media (max-width: 768px) {
+            body.keyboard-open #chatContainer {
+                height: calc(100vh - clamp(50px, 12vw, 60px) - clamp(60px, 15vw, 70px) - 300px);
+            }
+            
+            body.keyboard-open #inputArea {
+                position: fixed;
+                bottom: 0;
+            }
+            
+            /* Ensure messages are visible when keyboard is open */
+            body.keyboard-open #chatWindow {
+                padding-bottom: 20px;
+            }
+        }
+
+        /* Extra small screen optimizations */
+        @media (max-width: 480px) {
+            #chatContainer {
+                padding-left: 5px;
+                padding-right: 5px;
+            }
+            
+            #chatWindow {
+                padding: 10px 5px;
+            }
+            
+            .message {
+                max-width: 85% !important;
+                margin-left: 3px;
+                margin-right: 3px;
+            }
+        }
+
+        /* Prevent zoom on input focus for iOS */
+        @media (max-width: 768px) {
+            #chatInput {
+                font-size: 16px; /* Prevent zoom on iOS */
+            }
+        }
+
+        /* Smooth transitions for layout changes */
+        #chatContainer, #chatWindow, #inputArea {
+            transition: all 0.3s ease;
+        }
     </style>
 </head>
 body data-paid="false">
@@ -1518,14 +1675,14 @@ body data-paid="false">
             <p style="margin-top: 20px; font-size: clamp(14px, 3vw, 18px);">This announcement will close automatically</p>
         </div>
     </div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
 <script>
-    // FIXED CHAT CODE - With Message Following and Timer Blocking
+    // FIXED CHAT CODE - With Stable Mobile Layout
     let myUsername = "";
     let socket = null;
     let selectedWinners = [];
     let onlineUsers = [];
-    let isGameStarted = false; // Changed back to false for timer blocking
+    let isGameStarted = false;
     let characterState = 'username';
     const ANNOUNCE_PASSCODE = "1234";
     let messageInterval;
@@ -1546,15 +1703,49 @@ body data-paid="false">
         // Setup event listeners
         setupEventListeners();
         
+        // Setup mobile keyboard handling
+        setupMobileKeyboard();
+        
         // Check timer status
         checkTimerStatus();
         
         console.log('✅ App initialized successfully');
     }
 
-    // TIMER BLOCKING FUNCTIONS - ADDED BACK
+    // MOBILE KEYBOARD HANDLING - IMPROVED
+    function setupMobileKeyboard() {
+        const chatInput = document.getElementById('chatInput');
+        
+        if (!chatInput) return;
+        
+        chatInput.addEventListener('focus', function() {
+            if (window.innerWidth <= 768) {
+                document.body.classList.add('keyboard-open');
+                
+                // Scroll to bottom when keyboard opens
+                setTimeout(() => {
+                    const chatWindow = document.getElementById('chatWindow');
+                    if (chatWindow) {
+                        chatWindow.scrollTop = chatWindow.scrollHeight;
+                    }
+                }, 300);
+            }
+        });
+        
+        chatInput.addEventListener('blur', function() {
+            document.body.classList.remove('keyboard-open');
+        });
+        
+        // Prevent body scroll when keyboard is open
+        chatInput.addEventListener('touchstart', function(e) {
+            if (window.innerWidth <= 768) {
+                e.stopPropagation();
+            }
+        });
+    }
+
+    // TIMER BLOCKING FUNCTIONS
     function checkTimerStatus() {
-        // Create a temporary socket connection to check timer status
         const tempSocket = io();
         
         tempSocket.on('connect', function() {
@@ -1566,12 +1757,10 @@ body data-paid="false">
             console.log('📡 Timer status received:', data);
             
             if (data.is_running && data.remaining_seconds > 0) {
-                // Timer is running - block username entry
                 gameTimeRemaining = data.remaining_seconds;
                 showTimerBlock();
                 startGameTimerCountdown();
             } else {
-                // Timer has stopped - allow username entry
                 isGameStarted = true;
                 hideTimerBlock();
             }
@@ -1588,7 +1777,6 @@ body data-paid="false">
         
         tempSocket.on('connect_error', function(error) {
             console.error('❌ Connection error:', error);
-            // If we can't connect to timer, assume game has started
             isGameStarted = true;
             hideTimerBlock();
         });
@@ -1661,7 +1849,7 @@ body data-paid="false">
         }
     }
 
-    // CHARACTER FUNCTIONS - WITH MESSAGE FOLLOWING ADDED BACK
+    // CHARACTER FUNCTIONS
     function initializeCharacter() {
         const character = document.getElementById('animatedCharacter');
         if (!character) return;
@@ -1722,7 +1910,7 @@ body data-paid="false">
         }
     }
 
-    // MESSAGE FOLLOWING FUNCTIONALITY - ADDED BACK
+    // MESSAGE FOLLOWING FUNCTIONALITY
     function setupMessageFollowing() {
         const chatWindow = document.getElementById('chatWindow');
         const character = document.getElementById('animatedCharacter');
@@ -1826,7 +2014,6 @@ body data-paid="false">
         character.style.transform = `translateX(-50%) scale(${scale})`;
         character.style.zIndex = '5';
         
-        // Setup message following when entering chat
         setupMessageFollowing();
         
         if (speechBubble) {
@@ -1839,7 +2026,6 @@ body data-paid="false">
         }
     }
 
-    // Character reaction to messages
     function characterReactToMessage(isMyMessage) {
         if (characterState !== 'chat') return;
         
@@ -1944,7 +2130,10 @@ body data-paid="false">
                     const isSent = msg.from === myUsername;
                     addMessage(msg, isSent);
                 });
-                chatWindow.scrollTop = chatWindow.scrollHeight;
+                // Scroll to bottom after loading history
+                setTimeout(() => {
+                    chatWindow.scrollTop = chatWindow.scrollHeight;
+                }, 100);
             }
         });
 
@@ -1953,6 +2142,14 @@ body data-paid="false">
                 const isSent = data.from === myUsername;
                 addMessage(data, isSent);
                 if (!isSent) characterReactToMessage(false);
+                
+                // Auto-scroll to new message
+                setTimeout(() => {
+                    const chatWindow = document.getElementById('chatWindow');
+                    if (chatWindow) {
+                        chatWindow.scrollTop = chatWindow.scrollHeight;
+                    }
+                }, 100);
             }
         });
 
@@ -1964,7 +2161,6 @@ body data-paid="false">
             }
         });
 
-        // Listen for timer updates in chat
         socket.on('timer_update', function(data) {
             console.log('📡 Timer update in chat:', data);
             if (data.is_running && data.remaining_seconds > 0) {
@@ -2017,6 +2213,14 @@ body data-paid="false">
         characterReactToMessage(true);
         messageInput.value = '';
         messageInput.focus();
+        
+        // Auto-scroll to new message
+        setTimeout(() => {
+            const chatWindow = document.getElementById('chatWindow');
+            if (chatWindow) {
+                chatWindow.scrollTop = chatWindow.scrollHeight;
+            }
+        }, 100);
     }
 
     function addMessage(msg, isSent) {
@@ -2061,7 +2265,6 @@ body data-paid="false">
         }
 
         chatWindow.appendChild(messageDiv);
-        chatWindow.scrollTop = chatWindow.scrollHeight;
     }
 
     function addSystemMessage(text) {
@@ -2073,7 +2276,6 @@ body data-paid="false">
         systemMsg.textContent = text;
 
         chatWindow.appendChild(systemMsg);
-        chatWindow.scrollTop = chatWindow.scrollHeight;
     }
 
     function showSelectionFeedback(message) {
