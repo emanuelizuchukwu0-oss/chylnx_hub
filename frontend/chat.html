@@ -1542,62 +1542,125 @@
             }
         }
 
-        /* Smooth transitions for layout changes */
-        #chatContainer, #chatWindow, #inputArea {
-            transition: all 0.3s ease;
-        }
-        /* Walking animation for the whole body */
+      /* Realistic walking animations */
 .animated-character.walking .left-leg {
-    animation: walkLeft 0.4s ease-in-out infinite;
+    animation: realisticWalkLeft 0.6s ease-in-out infinite;
+    transform-origin: top center;
 }
 
 .animated-character.walking .right-leg {
-    animation: walkRight 0.4s ease-in-out infinite;
+    animation: realisticWalkRight 0.6s ease-in-out infinite;
+    transform-origin: top center;
 }
 
 .animated-character.walking .left-arm {
-    animation: walkArmLeft 0.4s ease-in-out infinite;
-    transform: rotate(-15deg) !important;
+    animation: realisticArmLeft 0.6s ease-in-out infinite;
+    transform-origin: top center;
 }
 
 .animated-character.walking .right-arm {
-    animation: walkArmRight 0.4s ease-in-out infinite;
-    transform: rotate(15deg) !important;
+    animation: realisticArmRight 0.6s ease-in-out infinite;
+    transform-origin: top center;
 }
 
 .animated-character.walking .character-body-main {
-    animation: bodyBob 0.4s ease-in-out infinite;
+    animation: bodySway 0.6s ease-in-out infinite;
 }
 
-@keyframes walkLeft {
-    0%, 100% { transform: rotate(0deg); }
-    50% { transform: rotate(25deg); }
+.animated-character.walking .character-head {
+    animation: headBob 0.6s ease-in-out infinite;
 }
 
-@keyframes walkRight {
-    0%, 100% { transform: rotate(0deg); }
-    50% { transform: rotate(-25deg); }
+@keyframes realisticWalkLeft {
+    0%, 100% { 
+        transform: rotate(0deg) translateY(0px);
+    }
+    25% { 
+        transform: rotate(15deg) translateY(-2px);
+    }
+    50% { 
+        transform: rotate(0deg) translateY(0px);
+    }
+    75% { 
+        transform: rotate(-10deg) translateY(2px);
+    }
 }
 
-@keyframes walkArmLeft {
-    0%, 100% { transform: rotate(-25deg); }
-    50% { transform: rotate(15deg); }
+@keyframes realisticWalkRight {
+    0%, 100% { 
+        transform: rotate(0deg) translateY(0px);
+    }
+    25% { 
+        transform: rotate(-15deg) translateY(-2px);
+    }
+    50% { 
+        transform: rotate(0deg) translateY(0px);
+    }
+    75% { 
+        transform: rotate(10deg) translateY(2px);
+    }
 }
 
-@keyframes walkArmRight {
-    0%, 100% { transform: rotate(25deg); }
-    50% { transform: rotate(-15deg); }
+@keyframes realisticArmLeft {
+    0%, 100% { 
+        transform: rotate(-20deg);
+    }
+    50% { 
+        transform: rotate(10deg);
+    }
 }
 
-@keyframes bodyBob {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-3px); }
+@keyframes realisticArmRight {
+    0%, 100% { 
+        transform: rotate(20deg);
+    }
+    50% { 
+        transform: rotate(-10deg);
+    }
 }
 
-/* Character flip for direction changes */
+@keyframes bodySway {
+    0%, 100% { 
+        transform: translateX(0px) rotate(0deg);
+    }
+    25% { 
+        transform: translateX(-1px) rotate(-0.5deg);
+    }
+    75% { 
+        transform: translateX(1px) rotate(0.5deg);
+    }
+}
+
+@keyframes headBob {
+    0%, 100% { 
+        transform: translateY(0px) rotate(0deg);
+    }
+    50% { 
+        transform: translateY(-1px) rotate(0.5deg);
+    }
+}
+
+/* Smooth transitions for character */
 .animated-character {
     transform-origin: center bottom;
-    transition: transform 0.3s ease;
+    transition: transform 0.2s ease, bottom 0.2s ease;
+}
+
+/* Standing pose when not walking */
+.animated-character:not(.walking) .left-leg,
+.animated-character:not(.walking) .right-leg {
+    animation: none;
+    transform: rotate(0deg);
+}
+
+.animated-character:not(.walking) .left-arm {
+    animation: none;
+    transform: rotate(-25deg);
+}
+
+.animated-character:not(.walking) .right-arm {
+    animation: none;
+    transform: rotate(25deg);
 }
     </style>
 </head>
@@ -2648,7 +2711,7 @@ function resetTypingTimeout() {
     clearTimeout(typingTimeout);
     typingTimeout = setTimeout(function() {
         stopTyping();
-    }, 2000); // Stop walking 2 seconds after last keystroke
+    }, 1500); // Stop walking 1.5 seconds after last keystroke (more responsive)
 }
 
 function startWalkingAnimation() {
@@ -2669,12 +2732,15 @@ function startWalkingAnimation() {
     const chatContainer = document.getElementById('chatContainer');
     const chatRect = chatContainer.getBoundingClientRect();
     
-    // Calculate walking boundaries (full chat space)
-    const minX = 50; // Keep some margin from edges
-    const maxX = chatRect.width - 150; // Account for character width
+    // Calculate walking boundaries (full chat space with margins)
+    const minX = 30; // Left margin
+    const maxX = chatRect.width - 150; // Right margin (account for character width)
     
     let walkingDirection = 1; // 1 for right, -1 for left
     let currentX = (maxX - minX) / 2; // Start from middle
+    
+    // Store original position for return
+    const originalPosition = currentX;
     
     walkingAnimationInterval = setInterval(function() {
         if (!isUserTyping) {
@@ -2682,29 +2748,45 @@ function startWalkingAnimation() {
             return;
         }
         
-        // Move character
-        currentX += walkingDirection * 3;
+        // Move character with realistic speed
+        currentX += walkingDirection * 2.5;
+        
+        // Calculate walking progress for natural pacing
+        const progress = (currentX - minX) / (maxX - minX);
         
         // Reverse direction when hitting boundaries
         if (currentX >= maxX) {
             walkingDirection = -1;
-            // Flip character to face left
-            character.style.transform = `translateX(${currentX}px) scale(-0.7, 0.7)`;
+            // Pause briefly at edge before turning (more realistic)
+            setTimeout(() => {
+                // Flip character to face left
+                character.style.transform = `translateX(${currentX}px) scale(-0.7, 0.7)`;
+            }, 200);
         } else if (currentX <= minX) {
             walkingDirection = 1;
-            // Flip character to face right
-            character.style.transform = `translateX(${currentX}px) scale(0.7)`;
+            // Pause briefly at edge before turning
+            setTimeout(() => {
+                // Flip character to face right
+                character.style.transform = `translateX(${currentX}px) scale(0.7)`;
+            }, 200);
         } else {
             // Keep current facing direction
             const currentScale = walkingDirection === 1 ? 'scale(0.7)' : 'scale(-0.7, 0.7)';
             character.style.transform = `translateX(${currentX}px) ${currentScale}`;
         }
         
-        // Add bobbing effect for walking
-        const bobOffset = Math.sin(Date.now() / 200) * 5; // Head bobbing
+        // Realistic walking bobbing effect
+        const walkCycle = Date.now() / 300; // Slower walk cycle
+        const bobOffset = Math.sin(walkCycle) * 4; // Gentle head bobbing
+        const bodyBob = Math.sin(walkCycle * 2) * 2; // Body movement
+        
         character.style.bottom = `calc(90px + ${bobOffset}px)`;
         
-    }, 50); // Faster interval for smoother walking
+        // Add slight rotation for more natural walk
+        const walkTilt = Math.sin(walkCycle * 2) * 1; // Gentle side-to-side tilt
+        character.style.transform += ` rotate(${walkTilt}deg)`;
+        
+    }, 50); // Consistent interval for smooth walking
 }
 
 function stopWalkingAnimation() {
@@ -2718,30 +2800,45 @@ function stopWalkingAnimation() {
         walkingAnimationInterval = null;
     }
     
-    // Smoothly return to center position and reset scale
+    // Get current position
     const currentTransform = character.style.transform || '';
     const currentTranslateX = parseFloat(currentTransform.match(/translateX\(([^)]+)px\)/)?.[1]) || 0;
     
-    let currentPos = currentTranslateX;
+    // Calculate center position
     const chatContainer = document.getElementById('chatContainer');
     const chatRect = chatContainer.getBoundingClientRect();
-    const centerX = (chatRect.width - 120) / 2; // Center position
+    const centerX = (chatRect.width - 120) / 2;
     
-    const returnInterval = setInterval(function() {
-        // Smooth interpolation to center
-        currentPos = currentPos + (centerX - currentPos) * 0.2;
+    // Smooth return to center with easing
+    let startTime = Date.now();
+    const duration = 800; // ms
+    const startX = currentTranslateX;
+    
+    function easeOutCubic(t) {
+        return 1 - Math.pow(1 - t, 3);
+    }
+    
+    function returnToCenter() {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const easedProgress = easeOutCubic(progress);
         
-        // Reset to normal scale (facing right)
-        character.style.transform = `translateX(${currentPos}px) scale(0.7)`;
+        const newX = startX + (centerX - startX) * easedProgress;
         
-        // Reset bobbing
+        // Reset scale to normal (facing right) and remove rotation
+        character.style.transform = `translateX(${newX}px) scale(0.7) rotate(0deg)`;
         character.style.bottom = '90px';
         
-        if (Math.abs(currentPos - centerX) < 2) {
-            character.style.transform = `translateX(${centerX}px) scale(0.7)`;
-            clearInterval(returnInterval);
+        if (progress < 1) {
+            requestAnimationFrame(returnToCenter);
+        } else {
+            // Final position
+            character.style.transform = `translateX(${centerX}px) scale(0.7) rotate(0deg)`;
+            character.style.bottom = '90px';
         }
-    }, 16);
+    }
+    
+    requestAnimationFrame(returnToCenter);
 }
 </script>
 </body>
