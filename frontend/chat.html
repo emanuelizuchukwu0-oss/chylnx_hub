@@ -1452,114 +1452,138 @@
 
    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
 <script>
-    // Your existing JavaScript code remains exactly the same
+    // FIXED CHAT CODE - Messaging and Character Working
     let myUsername = "";
     let socket = null;
     let selectedWinners = [];
     let onlineUsers = [];
-    let isGameStarted = false;
+    let isGameStarted = true;
     let characterState = 'username';
     const ANNOUNCE_PASSCODE = "1234";
     let messageInterval;
 
-   // Initialize app
-function initApp() {
-    // Show username overlay immediately but check timer status
-    document.getElementById('usernameOverlay').style.display = 'flex';
-    checkTimerStatus();
-    
-    // Focus on username input
-    document.getElementById('usernameInput').focus();
-}
-
-// Check timer status from server
-function checkTimerStatus() {
-    // Create a temporary socket connection to check timer status
-    const tempSocket = io();
-    
-    tempSocket.on('connect', function() {
-        console.log('⏰ Checking timer status...');
-        // Request current timer state
-        tempSocket.emit('get_timer');
-    });
-    
-    tempSocket.on('timer_update', function(data) {
-        console.log('📡 Timer status received:', data);
+    // Initialize app
+    function initApp() {
+        console.log('🚀 Initializing app...');
         
-        if (data.is_running && data.remaining_seconds > 0) {
-            // Timer is still running - block username entry
-            showTimerBlockMessage(data.remaining_seconds);
-        } else {
-            // Timer has stopped - allow username entry
-            isGameStarted = true;
-            enableUsernameEntry();
+        // Show username overlay
+        document.getElementById('usernameOverlay').style.display = 'flex';
+        
+        // Initialize character
+        initializeCharacter();
+        
+        // Setup event listeners
+        setupEventListeners();
+        
+        // Focus on username input
+        document.getElementById('usernameInput').focus();
+        
+        console.log('✅ App initialized successfully');
+    }
+
+    function setupEventListeners() {
+        const sendBtn = document.getElementById('sendBtn');
+        const chatInput = document.getElementById('chatInput');
+        const bell = document.getElementById('bell');
+        const usernameInput = document.getElementById('usernameInput');
+        
+        if (sendBtn) sendBtn.addEventListener('click', sendMessage);
+        if (chatInput) {
+            chatInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') sendMessage();
+            });
         }
         
-        // Close temporary connection
-        tempSocket.disconnect();
-    });
-    
-    tempSocket.on('game_started', function(data) {
-        console.log('🎉 Game started - allowing username entry');
-        isGameStarted = true;
-        enableUsernameEntry();
-        tempSocket.disconnect();
-    });
-    
-    // Handle connection errors
-    tempSocket.on('connect_error', function(error) {
-        console.error('❌ Connection error:', error);
-        // If we can't connect to timer, assume game has started
-        isGameStarted = true;
-        enableUsernameEntry();
-    });
-}
+        if (bell) bell.addEventListener('click', showWinnerSelectionPanel);
+        if (usernameInput) {
+            usernameInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') setUsername();
+            });
+        }
+    }
 
-
-    // Character Functions
+    // Character Functions - FIXED
     function initializeCharacter() {
         const character = document.getElementById('animatedCharacter');
-        if (!character) {
-            console.log('⚠️ Character element not found');
-            return;
-        }
+        if (!character) return;
         
-        // Make sure character is visible - NO display none
         character.style.display = 'block';
         character.style.visibility = 'visible';
         
-        // Start with username guide
         showUsernameGuide();
-        
-        // Start repeating messages
-        startRepeatingMessages();
+        startCharacterAnimations();
     }
 
-    function startRepeatingMessages() {
-        const messages = [
-            "INPUT A COOL USERNAME! 🎮",
-            "CHOOSE AN AWESOME NAME! ✨", 
-            "PICK A CREATIVE USERNAME! 🚀",
-            "ENTER YOUR COOL NAME! 💫"
-        ];
-        
-        let messageIndex = 0;
+    function startCharacterAnimations() {
+        const character = document.getElementById('animatedCharacter');
         const speechBubble = document.getElementById('speechBubble');
+        
+        if (!character) return;
         
         // Clear any existing interval
         if (messageInterval) clearInterval(messageInterval);
         
         messageInterval = setInterval(() => {
-            if (speechBubble && characterState === 'username') {
-                speechBubble.textContent = messages[messageIndex];
-                speechBubble.classList.add('show');
-                
-                // Add typing animation
-                speechBubble.style.animation = 'typing 0.5s ease-in-out';
-                
-                messageIndex = (messageIndex + 1) % messages.length;
+            if (characterState === 'username') {
+                animateUsernameCharacter();
+            } else if (characterState === 'chat') {
+                animateChatCharacter();
             }
-        }, 3000); // Change message every 3 seconds
+        }, 3000);
+    }
+
+    function animateUsernameCharacter() {
+        const speechBubble = document.getElementById('speechBubble');
+        const character = document.getElementById('animatedCharacter');
+        const mouth = character?.querySelector('.character-mouth');
+        const eyes = character?.querySelector('.character-eyes');
+        
+        if (!speechBubble) return;
+        
+        // Change speech bubble messages
+        const messages = [
+            "INPUT A COOL USERNAME! 🎮",
+            "CHOOSE AN AWESOME NAME! ✨", 
+            "PICK A CREATIVE USERNAME! 🚀",
+            "ENTER YOUR COOL NAME! 💫",
+            "WHAT'S YOUR GAMER TAG? 🎯"
+        ];
+        
+        const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+        speechBubble.textContent = randomMessage;
+        speechBubble.classList.add('show');
+        
+        // Animate character
+        if (mouth) {
+            mouth.style.height = '8px';
+            setTimeout(() => { if(mouth) mouth.style.height = '6px'; }, 500);
+        }
+        
+        if (eyes && Math.random() > 0.5) {
+            const randomX = (Math.random() - 0.5) * 10;
+            eyes.style.transform = `translateX(${randomX}px)`;
+            setTimeout(() => { if(eyes) eyes.style.transform = 'translateX(0)'; }, 1000);
+        }
+    }
+
+    function animateChatCharacter() {
+        const character = document.getElementById('animatedCharacter');
+        const eyes = character?.querySelector('.character-eyes');
+        const mouth = character?.querySelector('.character-mouth');
+        
+        if (!character) return;
+        
+        // Random idle animations
+        if (eyes && Math.random() > 0.7) {
+            const randomX = (Math.random() - 0.5) * 8;
+            eyes.style.transform = `translateX(${randomX}px)`;
+            setTimeout(() => { if(eyes) eyes.style.transform = 'translateX(0)'; }, 2000);
+        }
+        
+        if (mouth && Math.random() > 0.8) {
+            mouth.style.height = '4px';
+            setTimeout(() => { if(mouth) mouth.style.height = '6px'; }, 300);
+        }
     }
 
     function showUsernameGuide() {
@@ -1573,7 +1597,6 @@ function checkTimerStatus() {
         character.style.display = 'block';
         character.style.visibility = 'visible';
         
-        // Center position for username screen
         character.style.top = '40%';
         character.style.left = '50%';
         character.style.right = 'auto';
@@ -1582,8 +1605,7 @@ function checkTimerStatus() {
         
         if (speechBubble) {
             speechBubble.textContent = 'INPUT A COOL USERNAME! 🎮';
-            speechBubble.classList.remove('show');
-            setTimeout(() => speechBubble.classList.add('show'), 500);
+            speechBubble.classList.add('show');
         }
     }
 
@@ -1593,137 +1615,75 @@ function checkTimerStatus() {
         
         if (!character) return;
         
-        // Stop repeating messages
-        if (messageInterval) clearInterval(messageInterval);
+        characterState = 'chat';
+        character.className = 'animated-character chat-guide';
         
-        // Start walking animation
-        character.classList.add('walking');
-        character.style.transition = 'all 2s ease-in-out';
-        
-        // Adjust position based on screen size - ALWAYS CENTERED
         const isMobile = window.innerWidth <= 768;
         const bottomPosition = isMobile ? '85px' : '90px';
         const scale = isMobile ? '0.6' : '0.7';
         
-        // Move character to chat position - CENTERED AT BOTTOM
         character.style.bottom = bottomPosition;
         character.style.left = '50%';
         character.style.right = 'auto';
         character.style.top = 'auto';
         character.style.transform = `translateX(-50%) scale(${scale})`;
-        character.style.zIndex = '5'; // Ensure behind messages
+        character.style.zIndex = '5';
         
-        setTimeout(() => {
-            character.classList.remove('walking');
-            characterState = 'chat';
-            character.className = 'animated-character chat-guide';
+        if (speechBubble) {
+            speechBubble.textContent = 'Welcome to the chat! Start typing.';
+            speechBubble.classList.add('show');
             
-            if (speechBubble) {
-                speechBubble.textContent = 'Welcome to the chat! Start typing.';
+            setTimeout(() => {
                 speechBubble.classList.remove('show');
-                setTimeout(() => speechBubble.classList.add('show'), 1000);
-                
-                // Hide speech bubble after 5 seconds
-                setTimeout(() => {
-                    speechBubble.classList.remove('show');
-                }, 5000);
-            }
-            
-            initializeChatCharacter();
-        }, 2000);
+            }, 5000);
+        }
     }
 
-    function initializeChatCharacter() {
-        const chatContainer = document.getElementById('chatContainer');
-        const character = document.getElementById('animatedCharacter');
-        
-        if (!chatContainer || !character) return;
-        
-        // Remove mouse following and implement message following
-        setupMessageFollowing();
-    }
-
-    function setupMessageFollowing() {
-        // This will make the character follow messages as they appear
-        const chatWindow = document.getElementById('chatWindow');
-        const character = document.getElementById('animatedCharacter');
-        
-        if (!chatWindow || !character) return;
-        
-        // Observer to watch for new messages
-        const observer = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-                if (mutation.addedNodes.length) {
-                    mutation.addedNodes.forEach((node) => {
-                        if (node.classList && (node.classList.contains('message') || node.classList.contains('system-msg'))) {
-                            followMessage(node);
-                        }
-                    });
-                }
-            });
-        });
-        
-        observer.observe(chatWindow, { childList: true });
-    }
-
-    function followMessage(messageElement) {
-        const character = document.getElementById('animatedCharacter');
-        const eyes = character?.querySelector('.character-eyes');
-        
-        if (!character || !eyes) return;
-        
-        // Get message position
-        const messageRect = messageElement.getBoundingClientRect();
-        const characterRect = character.getBoundingClientRect();
-        
-        // Calculate direction to look
-        const messageCenterX = messageRect.left + messageRect.width / 2;
-        const characterCenterX = characterRect.left + characterRect.width / 2;
-        
-        const deltaX = messageCenterX - characterCenterX;
-        
-        // Move eyes to follow message (limited movement)
-        const eyeMovement = Math.min(Math.max(deltaX / 50, -15), 15);
-        eyes.style.transform = `translateX(${eyeMovement}px)`;
-        
-        // Character reaction
-        characterReactToMessage(messageElement.classList.contains('sent'));
-    }
-
+    // Character reaction to messages - FIXED
     function characterReactToMessage(isMyMessage) {
         if (characterState !== 'chat') return;
         
         const character = document.getElementById('animatedCharacter');
+        const speechBubble = document.getElementById('speechBubble');
+        const mouth = character?.querySelector('.character-mouth');
         const rightArm = character?.querySelector('.right-arm');
         const leftArm = character?.querySelector('.left-arm');
-        const speechBubble = document.getElementById('speechBubble');
         
-        if (!character || !rightArm) return;
+        if (!character) return;
         
         if (isMyMessage) {
-            // Wave arm when sending message
-            rightArm.style.transform = 'rotate(120deg)';
+            // Sent message reaction
+            if (rightArm) rightArm.style.transform = 'rotate(60deg)';
+            if (mouth) mouth.style.height = '8px';
+            
             if (speechBubble) {
-                speechBubble.textContent = 'Message sent! 📤';
+                const reactions = ["Message sent! 📤", "Nice one! 👍", "Great message! 🚀"];
+                speechBubble.textContent = reactions[Math.floor(Math.random() * reactions.length)];
                 speechBubble.classList.add('show');
             }
+            
             setTimeout(() => {
-                rightArm.style.transform = 'rotate(-45deg)';
+                if (rightArm) rightArm.style.transform = 'rotate(25deg)';
+                if (mouth) mouth.style.height = '6px';
                 setTimeout(() => {
                     if (speechBubble) speechBubble.classList.remove('show');
                 }, 2000);
             }, 1000);
+            
         } else {
-            // Nod and point when receiving message
-            character.style.animation = 'nod 1s ease-in-out';
-            leftArm.style.transform = 'rotate(45deg)';
+            // Received message reaction
+            if (leftArm) leftArm.style.transform = 'rotate(-60deg)';
+            if (mouth) mouth.style.height = '8px';
+            
             if (speechBubble) {
-                speechBubble.textContent = 'New message! 👀';
+                const reactions = ["New message! 👀", "Someone's talking! 💬", "Interesting! 🤔"];
+                speechBubble.textContent = reactions[Math.floor(Math.random() * reactions.length)];
                 speechBubble.classList.add('show');
             }
+            
             setTimeout(() => {
-                character.style.animation = 'breathing 4s ease-in-out infinite';
-                leftArm.style.transform = 'rotate(-45deg)';
+                if (leftArm) leftArm.style.transform = 'rotate(-25deg)';
+                if (mouth) mouth.style.height = '6px';
                 setTimeout(() => {
                     if (speechBubble) speechBubble.classList.remove('show');
                 }, 2000);
@@ -1731,149 +1691,76 @@ function checkTimerStatus() {
         }
     }
 
-    // Character Dance Function
-    function startCharacterDance() {
-        const character = document.getElementById('animatedCharacter');
-        const speechBubble = document.getElementById('speechBubble');
+    // Set username function
+    function setUsername() {
+        const usernameInput = document.getElementById('usernameInput');
+        const username = usernameInput?.value.trim();
         
-        if (!character) return;
-        
-        console.log('💃 Starting character dance!');
-        
-        // Add dancing class
-        character.classList.add('dancing');
-        
-        // Update speech bubble for celebration
-        if (speechBubble) {
-            speechBubble.textContent = "🎉 CONGRATULATIONS! 🎉";
-            speechBubble.classList.add('show');
+        if (!username) {
+            alert('Please enter a username');
+            return;
         }
         
-        // Dance for 8 seconds, then return to normal
-        setTimeout(() => {
-            stopCharacterDance();
-        }, 8000);
+        myUsername = username;
+        document.getElementById('usernameOverlay').style.display = 'none';
+        
+        showChatGuide();
+        initializeChat();
     }
 
-    function stopCharacterDance() {
-        const character = document.getElementById('animatedCharacter');
-        const speechBubble = document.getElementById('speechBubble');
-        
-        if (!character) return;
-        
-        console.log('💃 Stopping character dance');
-        
-        // Remove dancing class
-        character.classList.remove('dancing');
-        
-        // Return to normal breathing animation
-        character.style.animation = 'breathing 4s ease-in-out infinite';
-        
-        // Hide speech bubble after dance
-        if (speechBubble) {
-            setTimeout(() => {
-                speechBubble.classList.remove('show');
-            }, 2000);
-        }
-    }
-
-    // Mobile keyboard handling - WITHOUT hiding character
-    function setupMobileKeyboard() {
-        const chatInput = document.getElementById('chatInput');
-        
-        if (!chatInput) return;
-        
-        // Handle focus (keyboard opens) - NO character hiding
-        chatInput.addEventListener('focus', function() {
-            if (window.innerWidth <= 768) {
-                // Add class to adjust layout for keyboard
-                document.body.classList.add('keyboard-open');
-                
-                // Scroll to bottom when keyboard opens
-                setTimeout(() => {
-                    const chatWindow = document.getElementById('chatWindow');
-                    if (chatWindow) {
-                        chatWindow.scrollTop = chatWindow.scrollHeight;
-                    }
-                }, 300);
-            }
-        });
-        
-        // Handle blur (keyboard closes)
-        chatInput.addEventListener('blur', function() {
-            document.body.classList.remove('keyboard-open');
-        });
-    }
-
-   // Set username
-function setUsername() {
-    if (!isGameStarted) {
-        alert("Please wait for the game to start before joining the chat.");
-        return;
-    }
-    
-    const usernameInput = document.getElementById('usernameInput');
-    const username = usernameInput.value.trim();
-    if (!username) return alert("Please enter a username");
-
-    myUsername = username;
-    document.getElementById('usernameOverlay').style.display = 'none';
-    initializeChat();
-}
+    // Chat Functions - FIXED
     function initializeChat() {
+        console.log('💬 Initializing chat...');
+        
         // Connect to Socket.IO server
         socket = io();
         
         // Socket event listeners
         socket.on('connect', function() {
             console.log('✅ Connected to server');
-            // Join chat with username - backend will create user automatically
             socket.emit('join_chat', { username: myUsername });
         });
 
         socket.on('user_joined', function(data) {
             addSystemMessage(`🎉 ${data.username} joined the chat!`);
-            // Update online count from the connected users count
-            updateOnlineCount(Object.keys(data.online_users || {}).length);
+            updateOnlineCount(data.count || 1);
         });
 
         socket.on('user_left', function(data) {
             addSystemMessage(`👋 ${data.username} left the chat`);
-            // Update online count from the connected users count
-            updateOnlineCount(Object.keys(data.online_users || {}).length);
+            updateOnlineCount(data.count || 0);
         });
 
         socket.on('user_count_update', function(data) {
-            // This event directly gives us the count
             updateOnlineCount(data.count);
         });
 
         socket.on('chat_history', function(history) {
             const chatWindow = document.getElementById('chatWindow');
-            if (chatWindow) {
+            if (chatWindow && Array.isArray(history)) {
                 chatWindow.innerHTML = '';
                 history.forEach(msg => {
                     const isSent = msg.from === myUsername;
                     addMessage(msg, isSent);
                 });
+                chatWindow.scrollTop = chatWindow.scrollHeight;
             }
         });
 
         socket.on('new_message', function(data) {
-            const isSent = data.from === myUsername;
-            addMessage(data, isSent);
-            if (!isSent) characterReactToMessage(false);
+            if (data && data.from && data.text) {
+                const isSent = data.from === myUsername;
+                addMessage(data, isSent);
+                if (!isSent) characterReactToMessage(false);
+            }
         });
 
         socket.on('winner_announced', function(data) {
-            const winners = Array.isArray(data.winners) ? data.winners.join(", ") : data.winners;
-            showWinnerAnnouncement(winners);
-            addSystemMessage(`🏆 WINNER: ${winners}! 🎉`);
-        });
-
-        socket.on('message_error', function(data) {
-            console.error('❌ Message error:', data.error);
-            alert('Message error: ' + data.error);
+            if (data && data.winners) {
+                const winners = Array.isArray(data.winners) ? data.winners.join(", ") : data.winners;
+                showWinnerAnnouncement(winners);
+                addSystemMessage(`🏆 WINNER: ${winners}! 🎉`);
+            }
         });
 
         // Enable chat functionality
@@ -1885,7 +1772,6 @@ function setUsername() {
         
         if (chatInput) chatInput.focus();
         
-        // Add welcome message
         addSystemMessage(`Welcome, ${myUsername}! Start chatting.`);
     }
 
@@ -1893,7 +1779,6 @@ function setUsername() {
         const onlineCountElement = document.getElementById('onlineCount');
         if (onlineCountElement) {
             onlineCountElement.textContent = count + ' online';
-            console.log('👥 Online users updated:', count);
         }
     }
 
@@ -1903,17 +1788,14 @@ function setUsername() {
         
         if (!text || !socket) return;
         
-        // Send message via socket
         socket.emit('message', { 
-            text: text
+            text: text,
+            timestamp: new Date().toISOString()
         });
         
-        // Clear input
+        characterReactToMessage(true);
         messageInput.value = '';
         messageInput.focus();
-        
-        // Character reaction
-        characterReactToMessage(true);
     }
 
     function addMessage(msg, isSent) {
@@ -1923,7 +1805,7 @@ function setUsername() {
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${isSent ? 'sent' : 'received'}`;
 
-        const time = new Date(msg.timestamp).toLocaleTimeString([], { 
+        const time = new Date(msg.timestamp || Date.now()).toLocaleTimeString([], { 
             hour: '2-digit', 
             minute: '2-digit' 
         });
@@ -1936,30 +1818,25 @@ function setUsername() {
             <div class="message-time">${time}</div>
         `;
 
-        // Add click event to username for winner selection
         if (!isSent) {
             const senderName = messageDiv.querySelector('.sender-name');
-            senderName.addEventListener('click', function() {
-                const username = this.getAttribute('data-username');
-                toggleWinnerSelection(username);
+            if (senderName) {
+                senderName.addEventListener('click', function() {
+                    const username = this.getAttribute('data-username');
+                    toggleWinnerSelection(username);
+                    this.classList.toggle('username-selected');
+                    updateBellNotification();
+                    
+                    if (selectedWinners.includes(username)) {
+                        showSelectionFeedback(`${username} selected as winner!`);
+                    } else {
+                        showSelectionFeedback(`${username} removed from selection`);
+                    }
+                });
                 
-                // Toggle visual selection
-                this.classList.toggle('username-selected');
-                
-                // Update bell notification
-                updateBellNotification();
-                
-                // Show feedback
-                if (selectedWinners.includes(username)) {
-                    showSelectionFeedback(`${username} selected as winner!`);
-                } else {
-                    showSelectionFeedback(`${username} removed from selection`);
-                }
-            });
-            
-            // Add hover effect
-            senderName.style.cursor = 'pointer';
-            senderName.title = 'Click to select as winner';
+                senderName.style.cursor = 'pointer';
+                senderName.title = 'Click to select as winner';
+            }
         }
 
         chatWindow.appendChild(messageDiv);
@@ -1979,7 +1856,6 @@ function setUsername() {
     }
 
     function showSelectionFeedback(message) {
-        // Create a temporary feedback message
         const feedback = document.createElement('div');
         feedback.className = 'system-msg';
         feedback.textContent = message;
@@ -1989,7 +1865,6 @@ function setUsername() {
         const chatWindow = document.getElementById('chatWindow');
         chatWindow.appendChild(feedback);
         
-        // Remove after 2 seconds
         setTimeout(() => {
             if (feedback.parentNode) {
                 feedback.remove();
@@ -2019,7 +1894,6 @@ function setUsername() {
         
         winnerList.innerHTML = '';
         
-        // Collect all unique usernames from chat messages
         const allUsernames = new Set();
         const senderNames = document.querySelectorAll('.sender-name');
         senderNames.forEach(sender => {
@@ -2029,14 +1903,12 @@ function setUsername() {
             }
         });
         
-        // Add online users
         Object.keys(onlineUsers).forEach(user => {
             if (user !== myUsername) {
                 allUsernames.add(user);
             }
         });
         
-        // Create winner items
         allUsernames.forEach(user => {
             const winnerItem = document.createElement('div');
             winnerItem.className = `winner-item ${selectedWinners.includes(user) ? 'selected' : ''}`;
@@ -2048,11 +1920,7 @@ function setUsername() {
                 const checkbox = this.querySelector('.winner-checkbox');
                 checkbox.checked = !checkbox.checked;
                 toggleWinnerSelection(user, checkbox.checked);
-                
-                // Update visual selection in chat
                 updateChatUsernameSelection(user, checkbox.checked);
-                
-                // Update bell notification
                 updateBellNotification();
             });
             winnerList.appendChild(winnerItem);
@@ -2086,7 +1954,6 @@ function setUsername() {
     }
 
     function updateChatUsernameSelection(username, isSelected) {
-        // Update all instances of this username in the chat
         const senderNames = document.querySelectorAll(`.sender-name[data-username="${username}"]`);
         senderNames.forEach(senderName => {
             if (isSelected) {
@@ -2111,23 +1978,19 @@ function setUsername() {
 
         showWinnerAnnouncement(selectedWinners.join(', '));
         
-        // Broadcast winner announcement
         if (socket) {
             socket.emit('announce_winner', { winners: selectedWinners });
         }
 
-        // Clear selections after announcement
         selectedWinners.forEach(username => {
             updateChatUsernameSelection(username, false);
         });
         selectedWinners = [];
         
-        // Update UI
         updateSelectedCount();
         updateBellNotification();
         closeWinnerPanel();
         
-        // Show success message
         showSelectionFeedback('Winners announced successfully!');
     }
 
@@ -2139,14 +2002,46 @@ function setUsername() {
             winnerNameElement.textContent = usernames;
             overlay.style.display = 'flex';
             
-            // Start character dance after overlay disappears
             setTimeout(() => {
                 overlay.style.display = 'none';
-                // Start dancing after a short delay
                 setTimeout(() => {
                     startCharacterDance();
                 }, 500);
-            }, 10000); // Overlay shows for 10 seconds
+            }, 10000);
+        }
+    }
+
+    function startCharacterDance() {
+        const character = document.getElementById('animatedCharacter');
+        const speechBubble = document.getElementById('speechBubble');
+        
+        if (!character) return;
+        
+        character.classList.add('dancing');
+        
+        if (speechBubble) {
+            speechBubble.textContent = "🎉 CONGRATULATIONS! 🎉";
+            speechBubble.classList.add('show');
+        }
+        
+        setTimeout(() => {
+            stopCharacterDance();
+        }, 8000);
+    }
+
+    function stopCharacterDance() {
+        const character = document.getElementById('animatedCharacter');
+        const speechBubble = document.getElementById('speechBubble');
+        
+        if (!character) return;
+        
+        character.classList.remove('dancing');
+        character.style.animation = 'breathing 4s ease-in-out infinite';
+        
+        if (speechBubble) {
+            setTimeout(() => {
+                speechBubble.classList.remove('show');
+            }, 2000);
         }
     }
 
@@ -2178,52 +2073,6 @@ function setUsername() {
             character.style.transform = `translateX(-50%) scale(${scale})`;
         }
     });
-    // Show message when timer is still running
-function showTimerBlockMessage(remainingSeconds) {
-    const usernameForm = document.getElementById('usernameForm');
-    const minutes = Math.floor(remainingSeconds / 60);
-    const seconds = remainingSeconds % 60;
-    
-    usernameForm.innerHTML = `
-        <h3>⏰ Game Starting Soon</h3>
-        <div style="text-align: center; margin: 20px 0;">
-            <div style="font-size: 2rem; color: #25D366; font-weight: bold; margin: 10px 0;">
-                ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}
-            </div>
-            <p style="color: #666; margin: 15px 0;">
-                Please wait for the timer to finish before joining the chat.
-            </p>
-            <p style="color: #888; font-size: 0.9rem;">
-                Game will start automatically when timer reaches zero.
-            </p>
-        </div>
-        <button onclick="checkTimerStatus()" style="width: 100%; padding: 12px; background: #25D366; color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 16px;">
-            Refresh Status
-        </button>
-        <div class="form-note">
-            You'll be able to join when the game starts
-        </div>
-    `;
-}
-// Enable username entry when game starts
-function enableUsernameEntry() {
-    const usernameForm = document.getElementById('usernameForm');
-    usernameForm.innerHTML = `
-        <h3>Join the Chat</h3>
-        <input type="text" id="usernameInput" placeholder="Enter your username" autocomplete="off">
-        <button onclick="setUsername()">Start Chatting</button>
-        <div class="form-note">
-            Choose a cool name to get started!
-        </div>
-    `;
-    
-    // Re-attach event listeners
-    document.getElementById('usernameInput').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') setUsername();
-    });
-    
-    document.getElementById('usernameInput').focus();
-}
 </script>
 </body>
 </html>
