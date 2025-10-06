@@ -1462,43 +1462,59 @@
     const ANNOUNCE_PASSCODE = "1234";
     let messageInterval;
 
-    // Initialize app
-    function initApp() {
-        console.log('🚀 Initializing app...');
+   // Initialize app
+function initApp() {
+    // Show username overlay immediately but check timer status
+    document.getElementById('usernameOverlay').style.display = 'flex';
+    checkTimerStatus();
+    
+    // Focus on username input
+    document.getElementById('usernameInput').focus();
+}
+
+// Check timer status from server
+function checkTimerStatus() {
+    // Create a temporary socket connection to check timer status
+    const tempSocket = io();
+    
+    tempSocket.on('connect', function() {
+        console.log('⏰ Checking timer status...');
+        // Request current timer state
+        tempSocket.emit('get_timer');
+    });
+    
+    tempSocket.on('timer_update', function(data) {
+        console.log('📡 Timer status received:', data);
         
-        // Basic event listeners
-        const sendBtn = document.getElementById('sendBtn');
-        const chatInput = document.getElementById('chatInput');
-        const bell = document.getElementById('bell');
-        const usernameInput = document.getElementById('usernameInput');
-        
-        if (sendBtn) sendBtn.addEventListener('click', sendMessage);
-        if (chatInput) {
-            chatInput.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') sendMessage();
-            });
+        if (data.is_running && data.remaining_seconds > 0) {
+            // Timer is still running - block username entry
+            showTimerBlockMessage(data.remaining_seconds);
+        } else {
+            // Timer has stopped - allow username entry
+            isGameStarted = true;
+            enableUsernameEntry();
         }
         
-        if (bell) bell.addEventListener('click', showWinnerSelectionPanel);
-        if (usernameInput) usernameInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') setUsername();
-        });
+        // Close temporary connection
+        tempSocket.disconnect();
+    });
+    
+    tempSocket.on('game_started', function(data) {
+        console.log('🎉 Game started - allowing username entry');
+        isGameStarted = true;
+        enableUsernameEntry();
+        tempSocket.disconnect();
+    });
+    
+    // Handle connection errors
+    tempSocket.on('connect_error', function(error) {
+        console.error('❌ Connection error:', error);
+        // If we can't connect to timer, assume game has started
+        isGameStarted = true;
+        enableUsernameEntry();
+    });
+}
 
-        // Show username overlay
-        const usernameOverlay = document.getElementById('usernameOverlay');
-        if (usernameOverlay) usernameOverlay.style.display = 'flex';
-        
-        // Initialize character with repeated messages
-        initializeCharacter();
-        
-        // Setup mobile keyboard handling WITHOUT hiding character
-        setupMobileKeyboard();
-        
-        // Focus on username input
-        if (usernameInput) usernameInput.focus();
-        
-        console.log('✅ App initialized successfully');
-    }
 
     // Character Functions
     function initializeCharacter() {
@@ -1789,27 +1805,21 @@
         });
     }
 
-    // Username and Chat Functions
-    function setUsername() {
-        const usernameInput = document.getElementById('usernameInput');
-        const username = usernameInput?.value.trim();
-        
-        if (!username) {
-            alert('Please enter a username');
-            return;
-        }
-        
-        myUsername = username;
-        const usernameOverlay = document.getElementById('usernameOverlay');
-        if (usernameOverlay) usernameOverlay.style.display = 'none';
-        
-        // Stop message repetition
-        if (messageInterval) clearInterval(messageInterval);
-        
-        showChatGuide();
-        initializeChat();
+   // Set username
+function setUsername() {
+    if (!isGameStarted) {
+        alert("Please wait for the game to start before joining the chat.");
+        return;
     }
+    
+    const usernameInput = document.getElementById('usernameInput');
+    const username = usernameInput.value.trim();
+    if (!username) return alert("Please enter a username");
 
+    myUsername = username;
+    document.getElementById('usernameOverlay').style.display = 'none';
+    initializeChat();
+}
     function initializeChat() {
         // Connect to Socket.IO server
         socket = io();
@@ -2168,6 +2178,52 @@
             character.style.transform = `translateX(-50%) scale(${scale})`;
         }
     });
+    // Show message when timer is still running
+function showTimerBlockMessage(remainingSeconds) {
+    const usernameForm = document.getElementById('usernameForm');
+    const minutes = Math.floor(remainingSeconds / 60);
+    const seconds = remainingSeconds % 60;
+    
+    usernameForm.innerHTML = `
+        <h3>⏰ Game Starting Soon</h3>
+        <div style="text-align: center; margin: 20px 0;">
+            <div style="font-size: 2rem; color: #25D366; font-weight: bold; margin: 10px 0;">
+                ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}
+            </div>
+            <p style="color: #666; margin: 15px 0;">
+                Please wait for the timer to finish before joining the chat.
+            </p>
+            <p style="color: #888; font-size: 0.9rem;">
+                Game will start automatically when timer reaches zero.
+            </p>
+        </div>
+        <button onclick="checkTimerStatus()" style="width: 100%; padding: 12px; background: #25D366; color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 16px;">
+            Refresh Status
+        </button>
+        <div class="form-note">
+            You'll be able to join when the game starts
+        </div>
+    `;
+}
+// Enable username entry when game starts
+function enableUsernameEntry() {
+    const usernameForm = document.getElementById('usernameForm');
+    usernameForm.innerHTML = `
+        <h3>Join the Chat</h3>
+        <input type="text" id="usernameInput" placeholder="Enter your username" autocomplete="off">
+        <button onclick="setUsername()">Start Chatting</button>
+        <div class="form-note">
+            Choose a cool name to get started!
+        </div>
+    `;
+    
+    // Re-attach event listeners
+    document.getElementById('usernameInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') setUsername();
+    });
+    
+    document.getElementById('usernameInput').focus();
+}
 </script>
 </body>
 </html>
