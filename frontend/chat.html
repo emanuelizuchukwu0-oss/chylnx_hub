@@ -2223,26 +2223,49 @@ body data-paid="false">
         }, 100);
     }
 
-   // In your addMessage() function, update the senderName click handler:
-if (!isSent) {
-    const senderName = messageDiv.querySelector('.sender-name');
-    if (senderName) {
-        senderName.addEventListener('click', function() {
-            const username = this.getAttribute('data-username');
-            toggleWinnerSelection(username);
-            this.classList.toggle('username-selected');
-            
-            if (selectedWinners.includes(username)) {
-                showSelectionFeedback(`✅ ${username} selected! Click bell to announce.`);
-            } else {
-                showSelectionFeedback(`❌ ${username} removed from selection`);
-            }
+    function addMessage(msg, isSent) {
+        const chatWindow = document.getElementById('chatWindow');
+        if (!chatWindow) return;
+
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${isSent ? 'sent' : 'received'}`;
+
+        const time = new Date(msg.timestamp || Date.now()).toLocaleTimeString([], { 
+            hour: '2-digit', 
+            minute: '2-digit' 
         });
-        
-        senderName.style.cursor = 'pointer';
-        senderName.title = 'Click to select/deselect as winner';
+
+        const isSelected = selectedWinners.includes(msg.from);
+
+        messageDiv.innerHTML = `
+            ${!isSent ? `<div class="sender-name ${isSelected ? 'username-selected' : ''}" data-username="${msg.from}">${msg.from}</div>` : ''}
+            <div class="message-content">${msg.text}</div>
+            <div class="message-time">${time}</div>
+        `;
+
+        if (!isSent) {
+            const senderName = messageDiv.querySelector('.sender-name');
+            if (senderName) {
+                senderName.addEventListener('click', function() {
+                    const username = this.getAttribute('data-username');
+                    toggleWinnerSelection(username);
+                    this.classList.toggle('username-selected');
+                    updateBellNotification();
+                    
+                    if (selectedWinners.includes(username)) {
+                        showSelectionFeedback(`${username} selected as winner!`);
+                    } else {
+                        showSelectionFeedback(`${username} removed from selection`);
+                    }
+                });
+                
+                senderName.style.cursor = 'pointer';
+                senderName.title = 'Click to select as winner';
+            }
+        }
+
+        chatWindow.appendChild(messageDiv);
     }
-}
 
     function addSystemMessage(text) {
         const chatWindow = document.getElementById('chatWindow');
