@@ -1546,6 +1546,59 @@
         #chatContainer, #chatWindow, #inputArea {
             transition: all 0.3s ease;
         }
+        /* Walking animation for the whole body */
+.animated-character.walking .left-leg {
+    animation: walkLeft 0.4s ease-in-out infinite;
+}
+
+.animated-character.walking .right-leg {
+    animation: walkRight 0.4s ease-in-out infinite;
+}
+
+.animated-character.walking .left-arm {
+    animation: walkArmLeft 0.4s ease-in-out infinite;
+    transform: rotate(-15deg) !important;
+}
+
+.animated-character.walking .right-arm {
+    animation: walkArmRight 0.4s ease-in-out infinite;
+    transform: rotate(15deg) !important;
+}
+
+.animated-character.walking .character-body-main {
+    animation: bodyBob 0.4s ease-in-out infinite;
+}
+
+@keyframes walkLeft {
+    0%, 100% { transform: rotate(0deg); }
+    50% { transform: rotate(25deg); }
+}
+
+@keyframes walkRight {
+    0%, 100% { transform: rotate(0deg); }
+    50% { transform: rotate(-25deg); }
+}
+
+@keyframes walkArmLeft {
+    0%, 100% { transform: rotate(-25deg); }
+    50% { transform: rotate(15deg); }
+}
+
+@keyframes walkArmRight {
+    0%, 100% { transform: rotate(25deg); }
+    50% { transform: rotate(-15deg); }
+}
+
+@keyframes bodyBob {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-3px); }
+}
+
+/* Character flip for direction changes */
+.animated-character {
+    transform-origin: center bottom;
+    transition: transform 0.3s ease;
+}
     </style>
 </head>
 body data-paid="false">
@@ -2002,7 +2055,7 @@ body data-paid="false">
         }
     }
 
-    function showChatGuide() {
+   function showChatGuide() {
     const character = document.getElementById('animatedCharacter');
     const speechBubble = document.getElementById('speechBubble');
     
@@ -2015,11 +2068,16 @@ body data-paid="false">
     const bottomPosition = isMobile ? '85px' : '90px';
     const scale = isMobile ? '0.6' : '0.7';
     
+    // Position at center bottom of chat container
+    const chatContainer = document.getElementById('chatContainer');
+    const chatRect = chatContainer.getBoundingClientRect();
+    const centerX = (chatRect.width - 120) / 2; // Center position accounting for character width
+    
     character.style.bottom = bottomPosition;
-    character.style.left = '50%';
+    character.style.left = '0px'; // Use transform for positioning instead
     character.style.right = 'auto';
     character.style.top = 'auto';
-    character.style.transform = `translateX(-50%) scale(${scale})`;
+    character.style.transform = `translateX(${centerX}px) scale(${scale})`;
     character.style.zIndex = '5';
     
     // Reset any walking state when entering chat
@@ -2607,10 +2665,16 @@ function startWalkingAnimation() {
         clearInterval(walkingAnimationInterval);
     }
     
-    // Set up walking back and forth
+    // Get chat container boundaries
+    const chatContainer = document.getElementById('chatContainer');
+    const chatRect = chatContainer.getBoundingClientRect();
+    
+    // Calculate walking boundaries (full chat space)
+    const minX = 50; // Keep some margin from edges
+    const maxX = chatRect.width - 150; // Account for character width
+    
     let walkingDirection = 1; // 1 for right, -1 for left
-    let walkDistance = 0;
-    const maxWalkDistance = 100; // Maximum pixels to walk from center
+    let currentX = (maxX - minX) / 2; // Start from middle
     
     walkingAnimationInterval = setInterval(function() {
         if (!isUserTyping) {
@@ -2618,22 +2682,29 @@ function startWalkingAnimation() {
             return;
         }
         
-        const currentTransform = character.style.transform || '';
-        const currentTranslateX = parseFloat(currentTransform.match(/translateX\(([^)]+)px\)/)?.[1]) || 0;
+        // Move character
+        currentX += walkingDirection * 3;
         
-        // Calculate new position
-        walkDistance += walkingDirection * 2;
-        
-        // Reverse direction when reaching boundaries
-        if (Math.abs(walkDistance) >= maxWalkDistance) {
-            walkingDirection *= -1;
+        // Reverse direction when hitting boundaries
+        if (currentX >= maxX) {
+            walkingDirection = -1;
+            // Flip character to face left
+            character.style.transform = `translateX(${currentX}px) scale(-0.7, 0.7)`;
+        } else if (currentX <= minX) {
+            walkingDirection = 1;
+            // Flip character to face right
+            character.style.transform = `translateX(${currentX}px) scale(0.7)`;
+        } else {
+            // Keep current facing direction
+            const currentScale = walkingDirection === 1 ? 'scale(0.7)' : 'scale(-0.7, 0.7)';
+            character.style.transform = `translateX(${currentX}px) ${currentScale}`;
         }
         
-        // Update character position while maintaining scale and other transforms
-        const currentScale = currentTransform.match(/scale\(([^)]+)\)/)?.[1] || '0.7';
-        character.style.transform = `translateX(${walkDistance}px) scale(${currentScale})`;
+        // Add bobbing effect for walking
+        const bobOffset = Math.sin(Date.now() / 200) * 5; // Head bobbing
+        character.style.bottom = `calc(90px + ${bobOffset}px)`;
         
-    }, 100);
+    }, 50); // Faster interval for smoother walking
 }
 
 function stopWalkingAnimation() {
@@ -2647,19 +2718,27 @@ function stopWalkingAnimation() {
         walkingAnimationInterval = null;
     }
     
-    // Smoothly return to center position
+    // Smoothly return to center position and reset scale
     const currentTransform = character.style.transform || '';
     const currentTranslateX = parseFloat(currentTransform.match(/translateX\(([^)]+)px\)/)?.[1]) || 0;
-    const currentScale = currentTransform.match(/scale\(([^)]+)\)/)?.[1] || '0.7';
     
     let currentPos = currentTranslateX;
+    const chatContainer = document.getElementById('chatContainer');
+    const chatRect = chatContainer.getBoundingClientRect();
+    const centerX = (chatRect.width - 120) / 2; // Center position
+    
     const returnInterval = setInterval(function() {
-        currentPos *= 0.8; // Smooth return
+        // Smooth interpolation to center
+        currentPos = currentPos + (centerX - currentPos) * 0.2;
         
-        character.style.transform = `translateX(${currentPos}px) scale(${currentScale})`;
+        // Reset to normal scale (facing right)
+        character.style.transform = `translateX(${currentPos}px) scale(0.7)`;
         
-        if (Math.abs(currentPos) < 1) {
-            character.style.transform = `translateX(0px) scale(${currentScale})`;
+        // Reset bobbing
+        character.style.bottom = '90px';
+        
+        if (Math.abs(currentPos - centerX) < 2) {
+            character.style.transform = `translateX(${centerX}px) scale(0.7)`;
             clearInterval(returnInterval);
         }
     }, 16);
