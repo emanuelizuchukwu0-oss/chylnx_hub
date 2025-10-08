@@ -1662,101 +1662,86 @@
     animation: none;
     transform: rotate(25deg);
 }
-/* Improved Music Control Styles */
-.music-controls {
-    position: fixed;
-    top: 70px;
-    right: 20px;
-    z-index: 1000;
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    background: rgba(255, 255, 255, 0.95);
-    padding: 8px 12px;
-    border-radius: 20px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-    backdrop-filter: blur(10px);
-    border: 2px solid #25D366;
-}
 
-.music-btn {
-    background: #25D366;
-    border: none;
-    border-radius: 50%;
-    width: 35px;
-    height: 35px;
-    color: white;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    transition: all 0.3s ease;
-}
+        /* Improved Music Control Styles */
+        .music-controls {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 8px 12px;
+            border-radius: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            backdrop-filter: blur(10px);
+            border: 2px solid #25D366;
+        }
 
-.music-btn:hover {
-    background: #20bd5a;
-    transform: scale(1.1);
-}
+        .music-btn {
+            background: #25D366;
+            border: none;
+            border-radius: 50%;
+            width: 35px;
+            height: 35px;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
 
-.music-btn.muted {
-    background: #ff4444;
-}
+        .music-btn:hover {
+            background: #20bd5a;
+            transform: scale(1.1);
+        }
 
-.sound-toggle {
-    background: #667781;
-    font-size: 12px;
-}
+        .music-btn.muted {
+            background: #ff4444;
+        }
 
-.sound-toggle.muted {
-    background: #999;
-}
+        .sound-toggle {
+            background: #667781;
+            font-size: 12px;
+        }
 
-.music-visualizer {
-    display: flex;
-    gap: 2px;
-    align-items: end;
-    height: 20px;
-    margin-left: 5px;
-}
+        .sound-toggle.muted {
+            background: #999;
+        }
 
-.visualizer-bar {
-    width: 3px;
-    background: #25D366;
-    border-radius: 2px;
-    animation: visualizerPulse 0.8s ease-in-out infinite;
-}
+        .music-visualizer {
+            display: flex;
+            gap: 2px;
+            align-items: end;
+            height: 20px;
+            margin-left: 5px;
+        }
 
-.visualizer-bar:nth-child(1) { animation-delay: 0s; height: 8px; }
-.visualizer-bar:nth-child(2) { animation-delay: 0.1s; height: 12px; }
-.visualizer-bar:nth-child(3) { animation-delay: 0.2s; height: 16px; }
-.visualizer-bar:nth-child(4) { animation-delay: 0.3s; height: 12px; }
-.visualizer-bar:nth-child(5) { animation-delay: 0.4s; height: 8px; }
+        .visualizer-bar {
+            width: 3px;
+            background: #25D366;
+            border-radius: 2px;
+            animation: visualizerPulse 0.8s ease-in-out infinite;
+        }
 
-@keyframes visualizerPulse {
-    0%, 100% { transform: scaleY(1); }
-    50% { transform: scaleY(0.3); }
-}
+        .visualizer-bar:nth-child(1) { animation-delay: 0s; height: 8px; }
+        .visualizer-bar:nth-child(2) { animation-delay: 0.1s; height: 12px; }
+        .visualizer-bar:nth-child(3) { animation-delay: 0.2s; height: 16px; }
+        .visualizer-bar:nth-child(4) { animation-delay: 0.3s; height: 12px; }
+        .visualizer-bar:nth-child(5) { animation-delay: 0.4s; height: 8px; }
 
-/* Audio help message */
-.audio-help {
-    background: rgba(255, 215, 0, 0.2);
-    border: 1px solid #ffd700;
-    border-radius: 10px;
-    padding: 10px;
-    margin: 10px;
-    text-align: center;
-    font-size: 14px;
-    color: #333;
-}
-
+        @keyframes visualizerPulse {
+            0%, 100% { transform: scaleY(1); }
+            50% { transform: scaleY(0.3); }
+        }
     </style>
 </head>
 <body data-paid="false">
-    <!-- ALL YOUR EXISTING HTML STAYS HERE -->
-    <!-- ... [Your complete HTML remains exactly the same] ... -->
-
-    <!-- ADD MUSIC CONTROLS HTML -->
+    <!-- MUSIC CONTROLS -->
     <div class="music-controls" id="musicControls" style="display: none;">
         <button class="music-btn" id="musicToggle" title="Play/Pause Music">🎵</button>
         <button class="music-btn sound-toggle" id="soundToggle" title="Toggle All Sounds">🔊</button>
@@ -1769,7 +1754,7 @@
         </div>
     </div>
 
-    <!-- REST OF YOUR HTML -->
+    <!-- REST OF YOUR HTML (UNCHANGED) -->
     <div id="timerBlockOverlay" class="timer-block-overlay" style="display: none;">
         <div class="timer-block-content">
             <h2>⏰ WAIT TILL TIMER ENDS </h2>
@@ -1878,8 +1863,7 @@
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
     <script>
-        // FIXED CHAT CODE - With Stable Mobile Layout
-        // Add this variable at the top with your other variables
+        // FIXED CHAT CODE - With Working Audio System
         let myUsername = "";
         let socket = null;
         let selectedWinners = [];
@@ -1894,13 +1878,15 @@
         let isUserTyping = false;
         let typingTimeout;
         let walkingAnimationInterval;
+        
+        // SIMPLE AUDIO SYSTEM - FIXED
         let backgroundMusic = null;
         let isMusicPlaying = false;
         let soundEnabled = true;
         let walkingSound = null;
         let audioUnlocked = false;
 
-        // Sound files
+        // Sound files - SIMPLIFIED
         const soundFiles = {
             backgroundMusic: 'https://assets.mixkit.co/music/preview/mixkit-tech-house-vibes-130.mp3',
             winner: 'https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3',
@@ -1911,32 +1897,35 @@
             walking: 'https://assets.mixkit.co/sfx/preview/mixkit-footsteps-on-tall-grass-520.mp3'
         };
 
-       function initApp() {
-    console.log('🚀 Initializing app...');
-    
-    // Show username overlay but check timer first
-    document.getElementById('usernameOverlay').style.display = 'flex';
-    
-    // Initialize character
-    initializeCharacter();
-    
-    // Setup event listeners
-    setupEventListeners();
-    
-    // Setup mobile keyboard handling
-    setupMobileKeyboard();
-    
-    // Setup typing detection
-    setupTypingDetection();
-    
-    // Setup audio interaction - ADD THIS LINE
-    setupAudioInteraction();
-    
-    // Check timer status
-    checkTimerStatus();
-    
-    console.log('✅ App initialized successfully');
-}
+        function initApp() {
+            console.log('🚀 Initializing app...');
+            
+            // Show username overlay but check timer first
+            document.getElementById('usernameOverlay').style.display = 'flex';
+            
+            // Initialize character
+            initializeCharacter();
+            
+            // Setup event listeners
+            setupEventListeners();
+            
+            // Setup mobile keyboard handling
+            setupMobileKeyboard();
+            
+            // Setup typing detection
+            setupTypingDetection();
+            
+            // Setup audio interaction
+            setupAudioInteraction();
+            
+            // Check timer status
+            checkTimerStatus();
+            
+            console.log('✅ App initialized successfully');
+        }
+
+        // ALL YOUR EXISTING FUNCTIONS STAY EXACTLY THE SAME UNTIL THE AUDIO SECTION
+        // ... [All your chat, character, timer functions remain unchanged] ...
 
         // MOBILE KEYBOARD HANDLING
         function setupMobileKeyboard() {
@@ -2239,41 +2228,33 @@
                 }, 1000);
             }
         }
-function setUsername() {
-    if (!isGameStarted) {
-        alert("⏰ Please wait for the game to start before joining the chat.");
-        return;
-    }
-    
-    const usernameInput = document.getElementById('usernameInput');
-    const username = usernameInput?.value.trim();
-    
-    if (!username) {
-        alert('Please enter a username');
-        return;
-    }
-    
-    myUsername = username;
-    document.getElementById('usernameOverlay').style.display = 'none';
-    
-    // Show audio instructions
-    addSystemMessage('🔊 Tip: Click anywhere on the page to enable sounds, then use the music controls in the top-right!');
-    
-    showChatGuide();
-    initializeChat();
-    
-    // Initialize audio system
-    initializeAudio();
-    
-    // Try to play join sound (might not work until user clicks)
-    setTimeout(() => {
-        if (audioUnlocked) {
-            playSound('join', 0.5);
-        } else {
-            console.log('🔊 Join sound delayed - waiting for audio unlock');
+
+        function setUsername() {
+            if (!isGameStarted) {
+                alert("⏰ Please wait for the game to start before joining the chat.");
+                return;
+            }
+            
+            const usernameInput = document.getElementById('usernameInput');
+            const username = usernameInput?.value.trim();
+            
+            if (!username) {
+                alert('Please enter a username');
+                return;
+            }
+            
+            myUsername = username;
+            document.getElementById('usernameOverlay').style.display = 'none';
+            
+            showChatGuide();
+            initializeChat();
+            
+            // Initialize audio system
+            initializeAudio();
+            
+            // Show audio instructions
+            addSystemMessage('🔊 Tip: Click anywhere on the page to enable sounds!');
         }
-    }, 1000);
-}
 
         // CHAT FUNCTIONS
         function initializeChat() {
@@ -2731,143 +2712,204 @@ function setUsername() {
             }
             requestAnimationFrame(returnToCenter);
         }
-function initializeAudio() {
-    console.log('🔊 Initializing audio system...');
-    
-    try {
-        // Create audio elements
-        backgroundMusic = new Audio(soundFiles.backgroundMusic);
-        backgroundMusic.loop = true;
-        backgroundMusic.volume = 0.3;
-        
-        // Preload the audio
-        backgroundMusic.load();
-        
-        // Setup event listeners for audio controls
-        setupAudioControls();
-        
-        // Show music controls
-        const musicControls = document.getElementById('musicControls');
-        if (musicControls) {
-            musicControls.style.display = 'flex';
-            console.log('🎵 Music controls displayed');
-        }
-        
-        // Don't try to play automatically - wait for user interaction
-        isMusicPlaying = false;
-        document.getElementById('musicToggle').textContent = '🎵';
-        document.getElementById('musicVisualizer').style.display = 'none';
-        
-        console.log('✅ Audio system initialized (waiting for user interaction)');
-        
-    } catch (error) {
-        console.error('❌ Failed to initialize audio system:', error);
-    }
-}
-function toggleBackgroundMusic() {
-    if (!backgroundMusic) {
-        console.log('❌ Background music not initialized');
-        return;
-    }
-    
-    if (!audioUnlocked) {
-        console.log('🔊 Audio not unlocked yet - requesting user interaction');
-        // Instead of alert, show a more user-friendly message
-        addSystemMessage('🔊 Please click anywhere on the page first to enable audio, then click the music button again.');
-        return;
-    }
-    
-    if (isMusicPlaying) {
-        // Pause music
-        backgroundMusic.pause();
-        isMusicPlaying = false;
-        document.getElementById('musicToggle').textContent = '🎵';
-        document.getElementById('musicVisualizer').style.display = 'none';
-        console.log('⏸️ Music paused');
-    } else {
-        // Play music with better error handling
-        const playPromise = backgroundMusic.play();
-        
-        if (playPromise !== undefined) {
-            playPromise.then(() => {
-                isMusicPlaying = true;
-                document.getElementById('musicToggle').textContent = '⏸️';
-                document.getElementById('musicVisualizer').style.display = 'flex';
-                console.log('▶️ Music started successfully');
-            }).catch(error => {
-                console.log('❌ Music play failed:', error);
-                // More specific error messages
-                if (error.name === 'NotAllowedError') {
-                    addSystemMessage('❌ Audio blocked by browser. Please allow audio autoplay in your browser settings and try again.');
-                } else {
-                    addSystemMessage('❌ Could not play music. Please check your browser audio settings.');
+
+        // =============================================
+        // SIMPLE WORKING AUDIO SYSTEM - FIXED
+        // =============================================
+
+        function initializeAudio() {
+            console.log('🔊 Initializing audio system...');
+            
+            try {
+                // Create background music
+                backgroundMusic = new Audio(soundFiles.backgroundMusic);
+                backgroundMusic.loop = true;
+                backgroundMusic.volume = 0.3;
+                backgroundMusic.preload = 'auto';
+                
+                // Setup audio controls
+                setupAudioControls();
+                
+                // Show music controls
+                const musicControls = document.getElementById('musicControls');
+                if (musicControls) {
+                    musicControls.style.display = 'flex';
                 }
+                
+                // Set initial state
                 isMusicPlaying = false;
-                document.getElementById('musicToggle').textContent = '🎵';
-            });
+                updateMusicButton();
+                
+                console.log('✅ Audio system initialized');
+                
+            } catch (error) {
+                console.error('❌ Failed to initialize audio system:', error);
+            }
         }
-    }
-}
-function toggleAllSounds() {
-    soundEnabled = !soundEnabled;
-    const soundToggle = document.getElementById('soundToggle');
-    if (soundEnabled) {
-        soundToggle.textContent = '🔊';
-        soundToggle.classList.remove('muted');
-    } else {
-        soundToggle.textContent = '🔇';
-        soundToggle.classList.add('muted');
-        if (isMusicPlaying) {
-            backgroundMusic.pause();
-            isMusicPlaying = false;
-            document.getElementById('musicToggle').textContent = '🎵';
-            document.getElementById('musicVisualizer').style.display = 'none';
+
+        function setupAudioControls() {
+            const musicToggle = document.getElementById('musicToggle');
+            const soundToggle = document.getElementById('soundToggle');
+            
+            if (musicToggle) {
+                musicToggle.addEventListener('click', toggleBackgroundMusic);
+            }
+            
+            if (soundToggle) {
+                soundToggle.addEventListener('click', toggleAllSounds);
+            }
         }
-    }
-}function playSound(soundType, volume = 1.0) {
-    if (!soundEnabled || !audioUnlocked) {
-        console.log('🔇 Sound disabled or not unlocked, skipping:', soundType);
-        return null;
-    }
-    
-    // Check if sound file exists in our list
-    if (!soundFiles[soundType]) {
-        console.error('❌ Sound file not found:', soundType);
-        return null;
-    }
-    
-    try {
-        console.log('🔊 Attempting to play sound:', soundType);
-        const audio = new Audio(soundFiles[soundType]);
-        audio.volume = volume;
-        
-        const playPromise = audio.play();
-        if (playPromise !== undefined) {
-            playPromise.then(() => {
-                console.log('✅ Sound played successfully:', soundType);
-            }).catch(error => {
-                console.log('❌ Sound play blocked for:', soundType, error);
-                // Don't show error to user for sound effects
-            });
+
+        function setupAudioInteraction() {
+            console.log('🔊 Setting up audio interaction...');
+            
+            // Simple audio unlock - just click anywhere
+            function unlockAudio() {
+                if (audioUnlocked) return;
+                
+                console.log('🔊 Unlocking audio system...');
+                audioUnlocked = true;
+                
+                // Enable music controls
+                document.getElementById('musicToggle').style.opacity = '1';
+                document.getElementById('soundToggle').style.opacity = '1';
+                
+                // Remove event listeners after first unlock
+                document.removeEventListener('click', unlockAudio);
+                document.removeEventListener('touchstart', unlockAudio);
+            }
+            
+            // Unlock on user interaction
+            document.addEventListener('click', unlockAudio);
+            document.addEventListener('touchstart', unlockAudio);
+            
+            // Show help message
+            setTimeout(() => {
+                if (!audioUnlocked) {
+                    addSystemMessage('💡 Click anywhere on the page to enable sounds!');
+                }
+            }, 2000);
         }
-        return audio;
-    } catch (error) {
-        console.log('❌ Error playing sound:', soundType, error);
-        return null;
-    }
-}
+
+        function toggleBackgroundMusic() {
+            if (!backgroundMusic) {
+                console.log('❌ Background music not available');
+                return;
+            }
+            
+            if (!audioUnlocked) {
+                console.log('🔊 Audio not unlocked yet');
+                addSystemMessage('🔊 Please click anywhere on the page first to enable audio!');
+                return;
+            }
+            
+            if (isMusicPlaying) {
+                // Pause music
+                backgroundMusic.pause();
+                isMusicPlaying = false;
+                updateMusicButton();
+                console.log('⏸️ Music paused');
+            } else {
+                // Play music
+                const playPromise = backgroundMusic.play();
+                
+                if (playPromise !== undefined) {
+                    playPromise.then(() => {
+                        isMusicPlaying = true;
+                        updateMusicButton();
+                        console.log('▶️ Music started successfully');
+                    }).catch(error => {
+                        console.error('❌ Failed to play music:', error);
+                        addSystemMessage('❌ Could not play music. Please check browser audio settings.');
+                        isMusicPlaying = false;
+                        updateMusicButton();
+                    });
+                }
+            }
+        }
+
+        function updateMusicButton() {
+            const musicToggle = document.getElementById('musicToggle');
+            const visualizer = document.getElementById('musicVisualizer');
+            
+            if (!musicToggle) return;
+            
+            if (isMusicPlaying) {
+                musicToggle.textContent = '⏸️';
+                musicToggle.title = 'Pause Music';
+                if (visualizer) visualizer.style.display = 'flex';
+            } else {
+                musicToggle.textContent = '🎵';
+                musicToggle.title = 'Play Music';
+                if (visualizer) visualizer.style.display = 'none';
+            }
+        }
+
+        function toggleAllSounds() {
+            soundEnabled = !soundEnabled;
+            const soundToggle = document.getElementById('soundToggle');
+            
+            if (soundToggle) {
+                if (soundEnabled) {
+                    soundToggle.textContent = '🔊';
+                    soundToggle.title = 'Disable Sounds';
+                    soundToggle.classList.remove('muted');
+                } else {
+                    soundToggle.textContent = '🔇';
+                    soundToggle.title = 'Enable Sounds';
+                    soundToggle.classList.add('muted');
+                    // Also pause music if it's playing
+                    if (isMusicPlaying) {
+                        backgroundMusic.pause();
+                        isMusicPlaying = false;
+                        updateMusicButton();
+                    }
+                }
+            }
+        }
+
+        function playSound(soundType, volume = 1.0) {
+            if (!soundEnabled || !audioUnlocked) {
+                return null;
+            }
+            
+            if (!soundFiles[soundType]) {
+                console.error('❌ Sound type not found:', soundType);
+                return null;
+            }
+            
+            try {
+                const audio = new Audio(soundFiles[soundType]);
+                audio.volume = volume;
+                
+                const playPromise = audio.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(error => {
+                        // Silent fail for sound effects
+                    });
+                }
+                
+                return audio;
+            } catch (error) {
+                return null;
+            }
+        }
 
         function playWinnerSound() {
             if (!soundEnabled) return;
+            
             playSound('winner', 0.8);
             setTimeout(() => playSound('bell', 0.6), 500);
             setTimeout(() => playSound('winner', 0.5), 1000);
         }
 
         function playWalkingSound() {
-            if (!soundEnabled) return;
+            if (!soundEnabled) return null;
+            
             const walkingSound = playSound('walking', 0.3);
-            if (walkingSound) walkingSound.loop = true;
+            if (walkingSound) {
+                walkingSound.loop = true;
+            }
             return walkingSound;
         }
 
@@ -2889,106 +2931,6 @@ function toggleAllSounds() {
                 character.style.transform = `translateX(-50%) scale(${scale})`;
             }
         });
-       
-function setupAudioControls() {
-    const musicToggle = document.getElementById('musicToggle');
-    const soundToggle = document.getElementById('soundToggle');
-    
-    if (musicToggle) {
-        musicToggle.addEventListener('click', toggleBackgroundMusic);
-    } else {
-        console.error('❌ Music toggle button not found');
-    }
-    
-    if (soundToggle) {
-        soundToggle.addEventListener('click', toggleAllSounds);
-    } else {
-        console.error('❌ Sound toggle button not found');
-    }
-    
-    console.log('✅ Audio controls setup complete');
-}
-function setupAudioInteraction() {
-    console.log('🔊 Setting up audio interaction...');
-    
-    // Create a more robust audio unlock system
-    function unlockAudio() {
-        if (audioUnlocked) return;
-        
-        console.log('🔊 Attempting to unlock audio...');
-        
-        // Create a silent audio context
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        const audioContext = new AudioContext();
-        
-        // Create a silent buffer
-        const buffer = audioContext.createBuffer(1, 1, 22050);
-        const source = audioContext.createBufferSource();
-        source.buffer = buffer;
-        source.connect(audioContext.destination);
-        source.start();
-        
-        // Resume the audio context
-        if (audioContext.state === 'suspended') {
-            audioContext.resume().then(() => {
-                console.log('✅ AudioContext unlocked successfully!');
-                audioUnlocked = true;
-                
-                // Also try the HTML5 audio method
-                const silentAudio = new Audio();
-                silentAudio.volume = 0.001;
-                const playPromise = silentAudio.play();
-                if (playPromise !== undefined) {
-                    playPromise.catch(() => {
-                        // This is normal - we're just trying to unlock
-                    });
-                }
-            }).catch(error => {
-                console.log('❌ AudioContext unlock failed:', error);
-            });
-        } else {
-            audioUnlocked = true;
-            console.log('✅ Audio already unlocked!');
-        }
-    }
-    
-    // Add multiple ways to unlock audio
-    const unlockEvents = ['click', 'touchstart', 'keydown', 'mousedown'];
-    
-    unlockEvents.forEach(eventType => {
-        document.addEventListener(eventType, function unlockHandler() {
-            unlockAudio();
-            // Remove this event listener after first successful interaction
-            document.removeEventListener(eventType, unlockHandler);
-        }, { once: true });
-    });
-    
-    // Also unlock when user interacts with specific elements
-    const interactiveElements = [
-        document.getElementById('usernameInput'),
-        document.getElementById('usernameForm'),
-        document.getElementById('sendBtn'),
-        document.getElementById('chatInput'),
-        document.getElementById('bell'),
-        document.getElementById('musicToggle'),
-        document.getElementById('soundToggle')
-    ];
-    
-    interactiveElements.forEach(element => {
-        if (element) {
-            element.addEventListener('click', function() {
-                unlockAudio();
-            });
-        }
-    });
-    
-    // Show help message about audio
-    setTimeout(() => {
-        if (!audioUnlocked) {
-            addSystemMessage('💡 Tip: Click anywhere on the page to enable sounds and music!');
-        }
-    }, 3000);
-}
     </script>
 </body>
 </html>
