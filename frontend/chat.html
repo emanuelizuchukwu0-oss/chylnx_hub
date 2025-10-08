@@ -1884,14 +1884,15 @@
         let walkingSound = null;
 
         // Sound files
-       const soundFiles = {
-    backgroundMusic: 'https://assets.mixkit.co/music/preview/mixkit-tech-house-vibes-130.mp3',
-    winner: 'https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3',
-    bell: 'https://assets.mixkit.co/sfx/preview/mixkit-magic-sparkle-sound-300.mp3',
-    message: 'https://assets.mixkit.co/sfx/preview/mixkit-select-click-1109.mp3',
-    join: 'https://assets.mixkit.co/sfx/preview/mixkit-gaming-lock-2851.mp3',
-    walking: 'https://assets.mixkit.co/sfx/preview/mixkit-footsteps-on-tall-grass-520.mp3'
-};
+        const soundFiles = {
+            backgroundMusic: 'https://assets.mixkit.co/music/preview/mixkit-tech-house-vibes-130.mp3',
+            winner: 'https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3',
+            bell: 'https://assets.mixkit.co/sfx/preview/mixkit-magic-sparkle-sound-300.mp3',
+            message: 'https://assets.mixkit.co/sfx/preview/mixkit-select-click-1109.mp3',
+            typing: 'https://assets.mixkit.co/sfx/preview/mixkit-keyboard-typing-1386.mp3',
+            join: 'https://assets.mixkit.co/sfx/preview/mixkit-gaming-lock-2851.mp3',
+            walking: 'https://assets.mixkit.co/sfx/preview/mixkit-footsteps-on-tall-grass-520.mp3'
+        };
 
        function initApp() {
     console.log('🚀 Initializing app...');
@@ -2221,8 +2222,7 @@
                 }, 1000);
             }
         }
-
-       function setUsername() {
+function setUsername() {
     if (!isGameStarted) {
         alert("⏰ Please wait for the game to start before joining the chat.");
         return;
@@ -2240,18 +2240,21 @@
     document.getElementById('usernameOverlay').style.display = 'none';
     
     // Play join sound
+    console.log('🎮 Setting username, attempting to play join sound...');
     playSound('join', 0.5);
     
     showChatGuide();
     initializeChat();
     
     // Initialize audio after user interaction
+    console.log('🎵 Initializing audio system...');
     initializeAudio();
     
     // Show audio help message
     setTimeout(() => {
         if (!isMusicPlaying) {
             addSystemMessage('🔊 Tip: Click the music button in the top-right to enable sounds!');
+            console.log('💡 Showing audio help message');
         }
     }, 3000);
 }
@@ -2712,38 +2715,54 @@
             }
             requestAnimationFrame(returnToCenter);
         }
-
-        function initializeAudio() {
-    // Create audio elements
-    backgroundMusic = new Audio(soundFiles.backgroundMusic);
-    backgroundMusic.loop = true;
-    backgroundMusic.volume = 0.3;
+function initializeAudio() {
+    console.log('🔊 Initializing audio system...');
     
-    // Setup event listeners for audio controls
-    setupAudioControls();
+    // Check if sound files are accessible
+    Object.entries(soundFiles).forEach(([key, url]) => {
+        console.log(`🔊 Sound ${key}: ${url}`);
+    });
     
-    // Show music controls
-    document.getElementById('musicControls').style.display = 'flex';
-    
-    // Try to play music immediately (might be blocked by browser)
     try {
-        const playPromise = backgroundMusic.play();
-        if (playPromise !== undefined) {
-            playPromise.then(() => {
-                isMusicPlaying = true;
-                document.getElementById('musicToggle').textContent = '⏸️';
-                document.getElementById('musicVisualizer').style.display = 'flex';
-                console.log('🎵 Background music started automatically');
-            }).catch(error => {
-                console.log('❌ Autoplay blocked, waiting for user interaction');
-                // Music will start when user clicks play button
-                isMusicPlaying = false;
-                document.getElementById('musicToggle').textContent = '🎵';
-                document.getElementById('musicVisualizer').style.display = 'none';
-            });
+        // Create audio elements
+        backgroundMusic = new Audio(soundFiles.backgroundMusic);
+        backgroundMusic.loop = true;
+        backgroundMusic.volume = 0.3;
+        
+        // Setup event listeners for audio controls
+        setupAudioControls();
+        
+        // Show music controls
+        const musicControls = document.getElementById('musicControls');
+        if (musicControls) {
+            musicControls.style.display = 'flex';
+            console.log('🎵 Music controls displayed');
+        } else {
+            console.error('❌ Music controls element not found');
+        }
+        
+        // Try to play music immediately (might be blocked by browser)
+        try {
+            const playPromise = backgroundMusic.play();
+            if (playPromise !== undefined) {
+                playPromise.then(() => {
+                    isMusicPlaying = true;
+                    document.getElementById('musicToggle').textContent = '⏸️';
+                    document.getElementById('musicVisualizer').style.display = 'flex';
+                    console.log('🎵 Background music started automatically');
+                }).catch(error => {
+                    console.log('❌ Autoplay blocked, waiting for user interaction');
+                    // Music will start when user clicks play button
+                    isMusicPlaying = false;
+                    document.getElementById('musicToggle').textContent = '🎵';
+                    document.getElementById('musicVisualizer').style.display = 'none';
+                });
+            }
+        } catch (error) {
+            console.log('❌ Audio initialization error:', error);
         }
     } catch (error) {
-        console.log('❌ Audio initialization error:', error);
+        console.error('❌ Failed to initialize audio system:', error);
     }
 }
 
@@ -2792,23 +2811,36 @@
             }
         }
 
-        function playSound(soundType, volume = 1.0) {
-    if (!soundEnabled) return;
+      function playSound(soundType, volume = 1.0) {
+    if (!soundEnabled) {
+        console.log('🔇 Sound disabled, skipping:', soundType);
+        return null;
+    }
+    
+    // Check if sound file exists in our list
+    if (!soundFiles[soundType]) {
+        console.error('❌ Sound file not found:', soundType);
+        return null;
+    }
     
     try {
+        console.log('🔊 Attempting to play sound:', soundType);
         const audio = new Audio(soundFiles[soundType]);
         audio.volume = volume;
         
         const playPromise = audio.play();
         if (playPromise !== undefined) {
-            playPromise.catch(error => {
-                console.log('Sound autoplay blocked:', error);
+            playPromise.then(() => {
+                console.log('✅ Sound played successfully:', soundType);
+            }).catch(error => {
+                console.log('❌ Sound play blocked for:', soundType, error);
                 // Don't show error to user for sound effects
             });
         }
         return audio;
     } catch (error) {
-        console.log('Error playing sound:', error);
+        console.log('❌ Error playing sound:', soundType, error);
+        return null;
     }
 }
 
@@ -2859,6 +2891,53 @@ function setupAudioInteraction() {
                 document.removeEventListener('click', unlockAudio);
             }).catch(console.error);
         }
+    }, { once: true });
+}
+function setupAudioControls() {
+    const musicToggle = document.getElementById('musicToggle');
+    const soundToggle = document.getElementById('soundToggle');
+    
+    if (musicToggle) {
+        musicToggle.addEventListener('click', toggleBackgroundMusic);
+    }
+    
+    if (soundToggle) {
+        soundToggle.addEventListener('click', toggleAllSounds);
+    }
+}
+function setupAudioInteraction() {
+    // Add click event to entire document to unlock audio
+    document.addEventListener('click', function unlockAudio() {
+        console.log('🔊 User interaction detected - attempting to unlock audio');
+        
+        // Try to play a silent sound to unlock audio
+        const silentAudio = new Audio('data:audio/wav;base64,UklGRnoAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoAAAC');
+        silentAudio.volume = 0.001;
+        
+        silentAudio.play().then(() => {
+            console.log('🔊 Audio unlocked by user interaction');
+            silentAudio.pause();
+            
+            // Try to start background music if not playing
+            if (backgroundMusic && !isMusicPlaying && soundEnabled) {
+                const playPromise = backgroundMusic.play();
+                if (playPromise !== undefined) {
+                    playPromise.then(() => {
+                        isMusicPlaying = true;
+                        document.getElementById('musicToggle').textContent = '⏸️';
+                        document.getElementById('musicVisualizer').style.display = 'flex';
+                        console.log('🎵 Background music started after user interaction');
+                    }).catch(error => {
+                        console.log('❌ Background music still blocked:', error);
+                    });
+                }
+            }
+            
+            // Remove the event listener after first interaction
+            document.removeEventListener('click', unlockAudio);
+        }).catch(error => {
+            console.log('❌ Audio unlock failed:', error);
+        });
     }, { once: true });
 }
     </script>
