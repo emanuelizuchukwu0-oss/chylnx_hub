@@ -1662,7 +1662,7 @@
     animation: none;
     transform: rotate(25deg);
 }
-/* Music Control Styles */
+/* Improved Music Control Styles */
 .music-controls {
     position: fixed;
     top: 70px;
@@ -1676,14 +1676,15 @@
     border-radius: 20px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.2);
     backdrop-filter: blur(10px);
+    border: 2px solid #25D366;
 }
 
 .music-btn {
     background: #25D366;
     border: none;
     border-radius: 50%;
-    width: 30px;
-    height: 30px;
+    width: 35px;
+    height: 35px;
     color: white;
     cursor: pointer;
     display: flex;
@@ -1716,6 +1717,7 @@
     gap: 2px;
     align-items: end;
     height: 20px;
+    margin-left: 5px;
 }
 
 .visualizer-bar {
@@ -1735,6 +1737,19 @@
     0%, 100% { transform: scaleY(1); }
     50% { transform: scaleY(0.3); }
 }
+
+/* Audio help message */
+.audio-help {
+    background: rgba(255, 215, 0, 0.2);
+    border: 1px solid #ffd700;
+    border-radius: 10px;
+    padding: 10px;
+    margin: 10px;
+    text-align: center;
+    font-size: 14px;
+    color: #333;
+}
+
     </style>
 </head>
 <body data-paid="false">
@@ -2749,7 +2764,6 @@ function initializeAudio() {
         console.error('❌ Failed to initialize audio system:', error);
     }
 }
-
 function toggleBackgroundMusic() {
     if (!backgroundMusic) {
         console.log('❌ Background music not initialized');
@@ -2758,7 +2772,8 @@ function toggleBackgroundMusic() {
     
     if (!audioUnlocked) {
         console.log('🔊 Audio not unlocked yet - requesting user interaction');
-        alert('🔊 Please click anywhere on the page first to enable audio, then click the music button again.');
+        // Instead of alert, show a more user-friendly message
+        addSystemMessage('🔊 Please click anywhere on the page first to enable audio, then click the music button again.');
         return;
     }
     
@@ -2770,7 +2785,7 @@ function toggleBackgroundMusic() {
         document.getElementById('musicVisualizer').style.display = 'none';
         console.log('⏸️ Music paused');
     } else {
-        // Play music
+        // Play music with better error handling
         const playPromise = backgroundMusic.play();
         
         if (playPromise !== undefined) {
@@ -2781,14 +2796,18 @@ function toggleBackgroundMusic() {
                 console.log('▶️ Music started successfully');
             }).catch(error => {
                 console.log('❌ Music play failed:', error);
-                alert('❌ Could not play music. Please check your browser audio settings and try clicking the music button again.');
+                // More specific error messages
+                if (error.name === 'NotAllowedError') {
+                    addSystemMessage('❌ Audio blocked by browser. Please allow audio autoplay in your browser settings and try again.');
+                } else {
+                    addSystemMessage('❌ Could not play music. Please check your browser audio settings.');
+                }
                 isMusicPlaying = false;
                 document.getElementById('musicToggle').textContent = '🎵';
             });
         }
     }
 }
-
 function toggleAllSounds() {
     soundEnabled = !soundEnabled;
     const soundToggle = document.getElementById('soundToggle');
@@ -2805,10 +2824,9 @@ function toggleAllSounds() {
             document.getElementById('musicVisualizer').style.display = 'none';
         }
     }
-}
-      function playSound(soundType, volume = 1.0) {
-    if (!soundEnabled) {
-        console.log('🔇 Sound disabled, skipping:', soundType);
+}function playSound(soundType, volume = 1.0) {
+    if (!soundEnabled || !audioUnlocked) {
+        console.log('🔇 Sound disabled or not unlocked, skipping:', soundType);
         return null;
     }
     
@@ -2893,66 +2911,83 @@ function setupAudioControls() {
 function setupAudioInteraction() {
     console.log('🔊 Setting up audio interaction...');
     
-    // Add click event to entire document to unlock audio
-    document.addEventListener('click', function unlockAudio() {
+    // Create a more robust audio unlock system
+    function unlockAudio() {
         if (audioUnlocked) return;
         
-        console.log('🔊 User interaction detected - attempting to unlock audio');
+        console.log('🔊 Attempting to unlock audio...');
         
-        // Create and play a silent audio to unlock the audio context
-        const silentAudio = new Audio('data:audio/wav;base64,UklGRnoAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoAAAC');
-        silentAudio.volume = 0.001;
+        // Create a silent audio context
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const audioContext = new AudioContext();
         
-        const playPromise = silentAudio.play();
+        // Create a silent buffer
+        const buffer = audioContext.createBuffer(1, 1, 22050);
+        const source = audioContext.createBufferSource();
+        source.buffer = buffer;
+        source.connect(audioContext.destination);
+        source.start();
         
-        if (playPromise !== undefined) {
-            playPromise.then(() => {
-                console.log('✅ Audio unlocked successfully!');
+        // Resume the audio context
+        if (audioContext.state === 'suspended') {
+            audioContext.resume().then(() => {
+                console.log('✅ AudioContext unlocked successfully!');
                 audioUnlocked = true;
-                silentAudio.pause();
                 
-                // Now try to start background music if it should be playing
-                if (backgroundMusic && !isMusicPlaying && soundEnabled) {
-                    console.log('🎵 Attempting to start background music after unlock');
-                    const musicPromise = backgroundMusic.play();
-                    musicPromise.then(() => {
-                        isMusicPlaying = true;
-                        document.getElementById('musicToggle').textContent = '⏸️';
-                        document.getElementById('musicVisualizer').style.display = 'flex';
-                        console.log('🎵 Background music started after unlock');
-                    }).catch(e => {
-                        console.log('❌ Background music still blocked:', e);
+                // Also try the HTML5 audio method
+                const silentAudio = new Audio();
+                silentAudio.volume = 0.001;
+                const playPromise = silentAudio.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(() => {
+                        // This is normal - we're just trying to unlock
                     });
                 }
-                
-                // Remove the event listener
-                document.removeEventListener('click', unlockAudio);
             }).catch(error => {
-                console.log('❌ Audio unlock failed:', error);
+                console.log('❌ AudioContext unlock failed:', error);
             });
+        } else {
+            audioUnlocked = true;
+            console.log('✅ Audio already unlocked!');
         }
-    }, { once: true });
+    }
     
-    // Also try to unlock when user interacts with specific elements
+    // Add multiple ways to unlock audio
+    const unlockEvents = ['click', 'touchstart', 'keydown', 'mousedown'];
+    
+    unlockEvents.forEach(eventType => {
+        document.addEventListener(eventType, function unlockHandler() {
+            unlockAudio();
+            // Remove this event listener after first successful interaction
+            document.removeEventListener(eventType, unlockHandler);
+        }, { once: true });
+    });
+    
+    // Also unlock when user interacts with specific elements
     const interactiveElements = [
         document.getElementById('usernameInput'),
         document.getElementById('usernameForm'),
         document.getElementById('sendBtn'),
         document.getElementById('chatInput'),
-        document.getElementById('bell')
+        document.getElementById('bell'),
+        document.getElementById('musicToggle'),
+        document.getElementById('soundToggle')
     ];
     
     interactiveElements.forEach(element => {
         if (element) {
             element.addEventListener('click', function() {
-                if (!audioUnlocked) {
-                    console.log('🔊 Interactive element clicked - triggering audio unlock');
-                    // Trigger a click on document to unlock audio
-                    document.dispatchEvent(new Event('click'));
-                }
+                unlockAudio();
             });
         }
     });
+    
+    // Show help message about audio
+    setTimeout(() => {
+        if (!audioUnlocked) {
+            addSystemMessage('💡 Tip: Click anywhere on the page to enable sounds and music!');
+        }
+    }, 3000);
 }
     </script>
 </body>
