@@ -1864,6 +1864,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
     <script>
         // FIXED CHAT CODE - With Stable Mobile Layout
+        // Add this variable at the top with your other variables
         let myUsername = "";
         let socket = null;
         let selectedWinners = [];
@@ -1882,6 +1883,7 @@
         let isMusicPlaying = false;
         let soundEnabled = true;
         let walkingSound = null;
+        let audioUnlocked = false;
 
         // Sound files
         const soundFiles = {
@@ -2239,24 +2241,23 @@ function setUsername() {
     myUsername = username;
     document.getElementById('usernameOverlay').style.display = 'none';
     
-    // Play join sound
-    console.log('🎮 Setting username, attempting to play join sound...');
-    playSound('join', 0.5);
+    // Show audio instructions
+    addSystemMessage('🔊 Tip: Click anywhere on the page to enable sounds, then use the music controls in the top-right!');
     
     showChatGuide();
     initializeChat();
     
-    // Initialize audio after user interaction
-    console.log('🎵 Initializing audio system...');
+    // Initialize audio system
     initializeAudio();
     
-    // Show audio help message
+    // Try to play join sound (might not work until user clicks)
     setTimeout(() => {
-        if (!isMusicPlaying) {
-            addSystemMessage('🔊 Tip: Click the music button in the top-right to enable sounds!');
-            console.log('💡 Showing audio help message');
+        if (audioUnlocked) {
+            playSound('join', 0.5);
+        } else {
+            console.log('🔊 Join sound delayed - waiting for audio unlock');
         }
-    }, 3000);
+    }, 1000);
 }
 
         // CHAT FUNCTIONS
@@ -2718,16 +2719,14 @@ function setUsername() {
 function initializeAudio() {
     console.log('🔊 Initializing audio system...');
     
-    // Check if sound files are accessible
-    Object.entries(soundFiles).forEach(([key, url]) => {
-        console.log(`🔊 Sound ${key}: ${url}`);
-    });
-    
     try {
         // Create audio elements
         backgroundMusic = new Audio(soundFiles.backgroundMusic);
         backgroundMusic.loop = true;
         backgroundMusic.volume = 0.3;
+        
+        // Preload the audio
+        backgroundMusic.load();
         
         // Setup event listeners for audio controls
         setupAudioControls();
@@ -2737,80 +2736,76 @@ function initializeAudio() {
         if (musicControls) {
             musicControls.style.display = 'flex';
             console.log('🎵 Music controls displayed');
-        } else {
-            console.error('❌ Music controls element not found');
         }
         
-        // Try to play music immediately (might be blocked by browser)
-        try {
-            const playPromise = backgroundMusic.play();
-            if (playPromise !== undefined) {
-                playPromise.then(() => {
-                    isMusicPlaying = true;
-                    document.getElementById('musicToggle').textContent = '⏸️';
-                    document.getElementById('musicVisualizer').style.display = 'flex';
-                    console.log('🎵 Background music started automatically');
-                }).catch(error => {
-                    console.log('❌ Autoplay blocked, waiting for user interaction');
-                    // Music will start when user clicks play button
-                    isMusicPlaying = false;
-                    document.getElementById('musicToggle').textContent = '🎵';
-                    document.getElementById('musicVisualizer').style.display = 'none';
-                });
-            }
-        } catch (error) {
-            console.log('❌ Audio initialization error:', error);
-        }
+        // Don't try to play automatically - wait for user interaction
+        isMusicPlaying = false;
+        document.getElementById('musicToggle').textContent = '🎵';
+        document.getElementById('musicVisualizer').style.display = 'none';
+        
+        console.log('✅ Audio system initialized (waiting for user interaction)');
+        
     } catch (error) {
         console.error('❌ Failed to initialize audio system:', error);
     }
 }
 
-       function toggleBackgroundMusic() {
-    if (!backgroundMusic) return;
+function toggleBackgroundMusic() {
+    if (!backgroundMusic) {
+        console.log('❌ Background music not initialized');
+        return;
+    }
+    
+    if (!audioUnlocked) {
+        console.log('🔊 Audio not unlocked yet - requesting user interaction');
+        alert('🔊 Please click anywhere on the page first to enable audio, then click the music button again.');
+        return;
+    }
     
     if (isMusicPlaying) {
+        // Pause music
         backgroundMusic.pause();
         isMusicPlaying = false;
         document.getElementById('musicToggle').textContent = '🎵';
         document.getElementById('musicVisualizer').style.display = 'none';
+        console.log('⏸️ Music paused');
     } else {
-        // Try to play music
+        // Play music
         const playPromise = backgroundMusic.play();
+        
         if (playPromise !== undefined) {
             playPromise.then(() => {
                 isMusicPlaying = true;
                 document.getElementById('musicToggle').textContent = '⏸️';
                 document.getElementById('musicVisualizer').style.display = 'flex';
-                console.log('🎵 Music started successfully');
+                console.log('▶️ Music started successfully');
             }).catch(error => {
-                console.log('❌ Play failed:', error);
-                // Show message to user
-                alert('🔊 Click the music button again to start audio. Browsers require user interaction for sound.');
+                console.log('❌ Music play failed:', error);
+                alert('❌ Could not play music. Please check your browser audio settings and try clicking the music button again.');
                 isMusicPlaying = false;
                 document.getElementById('musicToggle').textContent = '🎵';
             });
         }
     }
 }
-        function toggleAllSounds() {
-            soundEnabled = !soundEnabled;
-            const soundToggle = document.getElementById('soundToggle');
-            if (soundEnabled) {
-                soundToggle.textContent = '🔊';
-                soundToggle.classList.remove('muted');
-            } else {
-                soundToggle.textContent = '🔇';
-                soundToggle.classList.add('muted');
-                if (isMusicPlaying) {
-                    backgroundMusic.pause();
-                    isMusicPlaying = false;
-                    document.getElementById('musicToggle').textContent = '🎵';
-                    document.getElementById('musicVisualizer').style.display = 'none';
-                }
-            }
-        }
 
+function toggleAllSounds() {
+    soundEnabled = !soundEnabled;
+    const soundToggle = document.getElementById('soundToggle');
+    if (soundEnabled) {
+        soundToggle.textContent = '🔊';
+        soundToggle.classList.remove('muted');
+    } else {
+        soundToggle.textContent = '🔇';
+        soundToggle.classList.add('muted');
+        if (isMusicPlaying) {
+            backgroundMusic.pause();
+            isMusicPlaying = false;
+            document.getElementById('musicToggle').textContent = '🎵';
+            document.getElementById('musicVisualizer').style.display = 'none';
+        }
+    }
+}
       function playSound(soundType, volume = 1.0) {
     if (!soundEnabled) {
         console.log('🔇 Sound disabled, skipping:', soundType);
@@ -2876,69 +2871,88 @@ function initializeAudio() {
                 character.style.transform = `translateX(-50%) scale(${scale})`;
             }
         });
-        // Add this function to set up audio interaction
-function setupAudioInteraction() {
-    // Add click event to entire document to unlock audio
-    document.addEventListener('click', function unlockAudio() {
-        if (backgroundMusic && !isMusicPlaying) {
-            // Try to play a silent sound to unlock audio
-            const silentAudio = new Audio('data:audio/wav;base64,UklGRnoAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoAAAC');
-            silentAudio.volume = 0.001;
-            silentAudio.play().then(() => {
-                console.log('🔊 Audio unlocked by user interaction');
-                silentAudio.pause();
-                // Remove the event listener after first interaction
-                document.removeEventListener('click', unlockAudio);
-            }).catch(console.error);
-        }
-    }, { once: true });
-}
+       
 function setupAudioControls() {
     const musicToggle = document.getElementById('musicToggle');
     const soundToggle = document.getElementById('soundToggle');
     
     if (musicToggle) {
         musicToggle.addEventListener('click', toggleBackgroundMusic);
+    } else {
+        console.error('❌ Music toggle button not found');
     }
     
     if (soundToggle) {
         soundToggle.addEventListener('click', toggleAllSounds);
+    } else {
+        console.error('❌ Sound toggle button not found');
     }
+    
+    console.log('✅ Audio controls setup complete');
 }
 function setupAudioInteraction() {
+    console.log('🔊 Setting up audio interaction...');
+    
     // Add click event to entire document to unlock audio
     document.addEventListener('click', function unlockAudio() {
+        if (audioUnlocked) return;
+        
         console.log('🔊 User interaction detected - attempting to unlock audio');
         
-        // Try to play a silent sound to unlock audio
+        // Create and play a silent audio to unlock the audio context
         const silentAudio = new Audio('data:audio/wav;base64,UklGRnoAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoAAAC');
         silentAudio.volume = 0.001;
         
-        silentAudio.play().then(() => {
-            console.log('🔊 Audio unlocked by user interaction');
-            silentAudio.pause();
-            
-            // Try to start background music if not playing
-            if (backgroundMusic && !isMusicPlaying && soundEnabled) {
-                const playPromise = backgroundMusic.play();
-                if (playPromise !== undefined) {
-                    playPromise.then(() => {
+        const playPromise = silentAudio.play();
+        
+        if (playPromise !== undefined) {
+            playPromise.then(() => {
+                console.log('✅ Audio unlocked successfully!');
+                audioUnlocked = true;
+                silentAudio.pause();
+                
+                // Now try to start background music if it should be playing
+                if (backgroundMusic && !isMusicPlaying && soundEnabled) {
+                    console.log('🎵 Attempting to start background music after unlock');
+                    const musicPromise = backgroundMusic.play();
+                    musicPromise.then(() => {
                         isMusicPlaying = true;
                         document.getElementById('musicToggle').textContent = '⏸️';
                         document.getElementById('musicVisualizer').style.display = 'flex';
-                        console.log('🎵 Background music started after user interaction');
-                    }).catch(error => {
-                        console.log('❌ Background music still blocked:', error);
+                        console.log('🎵 Background music started after unlock');
+                    }).catch(e => {
+                        console.log('❌ Background music still blocked:', e);
                     });
                 }
-            }
-            
-            // Remove the event listener after first interaction
-            document.removeEventListener('click', unlockAudio);
-        }).catch(error => {
-            console.log('❌ Audio unlock failed:', error);
-        });
+                
+                // Remove the event listener
+                document.removeEventListener('click', unlockAudio);
+            }).catch(error => {
+                console.log('❌ Audio unlock failed:', error);
+            });
+        }
     }, { once: true });
+    
+    // Also try to unlock when user interacts with specific elements
+    const interactiveElements = [
+        document.getElementById('usernameInput'),
+        document.getElementById('usernameForm'),
+        document.getElementById('sendBtn'),
+        document.getElementById('chatInput'),
+        document.getElementById('bell')
+    ];
+    
+    interactiveElements.forEach(element => {
+        if (element) {
+            element.addEventListener('click', function() {
+                if (!audioUnlocked) {
+                    console.log('🔊 Interactive element clicked - triggering audio unlock');
+                    // Trigger a click on document to unlock audio
+                    document.dispatchEvent(new Event('click'));
+                }
+            });
+        }
+    });
 }
     </script>
 </body>
