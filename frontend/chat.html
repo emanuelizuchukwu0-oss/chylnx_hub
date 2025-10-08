@@ -1884,26 +1884,41 @@
         let walkingSound = null;
 
         // Sound files
-        const soundFiles = {
-            backgroundMusic: 'https://assets.mixkit.co/music/preview/mixkit-tech-house-vibes-130.mp3',
-            winner: 'https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3',
-            bell: 'https://assets.mixkit.co/sfx/preview/mixkit-magic-sparkle-sound-300.mp3',
-            message: 'https://assets.mixkit.co/sfx/preview/mixkit-select-click-1109.mp3',
-            typing: 'https://assets.mixkit.co/sfx/preview/mixkit-keyboard-typing-1386.mp3',
-            join: 'https://assets.mixkit.co/sfx/preview/mixkit-gaming-lock-2851.mp3',
-            walking: 'https://assets.mixkit.co/sfx/preview/mixkit-footsteps-on-tall-grass-520.mp3'
-        };
+       const soundFiles = {
+    backgroundMusic: 'https://assets.mixkit.co/music/preview/mixkit-tech-house-vibes-130.mp3',
+    winner: 'https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3',
+    bell: 'https://assets.mixkit.co/sfx/preview/mixkit-magic-sparkle-sound-300.mp3',
+    message: 'https://assets.mixkit.co/sfx/preview/mixkit-select-click-1109.mp3',
+    join: 'https://assets.mixkit.co/sfx/preview/mixkit-gaming-lock-2851.mp3',
+    walking: 'https://assets.mixkit.co/sfx/preview/mixkit-footsteps-on-tall-grass-520.mp3'
+};
 
-        function initApp() {
-            console.log('🚀 Initializing app...');
-            document.getElementById('usernameOverlay').style.display = 'flex';
-            initializeCharacter();
-            setupEventListeners();
-            setupMobileKeyboard();
-            setupTypingDetection();
-            checkTimerStatus();
-            console.log('✅ App initialized successfully');
-        }
+       function initApp() {
+    console.log('🚀 Initializing app...');
+    
+    // Show username overlay but check timer first
+    document.getElementById('usernameOverlay').style.display = 'flex';
+    
+    // Initialize character
+    initializeCharacter();
+    
+    // Setup event listeners
+    setupEventListeners();
+    
+    // Setup mobile keyboard handling
+    setupMobileKeyboard();
+    
+    // Setup typing detection
+    setupTypingDetection();
+    
+    // Setup audio interaction - ADD THIS LINE
+    setupAudioInteraction();
+    
+    // Check timer status
+    checkTimerStatus();
+    
+    console.log('✅ App initialized successfully');
+}
 
         // MOBILE KEYBOARD HANDLING
         function setupMobileKeyboard() {
@@ -2207,24 +2222,39 @@
             }
         }
 
-        function setUsername() {
-            if (!isGameStarted) {
-                alert("⏰ Please wait for the game to start before joining the chat.");
-                return;
-            }
-            const usernameInput = document.getElementById('usernameInput');
-            const username = usernameInput?.value.trim();
-            if (!username) {
-                alert('Please enter a username');
-                return;
-            }
-            myUsername = username;
-            document.getElementById('usernameOverlay').style.display = 'none';
-            playSound('join', 0.5);
-            showChatGuide();
-            initializeChat();
-            initializeAudio();
+       function setUsername() {
+    if (!isGameStarted) {
+        alert("⏰ Please wait for the game to start before joining the chat.");
+        return;
+    }
+    
+    const usernameInput = document.getElementById('usernameInput');
+    const username = usernameInput?.value.trim();
+    
+    if (!username) {
+        alert('Please enter a username');
+        return;
+    }
+    
+    myUsername = username;
+    document.getElementById('usernameOverlay').style.display = 'none';
+    
+    // Play join sound
+    playSound('join', 0.5);
+    
+    showChatGuide();
+    initializeChat();
+    
+    // Initialize audio after user interaction
+    initializeAudio();
+    
+    // Show audio help message
+    setTimeout(() => {
+        if (!isMusicPlaying) {
+            addSystemMessage('🔊 Tip: Click the music button in the top-right to enable sounds!');
         }
+    }, 3000);
+}
 
         // CHAT FUNCTIONS
         function initializeChat() {
@@ -2683,37 +2713,67 @@
             requestAnimationFrame(returnToCenter);
         }
 
-        // SOUND MANAGEMENT
         function initializeAudio() {
-            backgroundMusic = new Audio(soundFiles.backgroundMusic);
-            backgroundMusic.loop = true;
-            backgroundMusic.volume = 0.3;
-            setupAudioControls();
-            document.getElementById('musicControls').style.display = 'flex';
-        }
-
-        function setupAudioControls() {
-            const musicToggle = document.getElementById('musicToggle');
-            const soundToggle = document.getElementById('soundToggle');
-            musicToggle.addEventListener('click', toggleBackgroundMusic);
-            soundToggle.addEventListener('click', toggleAllSounds);
-        }
-
-        function toggleBackgroundMusic() {
-            if (!backgroundMusic) return;
-            if (isMusicPlaying) {
-                backgroundMusic.pause();
-                isMusicPlaying = false;
-                document.getElementById('musicToggle').textContent = '🎵';
-                document.getElementById('musicVisualizer').style.display = 'none';
-            } else {
-                backgroundMusic.play().catch(e => console.log('Audio play failed:', e));
+    // Create audio elements
+    backgroundMusic = new Audio(soundFiles.backgroundMusic);
+    backgroundMusic.loop = true;
+    backgroundMusic.volume = 0.3;
+    
+    // Setup event listeners for audio controls
+    setupAudioControls();
+    
+    // Show music controls
+    document.getElementById('musicControls').style.display = 'flex';
+    
+    // Try to play music immediately (might be blocked by browser)
+    try {
+        const playPromise = backgroundMusic.play();
+        if (playPromise !== undefined) {
+            playPromise.then(() => {
                 isMusicPlaying = true;
                 document.getElementById('musicToggle').textContent = '⏸️';
                 document.getElementById('musicVisualizer').style.display = 'flex';
-            }
+                console.log('🎵 Background music started automatically');
+            }).catch(error => {
+                console.log('❌ Autoplay blocked, waiting for user interaction');
+                // Music will start when user clicks play button
+                isMusicPlaying = false;
+                document.getElementById('musicToggle').textContent = '🎵';
+                document.getElementById('musicVisualizer').style.display = 'none';
+            });
         }
+    } catch (error) {
+        console.log('❌ Audio initialization error:', error);
+    }
+}
 
+       function toggleBackgroundMusic() {
+    if (!backgroundMusic) return;
+    
+    if (isMusicPlaying) {
+        backgroundMusic.pause();
+        isMusicPlaying = false;
+        document.getElementById('musicToggle').textContent = '🎵';
+        document.getElementById('musicVisualizer').style.display = 'none';
+    } else {
+        // Try to play music
+        const playPromise = backgroundMusic.play();
+        if (playPromise !== undefined) {
+            playPromise.then(() => {
+                isMusicPlaying = true;
+                document.getElementById('musicToggle').textContent = '⏸️';
+                document.getElementById('musicVisualizer').style.display = 'flex';
+                console.log('🎵 Music started successfully');
+            }).catch(error => {
+                console.log('❌ Play failed:', error);
+                // Show message to user
+                alert('🔊 Click the music button again to start audio. Browsers require user interaction for sound.');
+                isMusicPlaying = false;
+                document.getElementById('musicToggle').textContent = '🎵';
+            });
+        }
+    }
+}
         function toggleAllSounds() {
             soundEnabled = !soundEnabled;
             const soundToggle = document.getElementById('soundToggle');
@@ -2733,16 +2793,24 @@
         }
 
         function playSound(soundType, volume = 1.0) {
-            if (!soundEnabled) return;
-            try {
-                const audio = new Audio(soundFiles[soundType]);
-                audio.volume = volume;
-                audio.play().catch(e => console.log('Sound play failed:', e));
-                return audio;
-            } catch (error) {
-                console.log('Error playing sound:', error);
-            }
+    if (!soundEnabled) return;
+    
+    try {
+        const audio = new Audio(soundFiles[soundType]);
+        audio.volume = volume;
+        
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(error => {
+                console.log('Sound autoplay blocked:', error);
+                // Don't show error to user for sound effects
+            });
         }
+        return audio;
+    } catch (error) {
+        console.log('Error playing sound:', error);
+    }
+}
 
         function playWinnerSound() {
             if (!soundEnabled) return;
@@ -2776,6 +2844,23 @@
                 character.style.transform = `translateX(-50%) scale(${scale})`;
             }
         });
+        // Add this function to set up audio interaction
+function setupAudioInteraction() {
+    // Add click event to entire document to unlock audio
+    document.addEventListener('click', function unlockAudio() {
+        if (backgroundMusic && !isMusicPlaying) {
+            // Try to play a silent sound to unlock audio
+            const silentAudio = new Audio('data:audio/wav;base64,UklGRnoAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoAAAC');
+            silentAudio.volume = 0.001;
+            silentAudio.play().then(() => {
+                console.log('🔊 Audio unlocked by user interaction');
+                silentAudio.pause();
+                // Remove the event listener after first interaction
+                document.removeEventListener('click', unlockAudio);
+            }).catch(console.error);
+        }
+    }, { once: true });
+}
     </script>
 </body>
 </html>
