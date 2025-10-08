@@ -1662,16 +1662,102 @@
     animation: none;
     transform: rotate(25deg);
 }
+/* Music Control Styles */
+.music-controls {
+    position: fixed;
+    top: 70px;
+    right: 20px;
+    z-index: 1000;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 8px 12px;
+    border-radius: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    backdrop-filter: blur(10px);
+}
+
+.music-btn {
+    background: #25D366;
+    border: none;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.music-btn:hover {
+    background: #20bd5a;
+    transform: scale(1.1);
+}
+
+.music-btn.muted {
+    background: #ff4444;
+}
+
+.sound-toggle {
+    background: #667781;
+    font-size: 12px;
+}
+
+.sound-toggle.muted {
+    background: #999;
+}
+
+.music-visualizer {
+    display: flex;
+    gap: 2px;
+    align-items: end;
+    height: 20px;
+}
+
+.visualizer-bar {
+    width: 3px;
+    background: #25D366;
+    border-radius: 2px;
+    animation: visualizerPulse 0.8s ease-in-out infinite;
+}
+
+.visualizer-bar:nth-child(1) { animation-delay: 0s; height: 8px; }
+.visualizer-bar:nth-child(2) { animation-delay: 0.1s; height: 12px; }
+.visualizer-bar:nth-child(3) { animation-delay: 0.2s; height: 16px; }
+.visualizer-bar:nth-child(4) { animation-delay: 0.3s; height: 12px; }
+.visualizer-bar:nth-child(5) { animation-delay: 0.4s; height: 8px; }
+
+@keyframes visualizerPulse {
+    0%, 100% { transform: scaleY(1); }
+    50% { transform: scaleY(0.3); }
+}
     </style>
 </head>
-body data-paid="false">
-    <!-- ALL YOUR EXISTING HTML STAYS EXACTLY THE SAME -->
-    <!-- ... [Your complete HTML remains here] ... -->
+<body data-paid="false">
+    <!-- ALL YOUR EXISTING HTML STAYS HERE -->
+    <!-- ... [Your complete HTML remains exactly the same] ... -->
 
-    <!-- Add Timer Block Overlay -->
+    <!-- ADD MUSIC CONTROLS HTML -->
+    <div class="music-controls" id="musicControls" style="display: none;">
+        <button class="music-btn" id="musicToggle" title="Play/Pause Music">🎵</button>
+        <button class="music-btn sound-toggle" id="soundToggle" title="Toggle All Sounds">🔊</button>
+        <div class="music-visualizer" id="musicVisualizer">
+            <div class="visualizer-bar"></div>
+            <div class="visualizer-bar"></div>
+            <div class="visualizer-bar"></div>
+            <div class="visualizer-bar"></div>
+            <div class="visualizer-bar"></div>
+        </div>
+    </div>
+
+    <!-- REST OF YOUR HTML -->
     <div id="timerBlockOverlay" class="timer-block-overlay" style="display: none;">
         <div class="timer-block-content">
-            <h2>⏰ TIMER COUNTDOWN....... </h2>
+            <h2>⏰ WAIT TILL TIMER ENDS </h2>
             <p>Please wait for the timer to end to start game </p>
             <div class="game-countdown" id="gameTimerDisplay">05:00</div>
             <p>You'll be able to join chat once timer is completed</p>
@@ -1680,38 +1766,32 @@ body data-paid="false">
             </div>
         </div>
     </div>
-    <!-- Multiple Winner Selection Panel -->
+
     <div id="winnerSelectionPanel" class="winner-selection-panel">
         <div class="winner-panel-header">
             <h3>Select Winners <span id="selectedCount" class="selected-count">0</span></h3>
             <span onclick="closeWinnerPanel()" style="cursor: pointer; font-size: 18px;">×</span>
         </div>
-        <div class="winner-list" id="winnerList">
-            <!-- Winner list will be populated dynamically -->
-        </div>
+        <div class="winner-list" id="winnerList"></div>
         <div class="winner-actions">
             <button id="cancelWinners" onclick="closeWinnerPanel()">Cancel</button>
             <button id="confirmWinners" onclick="announceSelectedWinners()">Announce Winners</button>
         </div>
     </div>
 
-    <!-- Username Form Overlay -->
     <div id="usernameOverlay">
         <div id="usernameForm">
             <h3>Join the Chat</h3>
             <input type="text" id="usernameInput" placeholder="Enter your username" autocomplete="off">
             <button onclick="setUsername()">Start Chatting</button>
-            <div class="form-note">
-                Choose a cool name to get started!
-            </div>
+            <div class="form-note">Choose a cool name to get started!</div>
         </div>
     </div>
 
-    <!-- Fixed Header -->
     <header>
         <div class="header-info">
             <h2>💬 Chylnx Chat</h2>
-           <span id="onlineCount">Loading...</span>
+            <span id="onlineCount">Loading...</span>
         </div>
         <div class="header-actions">
             <span id="bellContainer" style="position: relative;">
@@ -1721,29 +1801,24 @@ body data-paid="false">
         </div>
     </header>
 
-    <!-- Chat Container -->
     <div id="chatContainer">
         <div id="chatWindow">
             <div class="system-msg">Welcome to the chat! Type a message to begin.</div>
         </div>
     </div>
 
-    <!-- Fixed Input Area -->
     <div id="inputArea">
         <input id="chatInput" type="text" placeholder="Type a message..." disabled>
         <button id="sendBtn" disabled>➤</button>
     </div>
 
-    <!-- Updated Boss Baby Style Character -->
     <div class="animated-character username-guide" id="animatedCharacter">
         <div class="character-body">
             <div class="character-head">
-                <!-- Baseball Cap -->
                 <div class="character-cap">
                     <div class="cap-bill"></div>
                 </div>
                 <div class="character-face">
-                    <!-- Glasses -->
                     <div class="character-glasses">
                         <div class="glasses-frame"></div>
                         <div class="glasses-bridge"></div>
@@ -1755,7 +1830,6 @@ body data-paid="false">
                     <div class="character-mouth"></div>
                 </div>
             </div>
-            <!-- Nerdy Outfit with Shirt and Tie -->
             <div class="character-body-main">
                 <div class="shirt-collar"></div>
                 <div class="character-tie">
@@ -1767,12 +1841,9 @@ body data-paid="false">
             <div class="character-leg left-leg"></div>
             <div class="character-leg right-leg"></div>
         </div>
-        <div class="speech-bubble show" id="speechBubble">
-            INPUT A COOL USERNAME! 🎮
-        </div>
+        <div class="speech-bubble show" id="speechBubble">INPUT A COOL USERNAME! 🎮</div>
     </div>
 
-    <!-- Winner Modal -->
     <div id="winnerModal">
         <div class="winner-modal-content">
             <h2>🎉 Winner Selected! 🎉</h2>
@@ -1781,7 +1852,6 @@ body data-paid="false">
         </div>
     </div>
 
-    <!-- Winner Announcement Overlay -->
     <div id="winnerAnnouncementOverlay">
         <div class="winner-announcement-content">
             <div class="winner-trophy">🏆</div>
@@ -1791,1055 +1861,921 @@ body data-paid="false">
             <p style="margin-top: 20px; font-size: clamp(14px, 3vw, 18px);">This announcement will close automatically</p>
         </div>
     </div>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
-<script>
-    // FIXED CHAT CODE - With Stable Mobile Layout
-    // Add these variables for typing detection
-    let myUsername = "";
-    let socket = null;
-    let selectedWinners = [];
-    let onlineUsers = [];
-    let isGameStarted = false;
-    let characterState = 'username';
-    const ANNOUNCE_PASSCODE = "1234";
-    let messageInterval;
-    let characterAnimationInterval;
-    let gameTimerInterval;
-    let gameTimeRemaining = 0;
-    let isUserTyping = false;
-    let typingTimeout;
-    let walkingAnimationInterval;
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+        // FIXED CHAT CODE - With Stable Mobile Layout
+        let myUsername = "";
+        let socket = null;
+        let selectedWinners = [];
+        let onlineUsers = [];
+        let isGameStarted = false;
+        let characterState = 'username';
+        const ANNOUNCE_PASSCODE = "1234";
+        let messageInterval;
+        let characterAnimationInterval;
+        let gameTimerInterval;
+        let gameTimeRemaining = 0;
+        let isUserTyping = false;
+        let typingTimeout;
+        let walkingAnimationInterval;
+        let backgroundMusic = null;
+        let isMusicPlaying = false;
+        let soundEnabled = true;
+        let walkingSound = null;
 
+        // Sound files
+        const soundFiles = {
+            backgroundMusic: 'https://assets.mixkit.co/music/preview/mixkit-tech-house-vibes-130.mp3',
+            winner: 'https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3',
+            bell: 'https://assets.mixkit.co/sfx/preview/mixkit-magic-sparkle-sound-300.mp3',
+            message: 'https://assets.mixkit.co/sfx/preview/mixkit-select-click-1109.mp3',
+            typing: 'https://assets.mixkit.co/sfx/preview/mixkit-keyboard-typing-1386.mp3',
+            join: 'https://assets.mixkit.co/sfx/preview/mixkit-gaming-lock-2851.mp3',
+            walking: 'https://assets.mixkit.co/sfx/preview/mixkit-footsteps-on-tall-grass-520.mp3'
+        };
 
-    // Initialize app
-   function initApp() {
-    console.log('🚀 Initializing app...');
-    
-    // Show username overlay but check timer first
-    document.getElementById('usernameOverlay').style.display = 'flex';
-    
-    // Initialize character
-    initializeCharacter();
-    
-    // Setup event listeners
-    setupEventListeners();
-    
-    // Setup mobile keyboard handling
-    setupMobileKeyboard();
-    
-    // Setup typing detection - ADD THIS LINE
-    setupTypingDetection();
-    
-    // Check timer status
-    checkTimerStatus();
-    
-    console.log('✅ App initialized successfully');
-}
-
-    // MOBILE KEYBOARD HANDLING - IMPROVED
-    function setupMobileKeyboard() {
-        const chatInput = document.getElementById('chatInput');
-        
-        if (!chatInput) return;
-        
-        chatInput.addEventListener('focus', function() {
-            if (window.innerWidth <= 768) {
-                document.body.classList.add('keyboard-open');
-                
-                // Scroll to bottom when keyboard opens
-                setTimeout(() => {
-                    const chatWindow = document.getElementById('chatWindow');
-                    if (chatWindow) {
-                        chatWindow.scrollTop = chatWindow.scrollHeight;
-                    }
-                }, 300);
-            }
-        });
-        
-        chatInput.addEventListener('blur', function() {
-            document.body.classList.remove('keyboard-open');
-        });
-        
-        // Prevent body scroll when keyboard is open
-        chatInput.addEventListener('touchstart', function(e) {
-            if (window.innerWidth <= 768) {
-                e.stopPropagation();
-            }
-        });
-    }
-
-    // TIMER BLOCKING FUNCTIONS
-    function checkTimerStatus() {
-        const tempSocket = io();
-        
-        tempSocket.on('connect', function() {
-            console.log('⏰ Checking timer status...');
-            tempSocket.emit('get_timer');
-        });
-        
-        tempSocket.on('timer_update', function(data) {
-            console.log('📡 Timer status received:', data);
-            
-            if (data.is_running && data.remaining_seconds > 0) {
-                gameTimeRemaining = data.remaining_seconds;
-                showTimerBlock();
-                startGameTimerCountdown();
-            } else {
-                isGameStarted = true;
-                hideTimerBlock();
-            }
-            
-            tempSocket.disconnect();
-        });
-        
-        tempSocket.on('game_started', function(data) {
-            console.log('🎉 Game started - allowing username entry');
-            isGameStarted = true;
-            hideTimerBlock();
-            tempSocket.disconnect();
-        });
-        
-        tempSocket.on('connect_error', function(error) {
-            console.error('❌ Connection error:', error);
-            isGameStarted = true;
-            hideTimerBlock();
-        });
-    }
-
-    function showTimerBlock() {
-        const timerBlock = document.getElementById('timerBlockOverlay');
-        const usernameOverlay = document.getElementById('usernameOverlay');
-        
-        if (timerBlock) timerBlock.style.display = 'flex';
-        if (usernameOverlay) usernameOverlay.style.display = 'none';
-    }
-
-    function hideTimerBlock() {
-        const timerBlock = document.getElementById('timerBlockOverlay');
-        const usernameOverlay = document.getElementById('usernameOverlay');
-        
-        if (timerBlock) timerBlock.style.display = 'none';
-        if (usernameOverlay && !myUsername) {
-            usernameOverlay.style.display = 'flex';
+        function initApp() {
+            console.log('🚀 Initializing app...');
+            document.getElementById('usernameOverlay').style.display = 'flex';
+            initializeCharacter();
+            setupEventListeners();
+            setupMobileKeyboard();
+            setupTypingDetection();
+            checkTimerStatus();
+            console.log('✅ App initialized successfully');
         }
-    }
 
-    function startGameTimerCountdown() {
-        clearInterval(gameTimerInterval);
-        
-        gameTimerInterval = setInterval(() => {
-            if (gameTimeRemaining <= 0) {
-                clearInterval(gameTimerInterval);
-                isGameStarted = true;
-                hideTimerBlock();
-                return;
-            }
+        // MOBILE KEYBOARD HANDLING
+        function setupMobileKeyboard() {
+            const chatInput = document.getElementById('chatInput');
+            if (!chatInput) return;
             
-            gameTimeRemaining--;
-            updateGameTimerDisplay();
-        }, 1000);
-        
-        updateGameTimerDisplay();
-    }
-
-    function updateGameTimerDisplay() {
-        const timerDisplay = document.getElementById('gameTimerDisplay');
-        if (timerDisplay) {
-            const minutes = Math.floor(gameTimeRemaining / 60);
-            const seconds = gameTimeRemaining % 60;
-            timerDisplay.textContent = 
-                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-        }
-    }
-
-    function setupEventListeners() {
-        const sendBtn = document.getElementById('sendBtn');
-        const chatInput = document.getElementById('chatInput');
-        const bell = document.getElementById('bell');
-        const usernameInput = document.getElementById('usernameInput');
-        
-        if (sendBtn) sendBtn.addEventListener('click', sendMessage);
-        if (chatInput) {
-            chatInput.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') sendMessage();
+            chatInput.addEventListener('focus', function() {
+                if (window.innerWidth <= 768) {
+                    document.body.classList.add('keyboard-open');
+                    setTimeout(() => {
+                        const chatWindow = document.getElementById('chatWindow');
+                        if (chatWindow) chatWindow.scrollTop = chatWindow.scrollHeight;
+                    }, 300);
+                }
+            });
+            
+            chatInput.addEventListener('blur', function() {
+                document.body.classList.remove('keyboard-open');
+            });
+            
+            chatInput.addEventListener('touchstart', function(e) {
+                if (window.innerWidth <= 768) e.stopPropagation();
             });
         }
-        
-        if (bell) bell.addEventListener('click', showWinnerSelectionPanel);
-        if (usernameInput) {
-            usernameInput.addEventListener('keypress', function(e) {
+
+        // TIMER FUNCTIONS
+        function checkTimerStatus() {
+            const tempSocket = io();
+            tempSocket.on('connect', function() {
+                console.log('⏰ Checking timer status...');
+                tempSocket.emit('get_timer');
+            });
+            
+            tempSocket.on('timer_update', function(data) {
+                console.log('📡 Timer status received:', data);
+                if (data.is_running && data.remaining_seconds > 0) {
+                    gameTimeRemaining = data.remaining_seconds;
+                    showTimerBlock();
+                    startGameTimerCountdown();
+                } else {
+                    isGameStarted = true;
+                    hideTimerBlock();
+                }
+                tempSocket.disconnect();
+            });
+            
+            tempSocket.on('game_started', function(data) {
+                console.log('🎉 Game started - allowing username entry');
+                isGameStarted = true;
+                hideTimerBlock();
+                tempSocket.disconnect();
+            });
+            
+            tempSocket.on('connect_error', function(error) {
+                console.error('❌ Connection error:', error);
+                isGameStarted = true;
+                hideTimerBlock();
+            });
+        }
+
+        function showTimerBlock() {
+            const timerBlock = document.getElementById('timerBlockOverlay');
+            const usernameOverlay = document.getElementById('usernameOverlay');
+            if (timerBlock) timerBlock.style.display = 'flex';
+            if (usernameOverlay) usernameOverlay.style.display = 'none';
+        }
+
+        function hideTimerBlock() {
+            const timerBlock = document.getElementById('timerBlockOverlay');
+            const usernameOverlay = document.getElementById('usernameOverlay');
+            if (timerBlock) timerBlock.style.display = 'none';
+            if (usernameOverlay && !myUsername) usernameOverlay.style.display = 'flex';
+        }
+
+        function startGameTimerCountdown() {
+            clearInterval(gameTimerInterval);
+            gameTimerInterval = setInterval(() => {
+                if (gameTimeRemaining <= 0) {
+                    clearInterval(gameTimerInterval);
+                    isGameStarted = true;
+                    hideTimerBlock();
+                    return;
+                }
+                gameTimeRemaining--;
+                updateGameTimerDisplay();
+            }, 1000);
+            updateGameTimerDisplay();
+        }
+
+        function updateGameTimerDisplay() {
+            const timerDisplay = document.getElementById('gameTimerDisplay');
+            if (timerDisplay) {
+                const minutes = Math.floor(gameTimeRemaining / 60);
+                const seconds = gameTimeRemaining % 60;
+                timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
+        }
+
+        function setupEventListeners() {
+            const sendBtn = document.getElementById('sendBtn');
+            const chatInput = document.getElementById('chatInput');
+            const bell = document.getElementById('bell');
+            const usernameInput = document.getElementById('usernameInput');
+            
+            if (sendBtn) sendBtn.addEventListener('click', sendMessage);
+            if (chatInput) chatInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') sendMessage();
+            });
+            if (bell) bell.addEventListener('click', showWinnerSelectionPanel);
+            if (usernameInput) usernameInput.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') setUsername();
             });
         }
-    }
 
-    // CHARACTER FUNCTIONS
-    function initializeCharacter() {
-        const character = document.getElementById('animatedCharacter');
-        if (!character) return;
-        
-        character.style.display = 'block';
-        character.style.visibility = 'visible';
-        
-        showUsernameGuide();
-        startCharacterAnimations();
-    }
+        // CHARACTER FUNCTIONS
+        function initializeCharacter() {
+            const character = document.getElementById('animatedCharacter');
+            if (!character) return;
+            character.style.display = 'block';
+            character.style.visibility = 'visible';
+            showUsernameGuide();
+            startCharacterAnimations();
+        }
 
-    function startCharacterAnimations() {
-        const character = document.getElementById('animatedCharacter');
-        const speechBubble = document.getElementById('speechBubble');
-        
-        if (!character) return;
-        
-        if (messageInterval) clearInterval(messageInterval);
-        
-        messageInterval = setInterval(() => {
-            if (characterState === 'username') {
-                animateUsernameCharacter();
-            } else if (characterState === 'chat') {
-                animateChatCharacter();
+        function startCharacterAnimations() {
+            const character = document.getElementById('animatedCharacter');
+            if (!character) return;
+            if (messageInterval) clearInterval(messageInterval);
+            messageInterval = setInterval(() => {
+                if (characterState === 'username') animateUsernameCharacter();
+                else if (characterState === 'chat') animateChatCharacter();
+            }, 3000);
+        }
+
+        function animateUsernameCharacter() {
+            const speechBubble = document.getElementById('speechBubble');
+            const character = document.getElementById('animatedCharacter');
+            const mouth = character?.querySelector('.character-mouth');
+            const eyes = character?.querySelector('.character-eyes');
+            
+            if (!speechBubble) return;
+            const messages = [
+                "INPUT A COOL USERNAME! 🎮", "CHOOSE AN AWESOME NAME! ✨", 
+                "PICK A CREATIVE USERNAME! 🚀", "ENTER YOUR COOL NAME! 💫", 
+                "WHAT'S YOUR GAMER TAG? 🎯"
+            ];
+            const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+            speechBubble.textContent = randomMessage;
+            speechBubble.classList.add('show');
+            
+            if (mouth) {
+                mouth.style.height = '8px';
+                setTimeout(() => { if(mouth) mouth.style.height = '6px'; }, 500);
             }
-        }, 3000);
-    }
-
-    function animateUsernameCharacter() {
-        const speechBubble = document.getElementById('speechBubble');
-        const character = document.getElementById('animatedCharacter');
-        const mouth = character?.querySelector('.character-mouth');
-        const eyes = character?.querySelector('.character-eyes');
-        
-        if (!speechBubble) return;
-        
-        const messages = [
-            "INPUT A COOL USERNAME! 🎮",
-            "CHOOSE AN AWESOME NAME! ✨", 
-            "PICK A CREATIVE USERNAME! 🚀",
-            "ENTER YOUR COOL NAME! 💫",
-            "WHAT'S YOUR GAMER TAG? 🎯"
-        ];
-        
-        const randomMessage = messages[Math.floor(Math.random() * messages.length)];
-        speechBubble.textContent = randomMessage;
-        speechBubble.classList.add('show');
-        
-        if (mouth) {
-            mouth.style.height = '8px';
-            setTimeout(() => { if(mouth) mouth.style.height = '6px'; }, 500);
+            
+            if (eyes && Math.random() > 0.5) {
+                const randomX = (Math.random() - 0.5) * 10;
+                eyes.style.transform = `translateX(${randomX}px)`;
+                setTimeout(() => { if(eyes) eyes.style.transform = 'translateX(0)'; }, 1000);
+            }
         }
-        
-        if (eyes && Math.random() > 0.5) {
-            const randomX = (Math.random() - 0.5) * 10;
-            eyes.style.transform = `translateX(${randomX}px)`;
-            setTimeout(() => { if(eyes) eyes.style.transform = 'translateX(0)'; }, 1000);
-        }
-    }
 
-    // MESSAGE FOLLOWING FUNCTIONALITY
-    function setupMessageFollowing() {
-        const chatWindow = document.getElementById('chatWindow');
-        const character = document.getElementById('animatedCharacter');
-        
-        if (!chatWindow || !character) return;
-        
-        const observer = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-                if (mutation.addedNodes.length) {
-                    mutation.addedNodes.forEach((node) => {
-                        if (node.classList && (node.classList.contains('message') || node.classList.contains('system-msg'))) {
-                            followMessage(node);
-                        }
-                    });
-                }
+        function setupMessageFollowing() {
+            const chatWindow = document.getElementById('chatWindow');
+            const character = document.getElementById('animatedCharacter');
+            if (!chatWindow || !character) return;
+            
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    if (mutation.addedNodes.length) {
+                        mutation.addedNodes.forEach((node) => {
+                            if (node.classList && (node.classList.contains('message') || node.classList.contains('system-msg'))) {
+                                followMessage(node);
+                            }
+                        });
+                    }
+                });
             });
-        });
-        
-        observer.observe(chatWindow, { childList: true });
-    }
-
-    function followMessage(messageElement) {
-        const character = document.getElementById('animatedCharacter');
-        const eyes = character?.querySelector('.character-eyes');
-        
-        if (!character || !eyes) return;
-        
-        const messageRect = messageElement.getBoundingClientRect();
-        const characterRect = character.getBoundingClientRect();
-        
-        const messageCenterX = messageRect.left + messageRect.width / 2;
-        const characterCenterX = characterRect.left + characterRect.width / 2;
-        
-        const deltaX = messageCenterX - characterCenterX;
-        
-        const eyeMovement = Math.min(Math.max(deltaX / 50, -15), 15);
-        eyes.style.transform = `translateX(${eyeMovement}px)`;
-        
-        characterReactToMessage(messageElement.classList.contains('sent'));
-    }
-
-    function animateChatCharacter() {
-        const character = document.getElementById('animatedCharacter');
-        const eyes = character?.querySelector('.character-eyes');
-        const mouth = character?.querySelector('.character-mouth');
-        
-        if (!character) return;
-        
-        if (eyes && Math.random() > 0.7) {
-            const randomX = (Math.random() - 0.5) * 8;
-            eyes.style.transform = `translateX(${randomX}px)`;
-            setTimeout(() => { if(eyes) eyes.style.transform = 'translateX(0)'; }, 2000);
+            observer.observe(chatWindow, { childList: true });
         }
-        
-        if (mouth && Math.random() > 0.8) {
-            mouth.style.height = '4px';
-            setTimeout(() => { if(mouth) mouth.style.height = '6px'; }, 300);
+
+        function followMessage(messageElement) {
+            const character = document.getElementById('animatedCharacter');
+            const eyes = character?.querySelector('.character-eyes');
+            if (!character || !eyes) return;
+            
+            const messageRect = messageElement.getBoundingClientRect();
+            const characterRect = character.getBoundingClientRect();
+            const messageCenterX = messageRect.left + messageRect.width / 2;
+            const characterCenterX = characterRect.left + characterRect.width / 2;
+            const deltaX = messageCenterX - characterCenterX;
+            const eyeMovement = Math.min(Math.max(deltaX / 50, -15), 15);
+            eyes.style.transform = `translateX(${eyeMovement}px)`;
+            characterReactToMessage(messageElement.classList.contains('sent'));
         }
-    }
 
-    function showUsernameGuide() {
-        const character = document.getElementById('animatedCharacter');
-        const speechBubble = document.getElementById('speechBubble');
-        
-        if (!character) return;
-        
-        characterState = 'username';
-        character.className = 'animated-character username-guide';
-        character.style.display = 'block';
-        character.style.visibility = 'visible';
-        
-        character.style.top = '40%';
-        character.style.left = '50%';
-        character.style.right = 'auto';
-        character.style.bottom = 'auto';
-        character.style.transform = 'translate(-50%, -50%) scale(0.8)';
-        
-        if (speechBubble) {
-            speechBubble.textContent = 'INPUT A COOL USERNAME! 🎮';
-            speechBubble.classList.add('show');
+        function animateChatCharacter() {
+            const character = document.getElementById('animatedCharacter');
+            const eyes = character?.querySelector('.character-eyes');
+            const mouth = character?.querySelector('.character-mouth');
+            if (!character) return;
+            
+            if (eyes && Math.random() > 0.7) {
+                const randomX = (Math.random() - 0.5) * 8;
+                eyes.style.transform = `translateX(${randomX}px)`;
+                setTimeout(() => { if(eyes) eyes.style.transform = 'translateX(0)'; }, 2000);
+            }
+            
+            if (mouth && Math.random() > 0.8) {
+                mouth.style.height = '4px';
+                setTimeout(() => { if(mouth) mouth.style.height = '6px'; }, 300);
+            }
         }
-    }
 
-   function showChatGuide() {
-    const character = document.getElementById('animatedCharacter');
-    const speechBubble = document.getElementById('speechBubble');
-    
-    if (!character) return;
-    
-    characterState = 'chat';
-    character.className = 'animated-character chat-guide';
-    
-    const isMobile = window.innerWidth <= 768;
-    const bottomPosition = isMobile ? '85px' : '90px';
-    const scale = isMobile ? '0.6' : '0.7';
-    
-    // Position at center bottom of chat container
-    const chatContainer = document.getElementById('chatContainer');
-    const chatRect = chatContainer.getBoundingClientRect();
-    const centerX = (chatRect.width - 120) / 2; // Center position accounting for character width
-    
-    character.style.bottom = bottomPosition;
-    character.style.left = '0px'; // Use transform for positioning instead
-    character.style.right = 'auto';
-    character.style.top = 'auto';
-    character.style.transform = `translateX(${centerX}px) scale(${scale})`;
-    character.style.zIndex = '5';
-    
-    // Reset any walking state when entering chat
-    stopWalkingAnimation();
-    
-    setupMessageFollowing();
-    
-    if (speechBubble) {
-        speechBubble.textContent = 'Welcome to the chat! Start typing.';
-        speechBubble.classList.add('show');
-        
-        setTimeout(() => {
-            speechBubble.classList.remove('show');
-        }, 5000);
-    }
-}
-
-    function characterReactToMessage(isMyMessage) {
-        if (characterState !== 'chat') return;
-        
-        const character = document.getElementById('animatedCharacter');
-        const speechBubble = document.getElementById('speechBubble');
-        const mouth = character?.querySelector('.character-mouth');
-        const rightArm = character?.querySelector('.right-arm');
-        const leftArm = character?.querySelector('.left-arm');
-        
-        if (!character) return;
-        
-        if (isMyMessage) {
-            if (rightArm) rightArm.style.transform = 'rotate(60deg)';
-            if (mouth) mouth.style.height = '8px';
+        function showUsernameGuide() {
+            const character = document.getElementById('animatedCharacter');
+            const speechBubble = document.getElementById('speechBubble');
+            if (!character) return;
+            
+            characterState = 'username';
+            character.className = 'animated-character username-guide';
+            character.style.display = 'block';
+            character.style.visibility = 'visible';
+            character.style.top = '40%';
+            character.style.left = '50%';
+            character.style.right = 'auto';
+            character.style.bottom = 'auto';
+            character.style.transform = 'translate(-50%, -50%) scale(0.8)';
             
             if (speechBubble) {
-                const reactions = ["Message sent! 📤", "Nice one! 👍", "Great message! 🚀"];
-                speechBubble.textContent = reactions[Math.floor(Math.random() * reactions.length)];
+                speechBubble.textContent = 'INPUT A COOL USERNAME! 🎮';
                 speechBubble.classList.add('show');
             }
+        }
+
+        function showChatGuide() {
+            const character = document.getElementById('animatedCharacter');
+            const speechBubble = document.getElementById('speechBubble');
+            if (!character) return;
             
-            setTimeout(() => {
-                if (rightArm) rightArm.style.transform = 'rotate(25deg)';
-                if (mouth) mouth.style.height = '6px';
-                setTimeout(() => {
-                    if (speechBubble) speechBubble.classList.remove('show');
-                }, 2000);
-            }, 1000);
-            
-        } else {
-            if (leftArm) leftArm.style.transform = 'rotate(-60deg)';
-            if (mouth) mouth.style.height = '8px';
-            
-            if (speechBubble) {
-                const reactions = ["New message! 👀", "Someone's talking! 💬", "Interesting! 🤔"];
-                speechBubble.textContent = reactions[Math.floor(Math.random() * reactions.length)];
-                speechBubble.classList.add('show');
-            }
-            
-            setTimeout(() => {
-                if (leftArm) leftArm.style.transform = 'rotate(-25deg)';
-                if (mouth) mouth.style.height = '6px';
-                setTimeout(() => {
-                    if (speechBubble) speechBubble.classList.remove('show');
-                }, 2000);
-            }, 1000);
-        }
-    }
-
-    // Set username function with timer check
-    function setUsername() {
-        if (!isGameStarted) {
-            alert("⏰ Please wait for the game to start before joining the chat.");
-            return;
-        }
-        
-        const usernameInput = document.getElementById('usernameInput');
-        const username = usernameInput?.value.trim();
-        
-        if (!username) {
-            alert('Please enter a username');
-            return;
-        }
-        
-        myUsername = username;
-        document.getElementById('usernameOverlay').style.display = 'none';
-        
-        showChatGuide();
-        initializeChat();
-    }
-
-    // Chat Functions
-    function initializeChat() {
-        console.log('💬 Initializing chat...');
-        
-        socket = io();
-        
-        socket.on('connect', function() {
-            console.log('✅ Connected to server');
-            socket.emit('join_chat', { username: myUsername });
-        });
-
-        socket.on('user_joined', function(data) {
-            addSystemMessage(`🎉 ${data.username} joined the chat!`);
-            updateOnlineCount(data.count || 1);
-        });
-
-        socket.on('user_left', function(data) {
-            addSystemMessage(`👋 ${data.username} left the chat`);
-            updateOnlineCount(data.count || 0);
-        });
-
-        socket.on('user_count_update', function(data) {
-            updateOnlineCount(data.count);
-        });
-
-        socket.on('chat_history', function(history) {
-            const chatWindow = document.getElementById('chatWindow');
-            if (chatWindow && Array.isArray(history)) {
-                chatWindow.innerHTML = '';
-                history.forEach(msg => {
-                    const isSent = msg.from === myUsername;
-                    addMessage(msg, isSent);
-                });
-                // Scroll to bottom after loading history
-                setTimeout(() => {
-                    chatWindow.scrollTop = chatWindow.scrollHeight;
-                }, 100);
-            }
-        });
-
-        socket.on('new_message', function(data) {
-            if (data && data.from && data.text) {
-                const isSent = data.from === myUsername;
-                addMessage(data, isSent);
-                if (!isSent) characterReactToMessage(false);
-                
-                // Auto-scroll to new message
-                setTimeout(() => {
-                    const chatWindow = document.getElementById('chatWindow');
-                    if (chatWindow) {
-                        chatWindow.scrollTop = chatWindow.scrollHeight;
-                    }
-                }, 100);
-            }
-        });
-
-        socket.on('winner_announced', function(data) {
-            if (data && data.winners) {
-                const winners = Array.isArray(data.winners) ? data.winners.join(", ") : data.winners;
-                showWinnerAnnouncement(winners);
-                addSystemMessage(`🏆 WINNER: ${winners}! 🎉`);
-            }
-        });
-
-        socket.on('timer_update', function(data) {
-            console.log('📡 Timer update in chat:', data);
-            if (data.is_running && data.remaining_seconds > 0) {
-                gameTimeRemaining = data.remaining_seconds;
-                if (!isGameStarted) {
-                    showTimerBlock();
-                    startGameTimerCountdown();
-                }
-            } else {
-                isGameStarted = true;
-                hideTimerBlock();
-            }
-        });
-
-        socket.on('game_started', function(data) {
-            console.log('🎮 Game started - unblocking chat');
-            isGameStarted = true;
-            hideTimerBlock();
-        });
-
-        const chatInput = document.getElementById('chatInput');
-        const sendBtn = document.getElementById('sendBtn');
-        
-        if (chatInput) chatInput.disabled = false;
-        if (sendBtn) sendBtn.disabled = false;
-        
-        if (chatInput) chatInput.focus();
-        
-        addSystemMessage(`Welcome, ${myUsername}! Start chatting.`);
-    }
-
-    function updateOnlineCount(count) {
-        const onlineCountElement = document.getElementById('onlineCount');
-        if (onlineCountElement) {
-            onlineCountElement.textContent = count + ' online';
-        }
-    }
-
-    function sendMessage() {
-        const messageInput = document.getElementById('chatInput');
-        const text = messageInput?.value.trim();
-        
-        if (!text || !socket) return;
-        
-        socket.emit('message', { 
-            text: text,
-            timestamp: new Date().toISOString()
-        });
-        
-        characterReactToMessage(true);
-        messageInput.value = '';
-        messageInput.focus();
-        
-        // Auto-scroll to new message
-        setTimeout(() => {
-            const chatWindow = document.getElementById('chatWindow');
-            if (chatWindow) {
-                chatWindow.scrollTop = chatWindow.scrollHeight;
-            }
-        }, 100);
-    }
-
-    function addMessage(msg, isSent) {
-        const chatWindow = document.getElementById('chatWindow');
-        if (!chatWindow) return;
-
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${isSent ? 'sent' : 'received'}`;
-
-        const time = new Date(msg.timestamp || Date.now()).toLocaleTimeString([], { 
-            hour: '2-digit', 
-            minute: '2-digit' 
-        });
-
-        const isSelected = selectedWinners.includes(msg.from);
-
-        messageDiv.innerHTML = `
-            ${!isSent ? `<div class="sender-name ${isSelected ? 'username-selected' : ''}" data-username="${msg.from}">${msg.from}</div>` : ''}
-            <div class="message-content">${msg.text}</div>
-            <div class="message-time">${time}</div>
-        `;
-
-        if (!isSent) {
-            const senderName = messageDiv.querySelector('.sender-name');
-            if (senderName) {
-                senderName.addEventListener('click', function() {
-                    const username = this.getAttribute('data-username');
-                    toggleWinnerSelection(username);
-                    this.classList.toggle('username-selected');
-                    updateBellNotification();
-                    
-                    if (selectedWinners.includes(username)) {
-                        showSelectionFeedback(`${username} selected as winner!`);
-                    } else {
-                        showSelectionFeedback(`${username} removed from selection`);
-                    }
-                });
-                
-                senderName.style.cursor = 'pointer';
-                senderName.title = 'Click to select as winner';
-            }
-        }
-
-        chatWindow.appendChild(messageDiv);
-    }
-
-    function addSystemMessage(text) {
-        const chatWindow = document.getElementById('chatWindow');
-        if (!chatWindow) return;
-
-        const systemMsg = document.createElement('div');
-        systemMsg.className = 'system-msg';
-        systemMsg.textContent = text;
-
-        chatWindow.appendChild(systemMsg);
-    }
-
-    function showSelectionFeedback(message) {
-        const feedback = document.createElement('div');
-        feedback.className = 'system-msg';
-        feedback.textContent = message;
-        feedback.style.background = 'rgba(255, 215, 0, 0.2)';
-        feedback.style.color = '#333';
-        
-        const chatWindow = document.getElementById('chatWindow');
-        chatWindow.appendChild(feedback);
-        
-        setTimeout(() => {
-            if (feedback.parentNode) {
-                feedback.remove();
-            }
-        }, 2000);
-    }
-
-    // Bell notification functions
-    function updateBellNotification() {
-        const bellNotification = document.getElementById('bellNotification');
-        if (bellNotification) {
-            if (selectedWinners.length > 0) {
-                bellNotification.style.display = 'flex';
-                bellNotification.textContent = selectedWinners.length;
-            } else {
-                bellNotification.style.display = 'none';
-            }
-        }
-    }
-
-    // Winner Selection Functions
-   function showWinnerSelectionPanel() {
-    // If we already have selected winners from clicking usernames, announce them immediately
-    if (selectedWinners.length > 0) {
-        const entered = prompt("Enter passcode to announce winners:");
-        if (entered !== ANNOUNCE_PASSCODE) {
-            alert("❌ Wrong passcode!");
-            return;
-        }
-
-        showWinnerAnnouncement(selectedWinners.join(', '));
-        
-        if (socket) {
-            socket.emit('announce_winner', { winners: selectedWinners });
-        }
-
-        // Clear selection after announcement
-        selectedWinners.forEach(username => {
-            updateChatUsernameSelection(username, false);
-        });
-        selectedWinners = [];
-        
-        updateSelectedCount();
-        updateBellNotification();
-        
-        showSelectionFeedback('Winners announced successfully!');
-        return;
-    }
-
-    // Only show the selection panel if no winners are already selected
-    const panel = document.getElementById('winnerSelectionPanel');
-    const winnerList = document.getElementById('winnerList');
-    
-    if (!panel || !winnerList) return;
-    
-    winnerList.innerHTML = '';
-    
-    const allUsernames = new Set();
-    const senderNames = document.querySelectorAll('.sender-name');
-    senderNames.forEach(sender => {
-        const username = sender.getAttribute('data-username');
-        if (username && username !== myUsername) {
-            allUsernames.add(username);
-        }
-    });
-    
-    Object.keys(onlineUsers).forEach(user => {
-        if (user !== myUsername) {
-            allUsernames.add(user);
-        }
-    });
-    
-    allUsernames.forEach(user => {
-        const winnerItem = document.createElement('div');
-        winnerItem.className = `winner-item ${selectedWinners.includes(user) ? 'selected' : ''}`;
-        winnerItem.innerHTML = `
-            <input type="checkbox" class="winner-checkbox" ${selectedWinners.includes(user) ? 'checked' : ''} value="${user}">
-            <span>${user}</span>
-        `;
-        winnerItem.addEventListener('click', function() {
-            const checkbox = this.querySelector('.winner-checkbox');
-            checkbox.checked = !checkbox.checked;
-            toggleWinnerSelection(user, checkbox.checked);
-            updateChatUsernameSelection(user, checkbox.checked);
-            updateBellNotification();
-        });
-        winnerList.appendChild(winnerItem);
-    });
-    
-    updateSelectedCount();
-    panel.style.display = 'block';
-}
-
-    function closeWinnerPanel() {
-        const panel = document.getElementById('winnerSelectionPanel');
-        if (panel) panel.style.display = 'none';
-    }
-
-    function toggleWinnerSelection(username, isSelected) {
-    if (isSelected === undefined) {
-        // Toggle if no specific state provided
-        if (selectedWinners.includes(username)) {
-            selectedWinners = selectedWinners.filter(user => user !== username);
-        } else {
-            selectedWinners.push(username);
-        }
-    } else {
-        // Set specific state
-        if (isSelected) {
-            if (!selectedWinners.includes(username)) {
-                selectedWinners.push(username);
-            }
-        } else {
-            selectedWinners = selectedWinners.filter(user => user !== username);
-        }
-    }
-    updateSelectedCount();
-    updateBellNotification();
-}
-
-    function updateSelectedCount() {
-        const countElement = document.getElementById('selectedCount');
-        if (countElement) {
-            countElement.textContent = selectedWinners.length;
-        }
-    }
-
-    function updateChatUsernameSelection(username, isSelected) {
-        const senderNames = document.querySelectorAll(`.sender-name[data-username="${username}"]`);
-        senderNames.forEach(senderName => {
-            if (isSelected) {
-                senderName.classList.add('username-selected');
-            } else {
-                senderName.classList.remove('username-selected');
-            }
-        });
-    }
-
-    function announceSelectedWinners() {
-        if (selectedWinners.length === 0) {
-            alert("Please select winners first!");
-            return;
-        }
-        
-        const entered = prompt("Enter passcode to announce winners:");
-        if (entered !== ANNOUNCE_PASSCODE) {
-            alert("❌ Wrong passcode!");
-            return;
-        }
-
-        showWinnerAnnouncement(selectedWinners.join(', '));
-        
-        if (socket) {
-            socket.emit('announce_winner', { winners: selectedWinners });
-        }
-
-        selectedWinners.forEach(username => {
-            updateChatUsernameSelection(username, false);
-        });
-        selectedWinners = [];
-        
-        updateSelectedCount();
-        updateBellNotification();
-        closeWinnerPanel();
-        
-        showSelectionFeedback('Winners announced successfully!');
-    }
-
-    function showWinnerAnnouncement(usernames) {
-        const overlay = document.getElementById('winnerAnnouncementOverlay');
-        const winnerNameElement = document.getElementById('announcedWinnerName');
-        
-        if (overlay && winnerNameElement) {
-            winnerNameElement.textContent = usernames;
-            overlay.style.display = 'flex';
-            
-            setTimeout(() => {
-                overlay.style.display = 'none';
-                setTimeout(() => {
-                    startCharacterDance();
-                }, 500);
-            }, 10000);
-        }
-    }
-
-    function startCharacterDance() {
-        const character = document.getElementById('animatedCharacter');
-        const speechBubble = document.getElementById('speechBubble');
-        
-        if (!character) return;
-        
-        character.classList.add('dancing');
-        
-        if (speechBubble) {
-            speechBubble.textContent = "🎉 CONGRATULATIONS! 🎉";
-            speechBubble.classList.add('show');
-        }
-        
-        setTimeout(() => {
-            stopCharacterDance();
-        }, 8000);
-    }
-
-    function stopCharacterDance() {
-        const character = document.getElementById('animatedCharacter');
-        const speechBubble = document.getElementById('speechBubble');
-        
-        if (!character) return;
-        
-        character.classList.remove('dancing');
-        character.style.animation = 'breathing 4s ease-in-out infinite';
-        
-        if (speechBubble) {
-            setTimeout(() => {
-                speechBubble.classList.remove('show');
-            }, 2000);
-        }
-    }
-
-    function closeWinnerModal() {
-        const modal = document.getElementById('winnerModal');
-        if (modal) modal.style.display = 'none';
-    }
-
-    // Handle page refresh/close
-    window.addEventListener('beforeunload', function() {
-        if (socket && myUsername) {
-            socket.emit('leave_chat', { username: myUsername });
-        }
-    });
-
-    // Initialize when page loads
-    window.addEventListener('DOMContentLoaded', initApp);
-
-    // Handle window resize for character positioning
-    window.addEventListener('resize', function() {
-        const character = document.getElementById('animatedCharacter');
-        if (character && characterState === 'chat') {
+            characterState = 'chat';
+            character.className = 'animated-character chat-guide';
             const isMobile = window.innerWidth <= 768;
             const bottomPosition = isMobile ? '85px' : '90px';
             const scale = isMobile ? '0.6' : '0.7';
+            const chatContainer = document.getElementById('chatContainer');
+            const chatRect = chatContainer.getBoundingClientRect();
+            const centerX = (chatRect.width - 120) / 2;
             
             character.style.bottom = bottomPosition;
-            character.style.left = '50%';
-            character.style.transform = `translateX(-50%) scale(${scale})`;
+            character.style.left = '0px';
+            character.style.right = 'auto';
+            character.style.top = 'auto';
+            character.style.transform = `translateX(${centerX}px) scale(${scale})`;
+            character.style.zIndex = '5';
+            stopWalkingAnimation();
+            setupMessageFollowing();
+            
+            if (speechBubble) {
+                speechBubble.textContent = 'Welcome to the chat! Start typing.';
+                speechBubble.classList.add('show');
+                setTimeout(() => speechBubble.classList.remove('show'), 5000);
+            }
         }
-    });
-    // Typing detection function
-function setupTypingDetection() {
-    const chatInput = document.getElementById('chatInput');
-    
-    chatInput.addEventListener('focus', function() {
-        startTyping();
-    });
-    
-    chatInput.addEventListener('input', function() {
-        startTyping();
-        resetTypingTimeout();
-    });
-    
-    chatInput.addEventListener('blur', function() {
-        stopTyping();
-    });
-    
-    // Also detect when send button is clicked
-    const sendBtn = document.getElementById('sendBtn');
-    if (sendBtn) {
-        sendBtn.addEventListener('click', function() {
-            stopTyping();
-        });
-    }
-}
 
-function startTyping() {
-    if (!isUserTyping) {
-        isUserTyping = true;
-        startWalkingAnimation();
-    }
-    resetTypingTimeout();
-}
-
-function stopTyping() {
-    isUserTyping = false;
-    clearTimeout(typingTimeout);
-    stopWalkingAnimation();
-}
-
-function resetTypingTimeout() {
-    clearTimeout(typingTimeout);
-    typingTimeout = setTimeout(function() {
-        stopTyping();
-    }, 1500); // Stop walking 1.5 seconds after last keystroke (more responsive)
-}
-
-function startWalkingAnimation() {
-    const character = document.getElementById('animatedCharacter');
-    if (!character) return;
-    
-    // Only start walking if we're in chat mode
-    if (characterState !== 'chat') return;
-    
-    character.classList.add('walking');
-    
-    // Clear any existing interval
-    if (walkingAnimationInterval) {
-        clearInterval(walkingAnimationInterval);
-    }
-    
-    // Get chat container boundaries
-    const chatContainer = document.getElementById('chatContainer');
-    const chatRect = chatContainer.getBoundingClientRect();
-    
-    // Calculate walking boundaries (full chat space with margins)
-    const minX = 30; // Left margin
-    const maxX = chatRect.width - 150; // Right margin (account for character width)
-    
-    let walkingDirection = 1; // 1 for right, -1 for left
-    let currentX = (maxX - minX) / 2; // Start from middle
-    
-    // Store original position for return
-    const originalPosition = currentX;
-    
-    walkingAnimationInterval = setInterval(function() {
-        if (!isUserTyping) {
-            clearInterval(walkingAnimationInterval);
-            return;
+        function characterReactToMessage(isMyMessage) {
+            if (characterState !== 'chat') return;
+            const character = document.getElementById('animatedCharacter');
+            const speechBubble = document.getElementById('speechBubble');
+            const mouth = character?.querySelector('.character-mouth');
+            const rightArm = character?.querySelector('.right-arm');
+            const leftArm = character?.querySelector('.left-arm');
+            if (!character) return;
+            
+            if (isMyMessage) {
+                if (rightArm) rightArm.style.transform = 'rotate(60deg)';
+                if (mouth) mouth.style.height = '8px';
+                if (speechBubble) {
+                    const reactions = ["Message sent! 📤", "Nice one! 👍", "Great message! 🚀"];
+                    speechBubble.textContent = reactions[Math.floor(Math.random() * reactions.length)];
+                    speechBubble.classList.add('show');
+                }
+                setTimeout(() => {
+                    if (rightArm) rightArm.style.transform = 'rotate(25deg)';
+                    if (mouth) mouth.style.height = '6px';
+                    setTimeout(() => { if (speechBubble) speechBubble.classList.remove('show'); }, 2000);
+                }, 1000);
+            } else {
+                if (leftArm) leftArm.style.transform = 'rotate(-60deg)';
+                if (mouth) mouth.style.height = '8px';
+                if (speechBubble) {
+                    const reactions = ["New message! 👀", "Someone's talking! 💬", "Interesting! 🤔"];
+                    speechBubble.textContent = reactions[Math.floor(Math.random() * reactions.length)];
+                    speechBubble.classList.add('show');
+                }
+                setTimeout(() => {
+                    if (leftArm) leftArm.style.transform = 'rotate(-25deg)';
+                    if (mouth) mouth.style.height = '6px';
+                    setTimeout(() => { if (speechBubble) speechBubble.classList.remove('show'); }, 2000);
+                }, 1000);
+            }
         }
-        
-        // Move character with realistic speed
-        currentX += walkingDirection * 2.5;
-        
-        // Calculate walking progress for natural pacing
-        const progress = (currentX - minX) / (maxX - minX);
-        
-        // Reverse direction when hitting boundaries
-        if (currentX >= maxX) {
-            walkingDirection = -1;
-            // Pause briefly at edge before turning (more realistic)
+
+        function setUsername() {
+            if (!isGameStarted) {
+                alert("⏰ Please wait for the game to start before joining the chat.");
+                return;
+            }
+            const usernameInput = document.getElementById('usernameInput');
+            const username = usernameInput?.value.trim();
+            if (!username) {
+                alert('Please enter a username');
+                return;
+            }
+            myUsername = username;
+            document.getElementById('usernameOverlay').style.display = 'none';
+            playSound('join', 0.5);
+            showChatGuide();
+            initializeChat();
+            initializeAudio();
+        }
+
+        // CHAT FUNCTIONS
+        function initializeChat() {
+            console.log('💬 Initializing chat...');
+            socket = io();
+            
+            socket.on('connect', function() {
+                console.log('✅ Connected to server');
+                socket.emit('join_chat', { username: myUsername });
+            });
+
+            socket.on('user_joined', function(data) {
+                addSystemMessage(`🎉 ${data.username} joined the chat!`);
+                updateOnlineCount(data.count || 1);
+            });
+
+            socket.on('user_left', function(data) {
+                addSystemMessage(`👋 ${data.username} left the chat`);
+                updateOnlineCount(data.count || 0);
+            });
+
+            socket.on('user_count_update', function(data) {
+                updateOnlineCount(data.count);
+            });
+
+            socket.on('chat_history', function(history) {
+                const chatWindow = document.getElementById('chatWindow');
+                if (chatWindow && Array.isArray(history)) {
+                    chatWindow.innerHTML = '';
+                    history.forEach(msg => {
+                        const isSent = msg.from === myUsername;
+                        addMessage(msg, isSent);
+                    });
+                    setTimeout(() => chatWindow.scrollTop = chatWindow.scrollHeight, 100);
+                }
+            });
+
+            socket.on('new_message', function(data) {
+                if (data && data.from && data.text) {
+                    const isSent = data.from === myUsername;
+                    addMessage(data, isSent);
+                    if (!isSent) characterReactToMessage(false);
+                    setTimeout(() => {
+                        const chatWindow = document.getElementById('chatWindow');
+                        if (chatWindow) chatWindow.scrollTop = chatWindow.scrollHeight;
+                    }, 100);
+                }
+            });
+
+            socket.on('winner_announced', function(data) {
+                if (data && data.winners) {
+                    const winners = Array.isArray(data.winners) ? data.winners.join(", ") : data.winners;
+                    showWinnerAnnouncement(winners);
+                    addSystemMessage(`🏆 WINNER: ${winners}! 🎉`);
+                }
+            });
+
+            socket.on('timer_update', function(data) {
+                console.log('📡 Timer update in chat:', data);
+                if (data.is_running && data.remaining_seconds > 0) {
+                    gameTimeRemaining = data.remaining_seconds;
+                    if (!isGameStarted) {
+                        showTimerBlock();
+                        startGameTimerCountdown();
+                    }
+                } else {
+                    isGameStarted = true;
+                    hideTimerBlock();
+                }
+            });
+
+            socket.on('game_started', function(data) {
+                console.log('🎮 Game started - unblocking chat');
+                isGameStarted = true;
+                hideTimerBlock();
+            });
+
+            const chatInput = document.getElementById('chatInput');
+            const sendBtn = document.getElementById('sendBtn');
+            if (chatInput) chatInput.disabled = false;
+            if (sendBtn) sendBtn.disabled = false;
+            if (chatInput) chatInput.focus();
+            addSystemMessage(`Welcome, ${myUsername}! Start chatting.`);
+        }
+
+        function updateOnlineCount(count) {
+            const onlineCountElement = document.getElementById('onlineCount');
+            if (onlineCountElement) onlineCountElement.textContent = count + ' online';
+        }
+
+        function sendMessage() {
+            const messageInput = document.getElementById('chatInput');
+            const text = messageInput?.value.trim();
+            if (!text || !socket) return;
+            
+            socket.emit('message', { 
+                text: text,
+                timestamp: new Date().toISOString()
+            });
+            playSound('message', 0.3);
+            characterReactToMessage(true);
+            messageInput.value = '';
+            messageInput.focus();
             setTimeout(() => {
-                // Flip character to face left
-                character.style.transform = `translateX(${currentX}px) scale(-0.7, 0.7)`;
-            }, 200);
-        } else if (currentX <= minX) {
-            walkingDirection = 1;
-            // Pause briefly at edge before turning
-            setTimeout(() => {
-                // Flip character to face right
-                character.style.transform = `translateX(${currentX}px) scale(0.7)`;
-            }, 200);
-        } else {
-            // Keep current facing direction
-            const currentScale = walkingDirection === 1 ? 'scale(0.7)' : 'scale(-0.7, 0.7)';
-            character.style.transform = `translateX(${currentX}px) ${currentScale}`;
+                const chatWindow = document.getElementById('chatWindow');
+                if (chatWindow) chatWindow.scrollTop = chatWindow.scrollHeight;
+            }, 100);
         }
-        
-        // Realistic walking bobbing effect
-        const walkCycle = Date.now() / 300; // Slower walk cycle
-        const bobOffset = Math.sin(walkCycle) * 4; // Gentle head bobbing
-        const bodyBob = Math.sin(walkCycle * 2) * 2; // Body movement
-        
-        character.style.bottom = `calc(90px + ${bobOffset}px)`;
-        
-        // Add slight rotation for more natural walk
-        const walkTilt = Math.sin(walkCycle * 2) * 1; // Gentle side-to-side tilt
-        character.style.transform += ` rotate(${walkTilt}deg)`;
-        
-    }, 50); // Consistent interval for smooth walking
-}
 
-function stopWalkingAnimation() {
-    const character = document.getElementById('animatedCharacter');
-    if (!character) return;
-    
-    character.classList.remove('walking');
-    
-    if (walkingAnimationInterval) {
-        clearInterval(walkingAnimationInterval);
-        walkingAnimationInterval = null;
-    }
-    
-    // Get current position
-    const currentTransform = character.style.transform || '';
-    const currentTranslateX = parseFloat(currentTransform.match(/translateX\(([^)]+)px\)/)?.[1]) || 0;
-    
-    // Calculate center position
-    const chatContainer = document.getElementById('chatContainer');
-    const chatRect = chatContainer.getBoundingClientRect();
-    const centerX = (chatRect.width - 120) / 2;
-    
-    // Smooth return to center with easing
-    let startTime = Date.now();
-    const duration = 800; // ms
-    const startX = currentTranslateX;
-    
-    function easeOutCubic(t) {
-        return 1 - Math.pow(1 - t, 3);
-    }
-    
-    function returnToCenter() {
-        const elapsed = Date.now() - startTime;
-        const progress = Math.min(elapsed / duration, 1);
-        const easedProgress = easeOutCubic(progress);
-        
-        const newX = startX + (centerX - startX) * easedProgress;
-        
-        // Reset scale to normal (facing right) and remove rotation
-        character.style.transform = `translateX(${newX}px) scale(0.7) rotate(0deg)`;
-        character.style.bottom = '90px';
-        
-        if (progress < 1) {
+        function addMessage(msg, isSent) {
+            const chatWindow = document.getElementById('chatWindow');
+            if (!chatWindow) return;
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isSent ? 'sent' : 'received'}`;
+            const time = new Date(msg.timestamp || Date.now()).toLocaleTimeString([], { 
+                hour: '2-digit', minute: '2-digit' 
+            });
+            const isSelected = selectedWinners.includes(msg.from);
+
+            messageDiv.innerHTML = `
+                ${!isSent ? `<div class="sender-name ${isSelected ? 'username-selected' : ''}" data-username="${msg.from}">${msg.from}</div>` : ''}
+                <div class="message-content">${msg.text}</div>
+                <div class="message-time">${time}</div>
+            `;
+
+            if (!isSent) {
+                const senderName = messageDiv.querySelector('.sender-name');
+                if (senderName) {
+                    senderName.addEventListener('click', function() {
+                        const username = this.getAttribute('data-username');
+                        toggleWinnerSelection(username);
+                        this.classList.toggle('username-selected');
+                        updateBellNotification();
+                        playSound('message', 0.2);
+                        if (selectedWinners.includes(username)) {
+                            showSelectionFeedback(`${username} selected as winner!`);
+                        } else {
+                            showSelectionFeedback(`${username} removed from selection`);
+                        }
+                    });
+                    senderName.style.cursor = 'pointer';
+                    senderName.title = 'Click to select as winner';
+                }
+                if (msg.from !== myUsername) playSound('message', 0.2);
+            }
+            chatWindow.appendChild(messageDiv);
+        }
+
+        function addSystemMessage(text) {
+            const chatWindow = document.getElementById('chatWindow');
+            if (!chatWindow) return;
+            const systemMsg = document.createElement('div');
+            systemMsg.className = 'system-msg';
+            systemMsg.textContent = text;
+            chatWindow.appendChild(systemMsg);
+        }
+
+        function showSelectionFeedback(message) {
+            const feedback = document.createElement('div');
+            feedback.className = 'system-msg';
+            feedback.textContent = message;
+            feedback.style.background = 'rgba(255, 215, 0, 0.2)';
+            feedback.style.color = '#333';
+            const chatWindow = document.getElementById('chatWindow');
+            chatWindow.appendChild(feedback);
+            setTimeout(() => { if (feedback.parentNode) feedback.remove(); }, 2000);
+        }
+
+        // BELL NOTIFICATION FUNCTIONS
+        function updateBellNotification() {
+            const bellNotification = document.getElementById('bellNotification');
+            if (bellNotification) {
+                if (selectedWinners.length > 0) {
+                    bellNotification.style.display = 'flex';
+                    bellNotification.textContent = selectedWinners.length;
+                } else {
+                    bellNotification.style.display = 'none';
+                }
+            }
+        }
+
+        // FIXED WINNER SELECTION PANEL FUNCTION
+        function showWinnerSelectionPanel() {
+            playSound('bell', 0.5);
+            
+            if (selectedWinners.length > 0) {
+                const entered = prompt("Enter passcode to announce winners:");
+                if (entered !== ANNOUNCE_PASSCODE) {
+                    alert("❌ Wrong passcode!");
+                    return;
+                }
+                showWinnerAnnouncement(selectedWinners.join(', '));
+                if (socket) socket.emit('announce_winner', { winners: selectedWinners });
+                playWinnerSound();
+                selectedWinners.forEach(username => updateChatUsernameSelection(username, false));
+                selectedWinners = [];
+                updateSelectedCount();
+                updateBellNotification();
+                showSelectionFeedback('Winners announced successfully!');
+                return;
+            }
+
+            // Only show panel if no winners selected
+            const panel = document.getElementById('winnerSelectionPanel');
+            const winnerList = document.getElementById('winnerList');
+            if (!panel || !winnerList) return;
+            
+            winnerList.innerHTML = '';
+            const allUsernames = new Set();
+            const senderNames = document.querySelectorAll('.sender-name');
+            senderNames.forEach(sender => {
+                const username = sender.getAttribute('data-username');
+                if (username && username !== myUsername) allUsernames.add(username);
+            });
+            
+            Object.keys(onlineUsers).forEach(user => {
+                if (user !== myUsername) allUsernames.add(user);
+            });
+            
+            allUsernames.forEach(user => {
+                const winnerItem = document.createElement('div');
+                winnerItem.className = `winner-item ${selectedWinners.includes(user) ? 'selected' : ''}`;
+                winnerItem.innerHTML = `
+                    <input type="checkbox" class="winner-checkbox" ${selectedWinners.includes(user) ? 'checked' : ''} value="${user}">
+                    <span>${user}</span>
+                `;
+                winnerItem.addEventListener('click', function() {
+                    const checkbox = this.querySelector('.winner-checkbox');
+                    checkbox.checked = !checkbox.checked;
+                    toggleWinnerSelection(user, checkbox.checked);
+                    updateChatUsernameSelection(user, checkbox.checked);
+                    updateBellNotification();
+                });
+                winnerList.appendChild(winnerItem);
+            });
+            
+            updateSelectedCount();
+            panel.style.display = 'block';
+        }
+
+        function closeWinnerPanel() {
+            const panel = document.getElementById('winnerSelectionPanel');
+            if (panel) panel.style.display = 'none';
+        }
+
+        function toggleWinnerSelection(username, isSelected) {
+            if (isSelected === undefined) {
+                if (selectedWinners.includes(username)) {
+                    selectedWinners = selectedWinners.filter(user => user !== username);
+                } else {
+                    selectedWinners.push(username);
+                }
+            } else {
+                if (isSelected) {
+                    if (!selectedWinners.includes(username)) selectedWinners.push(username);
+                } else {
+                    selectedWinners = selectedWinners.filter(user => user !== username);
+                }
+            }
+            updateSelectedCount();
+            updateBellNotification();
+        }
+
+        function updateSelectedCount() {
+            const countElement = document.getElementById('selectedCount');
+            if (countElement) countElement.textContent = selectedWinners.length;
+        }
+
+        function updateChatUsernameSelection(username, isSelected) {
+            const senderNames = document.querySelectorAll(`.sender-name[data-username="${username}"]`);
+            senderNames.forEach(senderName => {
+                if (isSelected) senderName.classList.add('username-selected');
+                else senderName.classList.remove('username-selected');
+            });
+        }
+
+        function announceSelectedWinners() {
+            if (selectedWinners.length === 0) {
+                alert("Please select winners first!");
+                return;
+            }
+            const entered = prompt("Enter passcode to announce winners:");
+            if (entered !== ANNOUNCE_PASSCODE) {
+                alert("❌ Wrong passcode!");
+                return;
+            }
+            showWinnerAnnouncement(selectedWinners.join(', '));
+            if (socket) socket.emit('announce_winner', { winners: selectedWinners });
+            selectedWinners.forEach(username => updateChatUsernameSelection(username, false));
+            selectedWinners = [];
+            updateSelectedCount();
+            updateBellNotification();
+            closeWinnerPanel();
+            showSelectionFeedback('Winners announced successfully!');
+        }
+
+        function showWinnerAnnouncement(usernames) {
+            const overlay = document.getElementById('winnerAnnouncementOverlay');
+            const winnerNameElement = document.getElementById('announcedWinnerName');
+            if (overlay && winnerNameElement) {
+                winnerNameElement.textContent = usernames;
+                overlay.style.display = 'flex';
+                playWinnerSound();
+                setTimeout(() => {
+                    overlay.style.display = 'none';
+                    setTimeout(() => startCharacterDance(), 500);
+                }, 10000);
+            }
+        }
+
+        // KEEP ONLY ONE startCharacterDance FUNCTION
+        function startCharacterDance() {
+            const character = document.getElementById('animatedCharacter');
+            const speechBubble = document.getElementById('speechBubble');
+            if (!character) return;
+            character.classList.add('dancing');
+            playSound('winner', 0.4);
+            if (speechBubble) {
+                speechBubble.textContent = "🎉 CONGRATULATIONS! 🎉";
+                speechBubble.classList.add('show');
+            }
+            setTimeout(() => stopCharacterDance(), 8000);
+        }
+
+        function stopCharacterDance() {
+            const character = document.getElementById('animatedCharacter');
+            if (!character) return;
+            character.classList.remove('dancing');
+        }
+
+        function closeWinnerModal() {
+            const modal = document.getElementById('winnerModal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        // TYPING DETECTION
+        function setupTypingDetection() {
+            const chatInput = document.getElementById('chatInput');
+            chatInput.addEventListener('focus', startTyping);
+            chatInput.addEventListener('input', function() {
+                startTyping();
+                resetTypingTimeout();
+            });
+            chatInput.addEventListener('blur', stopTyping);
+            const sendBtn = document.getElementById('sendBtn');
+            if (sendBtn) sendBtn.addEventListener('click', stopTyping);
+        }
+
+        function startTyping() {
+            if (!isUserTyping) {
+                isUserTyping = true;
+                startWalkingAnimation();
+            }
+            resetTypingTimeout();
+        }
+
+        function stopTyping() {
+            isUserTyping = false;
+            clearTimeout(typingTimeout);
+            stopWalkingAnimation();
+        }
+
+        function resetTypingTimeout() {
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => stopTyping(), 1500);
+        }
+
+        // WALKING ANIMATION
+        function startWalkingAnimation() {
+            const character = document.getElementById('animatedCharacter');
+            if (!character) return;
+            if (characterState !== 'chat') return;
+            
+            character.classList.add('walking');
+            walkingSound = playWalkingSound();
+            
+            if (walkingAnimationInterval) clearInterval(walkingAnimationInterval);
+            
+            const chatContainer = document.getElementById('chatContainer');
+            const chatRect = chatContainer.getBoundingClientRect();
+            const minX = 30;
+            const maxX = chatRect.width - 150;
+            let walkingDirection = 1;
+            let currentX = (maxX - minX) / 2;
+            
+            walkingAnimationInterval = setInterval(function() {
+                if (!isUserTyping) {
+                    clearInterval(walkingAnimationInterval);
+                    return;
+                }
+                
+                currentX += walkingDirection * 2.5;
+                if (currentX >= maxX) {
+                    walkingDirection = -1;
+                    setTimeout(() => {
+                        character.style.transform = `translateX(${currentX}px) scale(-0.7, 0.7)`;
+                    }, 200);
+                } else if (currentX <= minX) {
+                    walkingDirection = 1;
+                    setTimeout(() => {
+                        character.style.transform = `translateX(${currentX}px) scale(0.7)`;
+                    }, 200);
+                } else {
+                    const currentScale = walkingDirection === 1 ? 'scale(0.7)' : 'scale(-0.7, 0.7)';
+                    character.style.transform = `translateX(${currentX}px) ${currentScale}`;
+                }
+                
+                const walkCycle = Date.now() / 300;
+                const bobOffset = Math.sin(walkCycle) * 4;
+                const walkTilt = Math.sin(walkCycle * 2) * 1;
+                character.style.bottom = `calc(90px + ${bobOffset}px)`;
+                character.style.transform += ` rotate(${walkTilt}deg)`;
+            }, 50);
+        }
+
+        function stopWalkingAnimation() {
+            const character = document.getElementById('animatedCharacter');
+            if (!character) return;
+            
+            character.classList.remove('walking');
+            if (walkingSound) {
+                walkingSound.pause();
+                walkingSound = null;
+            }
+            if (walkingAnimationInterval) {
+                clearInterval(walkingAnimationInterval);
+                walkingAnimationInterval = null;
+            }
+            
+            const currentTransform = character.style.transform || '';
+            const currentTranslateX = parseFloat(currentTransform.match(/translateX\(([^)]+)px\)/)?.[1]) || 0;
+            const chatContainer = document.getElementById('chatContainer');
+            const chatRect = chatContainer.getBoundingClientRect();
+            const centerX = (chatRect.width - 120) / 2;
+            
+            let startTime = Date.now();
+            const duration = 800;
+            const startX = currentTranslateX;
+            
+            function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+            
+            function returnToCenter() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const easedProgress = easeOutCubic(progress);
+                const newX = startX + (centerX - startX) * easedProgress;
+                character.style.transform = `translateX(${newX}px) scale(0.7) rotate(0deg)`;
+                character.style.bottom = '90px';
+                if (progress < 1) requestAnimationFrame(returnToCenter);
+                else {
+                    character.style.transform = `translateX(${centerX}px) scale(0.7) rotate(0deg)`;
+                    character.style.bottom = '90px';
+                }
+            }
             requestAnimationFrame(returnToCenter);
-        } else {
-            // Final position
-            character.style.transform = `translateX(${centerX}px) scale(0.7) rotate(0deg)`;
-            character.style.bottom = '90px';
         }
-    }
-    
-    requestAnimationFrame(returnToCenter);
-}
-</script>
+
+        // SOUND MANAGEMENT
+        function initializeAudio() {
+            backgroundMusic = new Audio(soundFiles.backgroundMusic);
+            backgroundMusic.loop = true;
+            backgroundMusic.volume = 0.3;
+            setupAudioControls();
+            document.getElementById('musicControls').style.display = 'flex';
+        }
+
+        function setupAudioControls() {
+            const musicToggle = document.getElementById('musicToggle');
+            const soundToggle = document.getElementById('soundToggle');
+            musicToggle.addEventListener('click', toggleBackgroundMusic);
+            soundToggle.addEventListener('click', toggleAllSounds);
+        }
+
+        function toggleBackgroundMusic() {
+            if (!backgroundMusic) return;
+            if (isMusicPlaying) {
+                backgroundMusic.pause();
+                isMusicPlaying = false;
+                document.getElementById('musicToggle').textContent = '🎵';
+                document.getElementById('musicVisualizer').style.display = 'none';
+            } else {
+                backgroundMusic.play().catch(e => console.log('Audio play failed:', e));
+                isMusicPlaying = true;
+                document.getElementById('musicToggle').textContent = '⏸️';
+                document.getElementById('musicVisualizer').style.display = 'flex';
+            }
+        }
+
+        function toggleAllSounds() {
+            soundEnabled = !soundEnabled;
+            const soundToggle = document.getElementById('soundToggle');
+            if (soundEnabled) {
+                soundToggle.textContent = '🔊';
+                soundToggle.classList.remove('muted');
+            } else {
+                soundToggle.textContent = '🔇';
+                soundToggle.classList.add('muted');
+                if (isMusicPlaying) {
+                    backgroundMusic.pause();
+                    isMusicPlaying = false;
+                    document.getElementById('musicToggle').textContent = '🎵';
+                    document.getElementById('musicVisualizer').style.display = 'none';
+                }
+            }
+        }
+
+        function playSound(soundType, volume = 1.0) {
+            if (!soundEnabled) return;
+            try {
+                const audio = new Audio(soundFiles[soundType]);
+                audio.volume = volume;
+                audio.play().catch(e => console.log('Sound play failed:', e));
+                return audio;
+            } catch (error) {
+                console.log('Error playing sound:', error);
+            }
+        }
+
+        function playWinnerSound() {
+            if (!soundEnabled) return;
+            playSound('winner', 0.8);
+            setTimeout(() => playSound('bell', 0.6), 500);
+            setTimeout(() => playSound('winner', 0.5), 1000);
+        }
+
+        function playWalkingSound() {
+            if (!soundEnabled) return;
+            const walkingSound = playSound('walking', 0.3);
+            if (walkingSound) walkingSound.loop = true;
+            return walkingSound;
+        }
+
+        // EVENT LISTENERS
+        window.addEventListener('beforeunload', function() {
+            if (socket && myUsername) socket.emit('leave_chat', { username: myUsername });
+        });
+
+        window.addEventListener('DOMContentLoaded', initApp);
+
+        window.addEventListener('resize', function() {
+            const character = document.getElementById('animatedCharacter');
+            if (character && characterState === 'chat') {
+                const isMobile = window.innerWidth <= 768;
+                const bottomPosition = isMobile ? '85px' : '90px';
+                const scale = isMobile ? '0.6' : '0.7';
+                character.style.bottom = bottomPosition;
+                character.style.left = '50%';
+                character.style.transform = `translateX(-50%) scale(${scale})`;
+            }
+        });
+    </script>
 </body>
 </html>
