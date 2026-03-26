@@ -4,11 +4,12 @@ import time
 import threading
 import traceback
 from datetime import datetime, timedelta
+
 from flask import Flask, render_template, session, request, redirect, url_for, jsonify, flash
 from flask_socketio import SocketIO, emit
 from werkzeug.security import generate_password_hash, check_password_hash
-import psycopg2
-import psycopg2.extras
+import psycopg2 as pg
+from psycopg2 import extras
 import requests
 
 # ---------------- Paths ----------------
@@ -57,7 +58,7 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 
 def get_db_connection():
     try:
-        return psycopg2.connect(DATABASE_URL)
+        return pg.connect(DATABASE_URL)
     except Exception as e:
         print(f"❌ DB connection failed: {e}")
         return None
@@ -67,7 +68,7 @@ def execute_query(query, params=None, fetch=False):
     if not conn:
         return None
     try:
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+        with conn.cursor(cursor_factory=extras.RealDictCursor) as cursor:
             cursor.execute(query, params or ())
             if fetch:
                 result = cursor.fetchall()
@@ -112,9 +113,7 @@ def init_db():
         return
     try:
         with conn.cursor() as cursor:
-            # ... your existing table creation code ...
-            
-            # ✅ ADD: Create a function for automatic message cleanup
+            # Create a function for automatic message cleanup
             cursor.execute("""
                 CREATE OR REPLACE FUNCTION delete_old_messages()
                 RETURNS void AS $$
@@ -125,7 +124,7 @@ def init_db():
                 $$ LANGUAGE plpgsql;
             """)
             
-            # ✅ ADD: Create a scheduled job (if your PostgreSQL version supports it)
+            # Create a scheduled job (if your PostgreSQL version supports it)
             cursor.execute("""
                 DO $$ 
                 BEGIN
@@ -190,7 +189,7 @@ def init_db():
                 )
             """)
             
-            # NEW: Add app_settings table for persistent messages
+            # app_settings table for persistent messages
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS app_settings (
                     id SERIAL PRIMARY KEY,
@@ -222,16 +221,15 @@ def init_db():
                 )
             """)
             
-            # Create indexes for better performance
+            # Indexes for performance
             cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at DESC)
             """)
-            
             cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_message_status_composite ON message_status(message_id, user_id)
             """)
             
-            # Initialize with default message if not exists
+            # Default weekly message
             cursor.execute("""
                 INSERT INTO app_settings (setting_key, setting_value) 
                 VALUES ('weekly_challenge_message', 'WEEKLY CHALLENGE: COMPLETED')
@@ -501,7 +499,6 @@ cleanup_thread = threading.Thread(target=message_cleanup.start_cleanup_loop, dae
 cleanup_thread.start()
 
 # ---------------- App Logic ----------------
-chat_locked = True
 online_users = {}
 user_activity = {}
 connected_users = {}
@@ -622,13 +619,7 @@ def admin_dashboard():
         ORDER BY u.created_at DESC
     """, fetch=True) or []
 
-    return render_template("admin_dashboard.html", users=users, chat_locked=chat_locked)
-
-@app.route("/toggle_chat_lock", methods=["POST"])
-def toggle_chat_lock():
-    global chat_locked
-    chat_locked = not chat_locked
-    return redirect(url_for("admin_dashboard"))
+    return render_template("admin_dashboard.html", users=users)
 
 @app.route('/get_session_info')
 def get_session_info():
@@ -711,26 +702,6 @@ def admin_cleanup_status():
         "retention_period": "24 hours"
     })
 
-def check_day_timer_expired():
-    """Check if day timer has expired and handle it - call this periodically"""
-    timer = get_current_day_timer()
-    if not timer:
-        return False
-    
-    remaining = get_day_remaining_time()
-    if remaining <= 0:
-        # Timer expired, update database and broadcast
-        execute_query("UPDATE day_timer SET is_running = FALSE WHERE id = %s", (timer['id'],))
-        print("🎉 Day timer expired automatically")
-        
-        # Broadcast to all connected clients
-        socketio.emit('day_timer_complete', {
-            'message': 'DAY TIMER COMPLETED',
-            'timestamp': datetime.utcnow().isoformat()
-        })
-        return True
-    return False
-
 @app.route('/get_online_users')
 def get_online_users():
     try:
@@ -801,17 +772,6 @@ def get_payment_stats():
         return jsonify({'error': 'Failed to get payment stats'}), 500
 
 # ---------------- Socket.IO Event Handlers ----------------
-def check_and_broadcast_timer_status():
-    """Check timer status and broadcast if needed"""
-    timer = get_current_timer()
-    if not timer:
-        socketio.emit('game_started', {
-            'message': 'GAME STARTED',
-            'timestamp': datetime.utcnow().isoformat()
-        })
-        return True
-    return False
-
 @socketio.on("connect")
 def handle_connect(auth=None):  # Add this parameter
     """Send current timer states when client connects"""
@@ -1105,6 +1065,7 @@ def handle_join(data):
         """, (user_id,))
     
     socketio.emit("user_count_update", {"count": len(connected_users)})
+
 @socketio.on("message")
 def handle_message(data):
     try:
@@ -1611,11 +1572,11 @@ def handle_set_weekly_message(data):
             'success': False,
             'error': str(e)
         })
+
 # In your backend/app.py, add this route:
 @app.route('/styles.css')
 def styles_css():
     return "", 404  # Or serve a minimal CSS file
-
 
 # ---------------- Run ----------------
 if __name__ == "__main__":
