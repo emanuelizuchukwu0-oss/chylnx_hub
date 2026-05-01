@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Chat - Chylnx Hub</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: #1a1a2e;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .logo-small {
+            font-weight: 800;
+            font-size: 20px;
+        }
+
+        .online-info {
+            background: rgba(255,255,255,0.2);
+            padding: 6px 12px;
+            border-radius: 50px;
+            font-size: 12px;
+        }
+
+        .online-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: #10b981;
+            border-radius: 50%;
+            margin-right: 6px;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.4; }
+            100% { opacity: 1; }
+        }
+
+        .user-badge {
+            background: rgba(255,255,255,0.2);
+            padding: 6px 12px;
+            border-radius: 50px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            background: #0f0f1a;
+        }
+
+        .message {
+            max-width: 75%;
+            padding: 10px 14px;
+            border-radius: 20px;
+            word-wrap: break-word;
+            animation: fadeInUp 0.3s ease;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message-own {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message-other {
+            background: #2d2d44;
+            color: #e0e0e0;
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+
+        .message-sender {
+            font-size: 11px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            opacity: 0.8;
+        }
+
+        .message-text {
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .message-time {
+            font-size: 9px;
+            margin-top: 4px;
+            opacity: 0.6;
+            text-align: right;
+        }
+
+        .input-area {
+            background: #1a1a2e;
+            padding: 16px 20px;
+            display: flex;
+            gap: 12px;
+            border-top: 1px solid #2d2d44;
+        }
+
+        .message-input {
+            flex: 1;
+            background: #2d2d44;
+            border: none;
+            padding: 12px 18px;
+            border-radius: 30px;
+            color: white;
+            font-size: 15px;
+            outline: none;
+        }
+
+        .message-input::placeholder {
+            color: #888;
+        }
+
+        .send-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            transition: all 0.2s;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .name-card {
+            background: #1a1a2e;
+            padding: 30px;
+            border-radius: 32px;
+            text-align: center;
+            max-width: 320px;
+            margin: 20px;
+        }
+
+        .name-card h3 {
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        .name-card input {
+            width: 100%;
+            padding: 14px;
+            border-radius: 30px;
+            border: none;
+            background: #2d2d44;
+            color: white;
+            font-size: 16px;
+            margin-bottom: 15px;
+            outline: none;
+        }
+
+        .name-card button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .system-message {
+            text-align: center;
+            font-size: 11px;
+            color: #666;
+            margin: 8px 0;
+        }
+
+        .typing-indicator {
+            color: #888;
+            font-size: 12px;
+            padding: 5px 15px;
+            font-style: italic;
+        }
+
+        .no-access {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 20px;
+            background: #0f0f1a;
+        }
+
+        .no-access-card {
+            background: #1a1a2e;
+            padding: 30px;
+            border-radius: 32px;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+
+    <script>
+        const API_URL = 'http://localhost:5000/api';
+        let socket = null;
+        let currentUser = null;
+        let messages = [];
+        let typingTimeout = null;
+
+        async function checkAccess() {
+            try {
+                const response = await fetch(`${API_URL}/check-access`, {
+                    credentials: 'include'
+                });
+                const data = await response.json();
+                return data.hasAccess;
+            } catch (error) {
+                console.error('Error checking access:', error);
+                return false;
+            }
+        }
+
+        async function getUserInfo() {
+            try {
+                const response = await fetch(`${API_URL}/user`, {
+                    credentials: 'include'
+                });
+                if (response.ok) {
+                    return await response.json();
+                }
+                return null;
+            } catch (error) {
+                return null;
+            }
+        }
+
+        async function setDisplayName(name) {
+            try {
+                const response = await fetch(`${API_URL}/set-display-name`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ displayName: name })
+                });
+                return response.ok;
+            } catch (error) {
+                return false;
+            }
+        }
+
+        async function init() {
+            // Check if logged in
+            const userInfo = await getUserInfo();
+            if (!userInfo) {
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            currentUser = userInfo;
+            
+            // Check payment access
+            const hasAccess = await checkAccess();
+            if (!hasAccess) {
+                showNoAccess();
+                return;
+            }
+            
+            // Check if display name is set
+            if (!currentUser.displayName) {
+                showNameSetup();
+            } else {
+                startChat();
+            }
+        }
+        
+        function showNoAccess() {
+            document.getElementById('app').innerHTML = `
+                <div class="no-access">
+                    <div class="no-access-card">
+                        <div style="font-size: 48px;">🔒</div>
+                        <h3>Access Required</h3>
+                        <p style="margin: 15px 0; color: #aaa;">You need to complete payment before accessing the chat.</p>
+                        <button onclick="goToPayment()" style="background: #667eea; border: none; padding: 12px 24px; border-radius: 30px; color: white; cursor: pointer;">Go to Payment</button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function goToPayment() {
+            window.location.href = 'payment.html';
+        }
+        
+        function showNameSetup() {
+            const overlay = document.createElement('div');
+            overlay.className = 'overlay';
+            overlay.id = 'nameOverlay';
+            overlay.innerHTML = `
+                <div class="name-card">
+                    <h3>✨ Choose Your Chat Name</h3>
+                    <input type="text" id="displayName" placeholder="Enter unique name..." maxlength="20">
+                    <button onclick="saveDisplayName()">Join Chat →</button>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+        }
+        
+        async function saveDisplayName() {
+            const name = document.getElementById('displayName').value.trim();
+            if (!name || name.length < 2) {
+                alert('Name must be at least 2 characters');
+                return;
+            }
+            
+            const success = await setDisplayName(name);
+            if (success) {
+                document.getElementById('nameOverlay').remove();
+                currentUser.displayName = name;
+                startChat();
+            } else {
+                alert('Name already taken or invalid');
+            }
+        }
+        
+        function startChat() {
+            // Connect Socket.IO
+            socket = io('http://localhost:5000', {
+                withCredentials: true
+            });
+            
+            socket.on('connect', () => {
+                console.log('Connected to chat server');
+                socket.emit('join_chat');
+            });
+            
+            socket.on('chat_history', (data) => {
+                messages = data.messages;
+                renderChat();
+            });
+            
+            socket.on('new_message', (msg) => {
+                messages.push(msg);
+                renderChat();
+            });
+            
+            socket.on('online_count', (data) => {
+                const countSpan = document.getElementById('onlineCount');
+                if (countSpan) countSpan.innerText = data.count;
+            });
+            
+            socket.on('user_typing', (data) => {
+                showTypingIndicator(data.user, data.isTyping);
+            });
+            
+            socket.on('payment_verified', () => {
+                alert('✅ Your payment has been verified! You now have full access.');
+            });
+            
+            // Heartbeat every 30 seconds
+            setInterval(() => {
+                if (socket) socket.emit('heartbeat');
+            }, 30000);
+            
+            renderChat();
+        }
+        
+        function renderChat() {
+            const html = `
+                <div class="chat-header">
+                    <div class="logo-small">💬 chylnx hub</div>
+                    <div class="online-info">
+                        <span class="online-dot"></span>
+                        <span id="onlineCount">0</span> online
+                    </div>
+                    <div class="user-badge">
+                        👤 ${escapeHtml(currentUser.displayName || currentUser.email)}
+                        <button onclick="logout()" style="background: none; border: none; color: white; cursor: pointer; font-size: 14px;">🚪</button>
+                    </div>
+                </div>
+                
+                <div class="messages-container" id="messagesContainer">
+                    ${messages.map(msg => renderMessage(msg)).join('')}
+                </div>
+                
+                <div id="typingIndicator" class="typing-indicator"></div>
+                
+                <div class="input-area">
+                    <input type="text" class="message-input" id="messageInput" placeholder="Type a message..." onkeypress="handleKeyPress(event)" onkeydown="handleTyping()">
+                    <button class="send-btn" onclick="sendMessage()">📤</button>
+                </div>
+            `;
+            
+            document.getElementById('app').innerHTML = html;
+            scrollToBottom();
+            document.getElementById('messageInput')?.focus();
+        }
+        
+        function renderMessage(msg) {
+            if (msg.isSystem) {
+                return `<div class="system-message">📢 ${escapeHtml(msg.text)}</div>`;
+            }
+            
+            const isOwn = msg.sender === (currentUser.displayName || currentUser.email.split('@')[0]);
+            const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            
+            return `
+                <div class="message ${isOwn ? 'message-own' : 'message-other'}">
+                    <div class="message-sender">${escapeHtml(msg.sender)}</div>
+                    <div class="message-text">${escapeHtml(msg.text)}</div>
+                    <div class="message-time">${time}</div>
+                </div>
+            `;
+        }
+        
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const text = input.value.trim();
+            
+            if (!text || !socket) return;
+            
+            socket.emit('send_message', { text: text });
+            input.value = '';
+            
+            // Stop typing indicator
+            if (typingTimeout) clearTimeout(typingTimeout);
+            socket.emit('typing', { isTyping: false });
+        }
+        
+        function handleKeyPress(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        }
+        
+        function handleTyping() {
+            if (!socket) return;
+            
+            socket.emit('typing', { isTyping: true });
+            
+            if (typingTimeout) clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => {
+                socket.emit('typing', { isTyping: false });
+            }, 1000);
+        }
+        
+        function showTypingIndicator(user, isTyping) {
+            const indicator = document.getElementById('typingIndicator');
+            if (indicator) {
+                if (isTyping) {
+                    indicator.innerText = `✏️ ${user} is typing...`;
+                } else {
+                    indicator.innerText = '';
+                }
+            }
+        }
+        
+        function scrollToBottom() {
+            setTimeout(() => {
+                const container = document.getElementById('messagesContainer');
+                if (container) {
+                    container.scrollTop = container.scrollHeight;
+                }
+            }, 50);
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function logout() {
+            localStorage.removeItem('chylnx_user');
+            window.location.href = 'login.html';
+        }
+        
+        // Start app
+        init();
+    </script>
+</body>
+</html>

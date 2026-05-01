@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Sign In - Chylnx Hub</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .login-card {
+            max-width: 450px;
+            width: 100%;
+            background: white;
+            border-radius: 32px;
+            padding: 40px 30px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+
+        .logo {
+            text-align: center;
+            font-size: 32px;
+            font-weight: 800;
+            color: #667eea;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #6b7280;
+            font-size: 14px;
+            margin-bottom: 30px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .tab {
+            flex: 1;
+            text-align: center;
+            padding: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            color: #6b7280;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom: 2px solid #667eea;
+            margin-bottom: -2px;
+        }
+
+        .form {
+            display: none;
+        }
+
+        .form.active {
+            display: block;
+        }
+
+        .input-group {
+            margin-bottom: 18px;
+        }
+
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 6px;
+        }
+
+        input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 16px;
+            font-size: 15px;
+            outline: none;
+        }
+
+        input:focus {
+            border-color: #667eea;
+        }
+
+        .btn-primary {
+            width: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 50px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .error-message {
+            background: #fee2e2;
+            color: #dc2626;
+            padding: 12px;
+            border-radius: 12px;
+            font-size: 13px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .success-message {
+            background: #d1fae5;
+            color: #059669;
+            padding: 12px;
+            border-radius: 12px;
+            font-size: 13px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .admin-note {
+            text-align: center;
+            font-size: 11px;
+            color: #9ca3af;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #e5e7eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <div class="logo">chylnx hub</div>
+        <div class="subtitle">Connect • Chat • Share</div>
+
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('signin')">Sign In</div>
+            <div class="tab" onclick="switchTab('signup')">Sign Up</div>
+        </div>
+
+        <div id="errorDiv" class="error-message" style="display: none;"></div>
+        <div id="successDiv" class="success-message" style="display: none;"></div>
+
+        <!-- Sign In Form -->
+        <div id="signinForm" class="form active">
+            <div class="input-group">
+                <label>📧 Email Address</label>
+                <input type="email" id="signinEmail" placeholder="you@example.com">
+            </div>
+            <div class="input-group">
+                <label>🔒 Password</label>
+                <input type="password" id="signinPassword" placeholder="Enter your password">
+            </div>
+            <button class="btn-primary" onclick="signIn()">Sign In →</button>
+        </div>
+
+        <!-- Sign Up Form -->
+        <div id="signupForm" class="form">
+            <div class="input-group">
+                <label>👤 Full Name</label>
+                <input type="text" id="fullName" placeholder="John Doe">
+            </div>
+            <div class="input-group">
+                <label>📧 Email Address</label>
+                <input type="email" id="signupEmail" placeholder="you@example.com">
+            </div>
+            <div class="input-group">
+                <label>🔒 Password</label>
+                <input type="password" id="signupPassword" placeholder="Create a password (min 6 characters)">
+            </div>
+            <div class="input-group">
+                <label>🎁 Referral Code (Optional)</label>
+                <input type="text" id="referralCode" placeholder="Enter referral code for discount">
+            </div>
+            <button class="btn-primary" onclick="signUp()">Create Account →</button>
+        </div>
+
+        <div class="admin-note">
+            👑 Admin login: admin@chylnx.com / admin123
+        </div>
+    </div>
+
+    <script>
+        // Use relative URL since Flask serves everything
+        const API_URL = '/api';
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            if (tab === 'signin') {
+                document.querySelector('.tab:first-child').classList.add('active');
+                document.getElementById('signinForm').classList.add('active');
+                document.getElementById('signupForm').classList.remove('active');
+            } else {
+                document.querySelector('.tab:last-child').classList.add('active');
+                document.getElementById('signupForm').classList.add('active');
+                document.getElementById('signinForm').classList.remove('active');
+            }
+            hideMessages();
+        }
+
+        function hideMessages() {
+            document.getElementById('errorDiv').style.display = 'none';
+            document.getElementById('successDiv').style.display = 'none';
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorDiv');
+            errorDiv.innerText = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        function showSuccess(message) {
+            const successDiv = document.getElementById('successDiv');
+            successDiv.innerText = message;
+            successDiv.style.display = 'block';
+            setTimeout(() => {
+                successDiv.style.display = 'none';
+            }, 3000);
+        }
+
+        async function signIn() {
+            const email = document.getElementById('signinEmail').value.trim();
+            const password = document.getElementById('signinPassword').value;
+            
+            if (!email || !password) {
+                showError('Please enter both email and password');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    localStorage.setItem('chylnx_user', JSON.stringify(data.user));
+                    
+                    if (data.user.isAdmin) {
+                        window.location.href = '/admin_dashboard.html';
+                    } else {
+                        window.location.href = '/index.html';
+                    }
+                } else {
+                    showError(data.error || 'Login failed');
+                }
+            } catch (error) {
+                showError('Cannot connect to server. Make sure backend is running on http://127.0.0.1:5000');
+            }
+        }
+
+        async function signUp() {
+            const fullName = document.getElementById('fullName').value.trim();
+            const email = document.getElementById('signupEmail').value.trim();
+            const password = document.getElementById('signupPassword').value;
+            const referralCode = document.getElementById('referralCode').value.trim().toUpperCase();
+            
+            if (!fullName || !email || !password) {
+                showError('Please fill in all required fields');
+                return;
+            }
+            
+            if (password.length < 6) {
+                showError('Password must be at least 6 characters');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_URL}/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        fullName, 
+                        email, 
+                        password, 
+                        referralCode: referralCode || null 
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showSuccess('Account created successfully! Please sign in.');
+                    document.getElementById('fullName').value = '';
+                    document.getElementById('signupEmail').value = '';
+                    document.getElementById('signupPassword').value = '';
+                    document.getElementById('referralCode').value = '';
+                    setTimeout(() => switchTab('signin'), 2000);
+                } else {
+                    showError(data.error || 'Sign up failed');
+                }
+            } catch (error) {
+                showError('Cannot connect to server');
+            }
+        }
+    </script>
+</body>
+</html>
