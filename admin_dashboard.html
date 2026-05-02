@@ -19,7 +19,7 @@
             position: fixed;
             left: 0;
             top: 0;
-            width: 260px;
+            width: 280px;
             height: 100%;
             background: #1a1a2e;
             padding: 20px;
@@ -51,7 +51,7 @@
             background: linear-gradient(135deg, #667eea, #764ba2);
         }
         .main-content {
-            margin-left: 260px;
+            margin-left: 280px;
             padding: 20px;
         }
         .header {
@@ -141,7 +141,7 @@
             margin-bottom: 8px;
             font-weight: 600;
         }
-        .setting-group input, .setting-group select {
+        .setting-group input {
             width: 100%;
             padding: 10px;
             border-radius: 8px;
@@ -156,8 +156,15 @@
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 10px;
+            margin-bottom: 15px;
         }
-        .save-btn {
+        .setting-row-4 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .apply-btn {
             background: #667eea;
             color: white;
             border: none;
@@ -165,20 +172,68 @@
             border-radius: 30px;
             cursor: pointer;
             margin-top: 10px;
+            width: 100%;
+        }
+        .apply-btn:hover {
+            background: #5a67d8;
         }
         .chat-access-btn {
             background: #10b981;
             margin-top: 10px;
             margin-left: 10px;
         }
+        .broadcast-section {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            padding: 20px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+        }
+        .broadcast-section h3 {
+            margin-bottom: 15px;
+        }
+        .broadcast-input {
+            width: 100%;
+            padding: 12px;
+            border-radius: 12px;
+            border: none;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            margin-bottom: 10px;
+        }
+        .broadcast-input::placeholder {
+            color: rgba(255,255,255,0.7);
+        }
+        .broadcast-btn {
+            background: white;
+            color: #667eea;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: 600;
+            width: 100%;
+        }
+        .broadcast-btn:hover {
+            background: #f0f0f0;
+        }
+        .success-msg {
+            background: #10b981;
+            color: white;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+            text-align: center;
+            display: none;
+        }
     </style>
 </head>
 <body>
     <div class="sidebar">
         <div class="logo">chylnx hub<br><span style="font-size: 12px;">ADMIN</span></div>
+        <div class="nav-item" onclick="showSection('broadcast')">📢 Broadcast</div>
+        <div class="nav-item" onclick="showSection('timers')">⏰ Timers & Info Bar</div>
         <div class="nav-item" onclick="showSection('payments')">💰 Pending Payments</div>
         <div class="nav-item" onclick="showSection('users')">👥 Users</div>
-        <div class="nav-item active" onclick="showSection('timers')">⏰ Timers & Info Bar</div>
         <div class="nav-item" onclick="logout()" style="margin-top: 50px; color: #ef4444;">🚪 Logout</div>
     </div>
 
@@ -190,17 +245,16 @@
 
         <div class="stats-grid" id="statsGrid"></div>
 
-        <div id="paymentsSection" class="section" style="display: none;">
-            <h2>⏳ Pending Payment Verifications</h2>
-            <div id="pendingPaymentsList">Loading...</div>
+        <!-- Broadcast Section -->
+        <div id="broadcastSection" class="broadcast-section">
+            <h3>📢 Send Broadcast Message to All Users</h3>
+            <textarea id="broadcastMessage" class="broadcast-input" rows="3" placeholder="Type your announcement here..."></textarea>
+            <button class="broadcast-btn" onclick="sendBroadcast()">📢 Send Broadcast</button>
+            <div id="broadcastSuccess" class="success-msg">✅ Broadcast sent successfully!</div>
         </div>
 
-        <div id="usersSection" class="section" style="display: none;">
-            <h2>👥 Registered Users</h2>
-            <div id="usersList">Loading...</div>
-        </div>
-
-        <div id="timersSection" class="section">
+        <!-- Timers Section -->
+        <div id="timersSection" class="section" style="display: none;">
             <h2>⏰ Timer & Info Bar Settings</h2>
             
             <div class="setting-group">
@@ -219,11 +273,12 @@
                         <input type="number" id="gameSeconds" min="0" max="59" value="0">
                     </div>
                 </div>
+                <button class="apply-btn" onclick="applyGameTimer()">🎯 Apply Game Timer</button>
             </div>
             
             <div class="setting-group">
                 <h3>📅 Weekly Timer</h3>
-                <div class="setting-row">
+                <div class="setting-row-4">
                     <div>
                         <label>Days</label>
                         <input type="number" id="weeklyDays" min="0" max="30" value="7">
@@ -241,6 +296,7 @@
                         <input type="number" id="weeklySeconds" min="0" max="59" value="0">
                     </div>
                 </div>
+                <button class="apply-btn" onclick="applyWeeklyTimer()">📅 Apply Weekly Timer</button>
             </div>
             
             <div class="setting-group">
@@ -249,14 +305,33 @@
                 <input type="text" id="infoText" placeholder="Enter announcement message">
                 <label style="margin-top: 10px;">Background Color</label>
                 <input type="color" id="infoColor" value="#667eea">
+                <button class="apply-btn" onclick="applyInfoBar()" style="margin-top: 15px;">📢 Apply Info Bar</button>
             </div>
-            
-            <button class="save-btn" onclick="saveAllSettings()">💾 Save All Settings</button>
+        </div>
+
+        <div id="paymentsSection" class="section" style="display: none;">
+            <h2>⏳ Pending Payment Verifications</h2>
+            <div id="pendingPaymentsList">Loading...</div>
+        </div>
+
+        <div id="usersSection" class="section" style="display: none;">
+            <h2>👥 Registered Users</h2>
+            <div id="usersList">Loading...</div>
         </div>
     </div>
 
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script>
         const API_URL = '/api';
+        let socket = null;
+
+        // Initialize socket connection
+        function initSocket() {
+            socket = io('/', { withCredentials: true });
+            socket.on('connect', () => {
+                console.log('Socket connected for admin');
+            });
+        }
 
         async function getCurrentUser() {
             try {
@@ -275,6 +350,7 @@
                 return false;
             }
             document.getElementById('adminEmail').innerText = user.email;
+            initSocket();
             return true;
         }
 
@@ -298,33 +374,117 @@
             }
         }
 
-        async function saveAllSettings() {
-            const settings = [
-                { key: 'game_timer_hours', value: document.getElementById('gameHours').value },
-                { key: 'game_timer_minutes', value: document.getElementById('gameMinutes').value },
-                { key: 'game_timer_seconds', value: document.getElementById('gameSeconds').value },
-                { key: 'weekly_timer_days', value: document.getElementById('weeklyDays').value },
-                { key: 'weekly_timer_hours', value: document.getElementById('weeklyHours').value },
-                { key: 'weekly_timer_minutes', value: document.getElementById('weeklyMinutes').value },
-                { key: 'weekly_timer_seconds', value: document.getElementById('weeklySeconds').value },
-                { key: 'info_bar_text', value: document.getElementById('infoText').value },
-                { key: 'info_bar_color', value: document.getElementById('infoColor').value }
-            ];
+        async function applyGameTimer() {
+            const hours = document.getElementById('gameHours').value;
+            const minutes = document.getElementById('gameMinutes').value;
+            const seconds = document.getElementById('gameSeconds').value;
             
-            for (const setting of settings) {
-                try {
-                    await fetch(`${API_URL}/admin/update-settings`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        credentials: 'include',
-                        body: JSON.stringify(setting)
-                    });
-                } catch (error) {
-                    console.error('Error saving:', setting.key);
-                }
+            await fetch(`${API_URL}/admin/update-settings`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ key: 'game_timer_hours', value: hours })
+            });
+            await fetch(`${API_URL}/admin/update-settings`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ key: 'game_timer_minutes', value: minutes })
+            });
+            await fetch(`${API_URL}/admin/update-settings`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ key: 'game_timer_seconds', value: seconds })
+            });
+            
+            showSuccess('✅ Game timer applied successfully!');
+        }
+
+        async function applyWeeklyTimer() {
+            const days = document.getElementById('weeklyDays').value;
+            const hours = document.getElementById('weeklyHours').value;
+            const minutes = document.getElementById('weeklyMinutes').value;
+            const seconds = document.getElementById('weeklySeconds').value;
+            
+            await fetch(`${API_URL}/admin/update-settings`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ key: 'weekly_timer_days', value: days })
+            });
+            await fetch(`${API_URL}/admin/update-settings`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ key: 'weekly_timer_hours', value: hours })
+            });
+            await fetch(`${API_URL}/admin/update-settings`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ key: 'weekly_timer_minutes', value: minutes })
+            });
+            await fetch(`${API_URL}/admin/update-settings`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ key: 'weekly_timer_seconds', value: seconds })
+            });
+            
+            showSuccess('✅ Weekly timer applied successfully!');
+        }
+
+        async function applyInfoBar() {
+            const text = document.getElementById('infoText').value;
+            const color = document.getElementById('infoColor').value;
+            
+            await fetch(`${API_URL}/admin/update-settings`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ key: 'info_bar_text', value: text })
+            });
+            await fetch(`${API_URL}/admin/update-settings`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ key: 'info_bar_color', value: color })
+            });
+            
+            showSuccess('✅ Info bar applied successfully!');
+        }
+
+        function showSuccess(message) {
+            const successDiv = document.createElement('div');
+            successDiv.className = 'success-msg';
+            successDiv.innerText = message;
+            successDiv.style.display = 'block';
+            successDiv.style.position = 'fixed';
+            successDiv.style.top = '20px';
+            successDiv.style.right = '20px';
+            successDiv.style.zIndex = '9999';
+            document.body.appendChild(successDiv);
+            setTimeout(() => successDiv.remove(), 3000);
+        }
+
+        async function sendBroadcast() {
+            const message = document.getElementById('broadcastMessage').value.trim();
+            if (!message) {
+                alert('Please enter a message to broadcast');
+                return;
             }
             
-            alert('✅ All settings saved successfully!');
+            if (socket) {
+                socket.emit('admin_broadcast', { message: message });
+                document.getElementById('broadcastMessage').value = '';
+                document.getElementById('broadcastSuccess').style.display = 'block';
+                setTimeout(() => {
+                    document.getElementById('broadcastSuccess').style.display = 'none';
+                }, 3000);
+            } else {
+                alert('Socket not connected. Please refresh the page.');
+            }
         }
 
         async function loadStats() {
@@ -477,9 +637,10 @@
         }
 
         function showSection(section) {
+            document.getElementById('broadcastSection').style.display = 'none';
+            document.getElementById('timersSection').style.display = 'none';
             document.getElementById('paymentsSection').style.display = 'none';
             document.getElementById('usersSection').style.display = 'none';
-            document.getElementById('timersSection').style.display = 'none';
             
             document.getElementById(`${section}Section`).style.display = 'block';
             

@@ -324,6 +324,17 @@
                 messages.push(msg);
                 renderChat();
             });
+            // Add this to your socket events in chat.html
+socket.on('admin_broadcast', (data) => {
+    messages.push({
+        id: Date.now(),
+        sender: '📢 ANNOUNCEMENT',
+        text: data.message,
+        timestamp: new Date().toISOString(),
+        isSystem: true
+    });
+    renderChat();
+});
             
             socket.on('online_count', (data) => {
                 const span = document.getElementById('onlineCount');

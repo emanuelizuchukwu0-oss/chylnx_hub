@@ -46,7 +46,7 @@ def init_db():
         submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
     
-    # Messages table (added is_system column)
+    # Messages table
     c.execute('''CREATE TABLE IF NOT EXISTS messages (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         sender_name TEXT NOT NULL,
@@ -428,7 +428,8 @@ def handle_join():
     # Store user as active
     active_users[email] = {
         'sid': request.sid,
-        'display_name': user.get('display_name', user['full_name'].split()[0])
+        'display_name': user.get('display_name', user['full_name'].split()[0]),
+        'is_admin': user['is_admin']
     }
     
     display_name = user.get('display_name', user['full_name'].split()[0])
@@ -498,6 +499,41 @@ def handle_message(data):
         'text': text,
         'timestamp': datetime.now().isoformat(),
         'isSystem': False
+    }, room='main_chat')
+
+@socketio.on('admin_broadcast')
+def handle_admin_broadcast(data):
+    email = session.get('user_email')
+    if not email:
+        return
+    
+    user = get_user(email)
+    if not user or not user['is_admin']:
+        emit('error', {'message': 'Unauthorized'})
+        return
+    
+    message = data.get('message', '').strip()
+    if not message:
+        return
+    
+    display_name = user.get('display_name', 'Admin')
+    
+    # Save broadcast message to database
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO messages (sender_name, message_text, is_system, timestamp) VALUES (?, ?, ?, ?)",
+                  ('📢 ANNOUNCEMENT', f'🔊 {display_name}: {message}', 1, datetime.now().isoformat()))
+    conn.commit()
+    message_id = cursor.lastrowid
+    conn.close()
+    
+    # Broadcast to everyone in the chat room
+    emit('new_message', {
+        'id': message_id,
+        'sender': '📢 ANNOUNCEMENT',
+        'text': f'🔊 {display_name}: {message}',
+        'timestamp': datetime.now().isoformat(),
+        'isSystem': True
     }, room='main_chat')
 
 @socketio.on('typing')
