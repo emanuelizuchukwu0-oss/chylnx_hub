@@ -86,6 +86,21 @@
             padding-top: 15px;
             border-top: 1px solid #e5e7eb;
         }
+        .remember-me {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .remember-me input {
+            width: auto;
+            margin: 0;
+        }
+        .remember-me label {
+            margin: 0;
+            font-size: 14px;
+            color: #374151;
+        }
     </style>
 </head>
 <body>
@@ -97,6 +112,10 @@
         <div id="loginForm">
             <input type="email" id="email" placeholder="Email address">
             <input type="password" id="password" placeholder="Password">
+            <div class="remember-me">
+                <input type="checkbox" id="rememberMe">
+                <label>Remember me (stay logged in)</label>
+            </div>
             <button onclick="login()">Sign In →</button>
             <div class="switch">Don't have an account? <a onclick="showSignup()">Sign up</a></div>
         </div>
@@ -135,6 +154,7 @@
         async function login() {
             const email = document.getElementById('email').value.trim();
             const password = document.getElementById('password').value;
+            const rememberMe = document.getElementById('rememberMe').checked;
             
             if (!email || !password) {
                 showError('Please enter email and password');
@@ -146,11 +166,18 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
-                    body: JSON.stringify({ email, password })
+                    body: JSON.stringify({ email, password, rememberMe })
                 });
                 const data = await res.json();
                 
                 if (res.ok) {
+                    localStorage.setItem('chylnx_user', JSON.stringify(data.user));
+                    if (rememberMe) {
+                        localStorage.setItem('remember_me', 'true');
+                    } else {
+                        localStorage.removeItem('remember_me');
+                    }
+                    
                     if (data.user.isAdmin) {
                         window.location.href = '/admin_dashboard.html';
                     } else {
@@ -199,6 +226,25 @@
                 showError('Cannot connect to server');
             }
         }
+
+        // Check if already logged in
+        async function checkExistingSession() {
+            try {
+                const res = await fetch('/api/auth/me', { credentials: 'include' });
+                if (res.ok) {
+                    const user = await res.json();
+                    if (user.isAdmin) {
+                        window.location.href = '/admin_dashboard.html';
+                    } else {
+                        window.location.href = '/index.html';
+                    }
+                }
+            } catch (err) {
+                // Not logged in, stay on login page
+            }
+        }
+        
+        checkExistingSession();
     </script>
 </body>
 </html>

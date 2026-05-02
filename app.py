@@ -10,6 +10,9 @@ from datetime import datetime, timedelta
 app = Flask(__name__, static_folder='.', static_url_path='')
 app.config['SECRET_KEY'] = secrets.token_hex(32)
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = False  # Set to True if using HTTPS
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)  # Session lasts 30 days
 CORS(app, supports_credentials=True)
 socketio = SocketIO(app, cors_allowed_origins='*', async_mode='threading')
 
@@ -161,12 +164,42 @@ def login():
         data = request.json
         email = data.get('email', '').lower().strip()
         password = data.get('password', '')
+        remember_me = data.get('rememberMe', False)
         
         user = get_user(email)
         if not user or user['password_hash'] != hash_password(password):
             return jsonify({'error': 'Invalid credentials'}), 401
         
         session['user_email'] = user['email']
+        if remember_me:
+            session.permanent = True
+        
+        return jsonify({
+            'success': True,
+            'user': {
+                'email': user['email'],
+                'fullName': user['full_name'],
+                'paymentVerified': bool(user['payment_verified']),
+                'isAdmin': bool(user['is_admin']),
+                'displayName': user.get('display_name')
+            }
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/auth/restore-session', methods=['POST'])
+def restore_session():
+    try:
+        data = request.json
+        email = data.get('email', '').lower().strip()
+        
+        user = get_user(email)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        session['user_email'] = user['email']
+        session.permanent = True
+        
         return jsonify({
             'success': True,
             'user': {
@@ -401,11 +434,9 @@ def handle_connect():
 @socketio.on('disconnect')
 def handle_disconnect():
     print(f'Client disconnected: {request.sid}')
-    # Remove user from active users
     email = session.get('user_email')
     if email and email in active_users:
         del active_users[email]
-        # Broadcast updated online count
         online_count = len(active_users)
         emit('online_count', {'count': online_count}, room='main_chat')
 
@@ -425,7 +456,6 @@ def handle_join():
         emit('error', {'message': 'Payment required'})
         return
     
-    # Store user as active
     active_users[email] = {
         'sid': request.sid,
         'display_name': user.get('display_name', user['full_name'].split()[0]),
@@ -435,18 +465,15 @@ def handle_join():
     display_name = user.get('display_name', user['full_name'].split()[0])
     join_room('main_chat')
     
-    # Send recent messages to the user
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     messages = [dict(m) for m in conn.execute("SELECT id, sender_name, message_text, timestamp, is_system FROM messages ORDER BY timestamp DESC LIMIT 50").fetchall()]
     conn.close()
     emit('chat_history', {'messages': list(reversed(messages))})
     
-    # Get updated online count and broadcast to everyone
     online_count = len(active_users)
     emit('online_count', {'count': online_count}, room='main_chat')
     
-    # Send join notification to everyone except the new user
     system_message = {
         'id': 0,
         'sender': 'System',
@@ -456,7 +483,6 @@ def handle_join():
     }
     emit('new_message', system_message, room='main_chat', skip_sid=request.sid)
     
-    # Save system message to database
     conn = sqlite3.connect(DB_PATH)
     conn.execute("INSERT INTO messages (sender_name, message_text, is_system, timestamp) VALUES (?, ?, ?, ?)",
                 ('System', f'{display_name} joined the chat', 1, datetime.now().isoformat()))
@@ -483,7 +509,6 @@ def handle_message(data):
     
     display_name = user.get('display_name', user['full_name'].split()[0])
     
-    # Save message to database
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("INSERT INTO messages (sender_name, message_text, timestamp) VALUES (?, ?, ?)",
@@ -492,7 +517,6 @@ def handle_message(data):
     message_id = cursor.lastrowid
     conn.close()
     
-    # Broadcast to everyone in the chat room
     emit('new_message', {
         'id': message_id,
         'sender': display_name,
@@ -518,7 +542,6 @@ def handle_admin_broadcast(data):
     
     display_name = user.get('display_name', 'Admin')
     
-    # Save broadcast message to database
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("INSERT INTO messages (sender_name, message_text, is_system, timestamp) VALUES (?, ?, ?, ?)",
@@ -527,7 +550,6 @@ def handle_admin_broadcast(data):
     message_id = cursor.lastrowid
     conn.close()
     
-    # Broadcast to everyone in the chat room
     emit('new_message', {
         'id': message_id,
         'sender': '📢 ANNOUNCEMENT',

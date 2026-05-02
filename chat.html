@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <script src="/check-auth.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Chat - Chylnx Hub</title>
@@ -241,25 +242,23 @@
             }
         }
 
-        async function init() {
-            currentUser = await getCurrentUser();
-            
-            if (!currentUser) {
-                window.location.href = '/login.html';
-                return;
-            }
-            
-            if (!currentUser.paymentVerified && !currentUser.isAdmin) {
-                showNoAccess();
-                return;
-            }
-            
-            if (!currentUser.displayName) {
-                showNameSetup();
-            } else {
-                startChat();
-            }
-        }
+async function init() {
+    const user = await ensureAuthenticated();
+    if (!user) return;
+    
+    currentUser = user;
+    
+    if (!currentUser.paymentVerified && !currentUser.isAdmin) {
+        showNoAccess();
+        return;
+    }
+    
+    if (!currentUser.displayName) {
+        showNameSetup();
+    } else {
+        startChat();
+    }
+}
         
         function showNoAccess() {
             document.getElementById('app').innerHTML = `
