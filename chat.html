@@ -11,15 +11,13 @@
             padding: 0;
             box-sizing: border-box;
         }
-
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: #1a1a2e;
             height: 100vh;
             display: flex;
             flex-direction: column;
         }
-
         .chat-header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -30,19 +28,16 @@
             flex-wrap: wrap;
             gap: 10px;
         }
-
         .logo-small {
             font-weight: 800;
             font-size: 20px;
         }
-
         .online-info {
             background: rgba(255,255,255,0.2);
             padding: 6px 12px;
             border-radius: 50px;
             font-size: 12px;
         }
-
         .online-dot {
             display: inline-block;
             width: 8px;
@@ -52,13 +47,11 @@
             margin-right: 6px;
             animation: pulse 1.5s infinite;
         }
-
         @keyframes pulse {
             0% { opacity: 1; }
             50% { opacity: 0.4; }
             100% { opacity: 1; }
         }
-
         .user-badge {
             background: rgba(255,255,255,0.2);
             padding: 6px 12px;
@@ -68,7 +61,6 @@
             align-items: center;
             gap: 8px;
         }
-
         .messages-container {
             flex: 1;
             overflow-y: auto;
@@ -78,7 +70,6 @@
             gap: 12px;
             background: #0f0f1a;
         }
-
         .message {
             max-width: 75%;
             padding: 10px 14px;
@@ -86,7 +77,6 @@
             word-wrap: break-word;
             animation: fadeInUp 0.3s ease;
         }
-
         @keyframes fadeInUp {
             from {
                 opacity: 0;
@@ -97,40 +87,34 @@
                 transform: translateY(0);
             }
         }
-
         .message-own {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             align-self: flex-end;
             border-bottom-right-radius: 4px;
         }
-
         .message-other {
             background: #2d2d44;
             color: #e0e0e0;
             align-self: flex-start;
             border-bottom-left-radius: 4px;
         }
-
         .message-sender {
             font-size: 11px;
             font-weight: 600;
             margin-bottom: 4px;
             opacity: 0.8;
         }
-
         .message-text {
             font-size: 14px;
             line-height: 1.4;
         }
-
         .message-time {
             font-size: 9px;
             margin-top: 4px;
             opacity: 0.6;
             text-align: right;
         }
-
         .input-area {
             background: #1a1a2e;
             padding: 16px 20px;
@@ -138,7 +122,6 @@
             gap: 12px;
             border-top: 1px solid #2d2d44;
         }
-
         .message-input {
             flex: 1;
             background: #2d2d44;
@@ -149,11 +132,9 @@
             font-size: 15px;
             outline: none;
         }
-
         .message-input::placeholder {
             color: #888;
         }
-
         .send-btn {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             border: none;
@@ -162,9 +143,7 @@
             border-radius: 50%;
             cursor: pointer;
             font-size: 20px;
-            transition: all 0.2s;
         }
-
         .overlay {
             position: fixed;
             top: 0;
@@ -177,21 +156,17 @@
             justify-content: center;
             z-index: 1000;
         }
-
         .name-card {
             background: #1a1a2e;
             padding: 30px;
             border-radius: 32px;
             text-align: center;
             max-width: 320px;
-            margin: 20px;
         }
-
         .name-card h3 {
             color: white;
             margin-bottom: 20px;
         }
-
         .name-card input {
             width: 100%;
             padding: 14px;
@@ -203,7 +178,6 @@
             margin-bottom: 15px;
             outline: none;
         }
-
         .name-card button {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -211,23 +185,13 @@
             padding: 12px 24px;
             border-radius: 30px;
             cursor: pointer;
-            font-weight: 600;
         }
-
         .system-message {
             text-align: center;
             font-size: 11px;
             color: #666;
             margin: 8px 0;
         }
-
-        .typing-indicator {
-            color: #888;
-            font-size: 12px;
-            padding: 5px 15px;
-            font-style: italic;
-        }
-
         .no-access {
             flex: 1;
             display: flex;
@@ -235,9 +199,7 @@
             justify-content: center;
             text-align: center;
             padding: 20px;
-            background: #0f0f1a;
         }
-
         .no-access-card {
             background: #1a1a2e;
             padding: 30px;
@@ -250,39 +212,31 @@
     <div id="app"></div>
 
     <script>
-        // FIXED: Use relative URLs for Render
         const API_URL = '/api';
-        const SOCKET_URL = '';  // Empty means same origin
         let socket = null;
         let currentUser = null;
         let messages = [];
-        let typingTimeout = null;
 
         async function getCurrentUser() {
             try {
-                const response = await fetch(`${API_URL}/auth/me`, {
-                    credentials: 'include'
-                });
-                if (response.ok) {
-                    return await response.json();
-                }
+                const res = await fetch(`${API_URL}/auth/me`, { credentials: 'include' });
+                if (res.ok) return await res.json();
                 return null;
-            } catch (error) {
-                console.error('Error:', error);
+            } catch {
                 return null;
             }
         }
 
         async function setDisplayName(name) {
             try {
-                const response = await fetch(`${API_URL}/set-display-name`, {
+                const res = await fetch(`${API_URL}/set-display-name`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
                     body: JSON.stringify({ displayName: name })
                 });
-                return response.ok;
-            } catch (error) {
+                return res.ok;
+            } catch {
                 return false;
             }
         }
@@ -295,7 +249,7 @@
                 return;
             }
             
-            if (!currentUser.paymentVerified) {
+            if (!currentUser.paymentVerified && !currentUser.isAdmin) {
                 showNoAccess();
                 return;
             }
@@ -313,7 +267,7 @@
                     <div class="no-access-card">
                         <div style="font-size: 48px;">🔒</div>
                         <h3>Access Required</h3>
-                        <p style="margin: 15px 0; color: #aaa;">You need to complete payment before accessing the chat.</p>
+                        <p style="margin: 15px 0;">You need to complete payment before accessing the chat.</p>
                         <button onclick="goToPayment()" style="background: #667eea; border: none; padding: 12px 24px; border-radius: 30px; color: white; cursor: pointer;">Go to Payment</button>
                     </div>
                 </div>
@@ -327,7 +281,6 @@
         function showNameSetup() {
             const overlay = document.createElement('div');
             overlay.className = 'overlay';
-            overlay.id = 'nameOverlay';
             overlay.innerHTML = `
                 <div class="name-card">
                     <h3>✨ Choose Your Chat Name</h3>
@@ -347,7 +300,7 @@
             
             const success = await setDisplayName(name);
             if (success) {
-                document.getElementById('nameOverlay').remove();
+                document.querySelector('.overlay').remove();
                 currentUser.displayName = name;
                 startChat();
             } else {
@@ -356,15 +309,10 @@
         }
         
         function startChat() {
-            // Connect Socket.IO to same origin
-            socket = io('/', {
-                withCredentials: true,
-                path: '/socket.io'
-            });
+            socket = io('/', { withCredentials: true });
             
             socket.on('connect', () => {
-                console.log('Connected to chat server');
-                socket.emit('join_chat', {});
+                socket.emit('join_chat');
             });
             
             socket.on('chat_history', (data) => {
@@ -378,16 +326,8 @@
             });
             
             socket.on('online_count', (data) => {
-                const countSpan = document.getElementById('onlineCount');
-                if (countSpan) countSpan.innerText = data.count;
-            });
-            
-            socket.on('error', (data) => {
-                console.error('Socket error:', data);
-                if (data.message === 'Payment required') {
-                    alert('⚠️ Payment required to chat. Please complete payment.');
-                    window.location.href = '/payment.html';
-                }
+                const span = document.getElementById('onlineCount');
+                if (span) span.innerText = data.count;
             });
             
             renderChat();
@@ -408,15 +348,11 @@
                         <button onclick="logout()" style="background: none; border: none; color: white; cursor: pointer; font-size: 14px;">🚪</button>
                     </div>
                 </div>
-                
                 <div class="messages-container" id="messagesContainer">
                     ${messages.map(msg => renderMessage(msg, displayName)).join('')}
                 </div>
-                
-                <div id="typingIndicator" class="typing-indicator"></div>
-                
                 <div class="input-area">
-                    <input type="text" class="message-input" id="messageInput" placeholder="Type a message..." onkeypress="handleKeyPress(event)" onkeydown="handleTyping()">
+                    <input type="text" class="message-input" id="messageInput" placeholder="Type a message..." onkeypress="handleKeyPress(event)">
                     <button class="send-btn" onclick="sendMessage()">📤</button>
                 </div>
             `;
@@ -426,14 +362,12 @@
             document.getElementById('messageInput')?.focus();
         }
         
-        function renderMessage(msg, currentDisplayName) {
+        function renderMessage(msg, currentName) {
             if (msg.isSystem) {
                 return `<div class="system-message">📢 ${escapeHtml(msg.text)}</div>`;
             }
-            
-            const isOwn = msg.sender === currentDisplayName;
+            const isOwn = msg.sender === currentName;
             const time = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
-            
             return `
                 <div class="message ${isOwn ? 'message-own' : 'message-other'}">
                     <div class="message-sender">${escapeHtml(msg.sender)}</div>
@@ -446,39 +380,19 @@
         function sendMessage() {
             const input = document.getElementById('messageInput');
             const text = input.value.trim();
-            
             if (!text || !socket) return;
-            
-            socket.emit('send_message', { text: text });
+            socket.emit('send_message', { text });
             input.value = '';
-            
-            if (typingTimeout) clearTimeout(typingTimeout);
-            socket.emit('typing', { isTyping: false });
         }
         
         function handleKeyPress(e) {
-            if (e.key === 'Enter') {
-                sendMessage();
-            }
-        }
-        
-        function handleTyping() {
-            if (!socket) return;
-            
-            socket.emit('typing', { isTyping: true });
-            
-            if (typingTimeout) clearTimeout(typingTimeout);
-            typingTimeout = setTimeout(() => {
-                socket.emit('typing', { isTyping: false });
-            }, 1000);
+            if (e.key === 'Enter') sendMessage();
         }
         
         function scrollToBottom() {
             setTimeout(() => {
                 const container = document.getElementById('messagesContainer');
-                if (container) {
-                    container.scrollTop = container.scrollHeight;
-                }
+                if (container) container.scrollTop = container.scrollHeight;
             }, 50);
         }
         
@@ -491,7 +405,6 @@
         
         async function logout() {
             await fetch(`${API_URL}/auth/logout`, { method: 'POST', credentials: 'include' });
-            localStorage.clear();
             window.location.href = '/login.html';
         }
         
