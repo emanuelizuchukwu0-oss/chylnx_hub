@@ -3,9 +3,11 @@ from flask_socketio import SocketIO, emit, join_room
 from flask_cors import CORS
 import secrets
 import database as db
+import os
 
 app = Flask(__name__, static_folder='.', static_url_path='')
-app.config['SECRET_KEY'] = secrets.token_hex(32)
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(32))
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 CORS(app, supports_credentials=True)
 
 socketio = SocketIO(app, cors_allowed_origins='*')
@@ -86,7 +88,8 @@ def get_current_user():
         'email': user['email'],
         'fullName': user['full_name'],
         'paymentVerified': bool(user['payment_verified']),
-        'isAdmin': bool(user['is_admin'])
+        'isAdmin': bool(user['is_admin']),
+        'displayName': user.get('display_name')
     })
 
 @app.route('/api/check-access', methods=['GET'])
@@ -97,6 +100,21 @@ def check_access():
     
     user = db.get_user_by_email(user_email)
     return jsonify({'hasAccess': bool(user['payment_verified']) if user else False})
+
+@app.route('/api/set-display-name', methods=['POST'])
+def set_display_name():
+    user_email = session.get('user_email')
+    if not user_email:
+        return jsonify({'error': 'Not logged in'}), 401
+    
+    data = request.json
+    display_name = data.get('displayName', '').strip()
+    
+    if not display_name or len(display_name) < 2 or len(display_name) > 20:
+        return jsonify({'error': 'Name must be 2-20 characters'}), 400
+    
+    db.update_user_display_name(user_email, display_name)
+    return jsonify({'success': True, 'displayName': display_name})
 
 @app.route('/api/submit-payment', methods=['POST'])
 def submit_payment():
@@ -121,6 +139,26 @@ def submit_payment():
     
     db.create_payment_request(user_email, user['full_name'], bank_name, reference, payment_method)
     return jsonify({'success': True, 'message': 'Payment submitted'})
+
+@app.route('/api/messages', methods=['GET'])
+def get_messages():
+    user_email = session.get('user_email')
+    if not user_email:
+        return jsonify({'error': 'Not logged in'}), 401
+    
+    user = db.get_user_by_email(user_email)
+    if not user or not user['payment_verified']:
+        return jsonify({'error': 'Payment required'}), 403
+    
+    messages = db.get_recent_messages(100)
+    return jsonify({'messages': messages})
+
+@app.route('/api/online-count', methods=['GET'])
+def get_online_count():
+    count = db.get_online_count()
+    return jsonify({'onlineCount': count})
+
+# ==================== ADMIN ROUTES ====================
 
 @app.route('/api/admin/pending-payments', methods=['GET'])
 def admin_pending():
@@ -164,11 +202,116 @@ def admin_verify_user():
     db.verify_user_payment(target_email)
     return jsonify({'success': True})
 
+@app.route('/api/admin/referral-codes', methods=['GET'])
+def admin_referral_codes():
+    user_email = session.get('user_email')
+    if not user_email or not db.is_admin(user_email):
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    codes = db.get_all_referral_codes()
+    return jsonify({'codes': codes})
+
+# ==================== SOCKET.IO EVENTS ====================
+
+@socketio.on('connect')
+def handle_connect():
+    print(f'Client connected: {request.sid}')
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    print(f'Client disconnected: {request.sid}')
+
+@socketio.on('join_chat')
+def handle_join_chat(data):
+    user_email = session.get('user_email')
+    if not user_email:
+        emit('error', {'message': 'Not authenticated'})
+        return
+    
+    user = db.get_user_by_email(user_email)
+    if not user or not user['payment_verified']:
+        emit('error', {'message': 'Access denied - Payment required'})
+        return
+    
+    display_name = user.get('display_name', user['full_name'].split()[0])
+    
+    join_room('main_chat')
+    db.set_user_online(user_email, request.sid)
+    
+    messages = db.get_recent_messages(100)
+    emit('chat_history', {'messages': messages})
+    
+    online_count = db.get_online_count()
+    emit('online_count', {'count': online_count}, room='main_chat')
+    
+    system_msg = db.save_message('System', f'{display_name} joined the chat', is_system=True)
+    emit('new_message', {
+        'id': system_msg['id'],
+        'sender': 'System',
+        'text': f'{display_name} joined the chat',
+        'timestamp': system_msg['timestamp'],
+        'isSystem': True
+    }, room='main_chat')
+
+@socketio.on('send_message')
+def handle_send_message(data):
+    user_email = session.get('user_email')
+    if not user_email:
+        return
+    
+    user = db.get_user_by_email(user_email)
+    if not user or not user['payment_verified']:
+        emit('error', {'message': 'Access denied'})
+        return
+    
+    message_text = data.get('text', '').strip()
+    if not message_text or len(message_text) > 500:
+        return
+    
+    display_name = user.get('display_name', user['full_name'].split()[0])
+    
+    saved_msg = db.save_message(display_name, message_text, user_email)
+    
+    emit('new_message', {
+        'id': saved_msg['id'],
+        'sender': display_name,
+        'text': message_text,
+        'timestamp': saved_msg['timestamp'],
+        'isSystem': False
+    }, room='main_chat')
+
+@socketio.on('heartbeat')
+def handle_heartbeat():
+    user_email = session.get('user_email')
+    if user_email:
+        db.heartbeat(user_email)
+        new_count = db.get_online_count()
+        emit('online_count', {'count': new_count}, room='main_chat')
+
+@socketio.on('typing')
+def handle_typing(data):
+    user_email = session.get('user_email')
+    if not user_email:
+        return
+    
+    user = db.get_user_by_email(user_email)
+    if user and user.get('display_name'):
+        emit('user_typing', {
+            'user': user['display_name'],
+            'isTyping': data.get('isTyping', False)
+        }, room='main_chat', include_self=False)
+
+# Initialize database
+db.init_db()
+
+print("=" * 50)
+print("🚀 CHYLNX HUB SERVER RUNNING!")
+print("=" * 50)
+
+# This is for Gunicorn on Render
+app = app
+socketio = socketio
+
+# This is for local testing
 if __name__ == '__main__':
-    db.init_db()
-    print("=" * 50)
-    print("🚀 SERVER RUNNING!")
-    print("Open: http://127.0.0.1:5000")
-    print("Admin: admin@chylnx.com / admin123")
-    print("=" * 50)
-    socketio.run(app, host='127.0.0.1', port=5000, debug=True)
+    socketio.run(app, host='0.0.0.0', port=10000)

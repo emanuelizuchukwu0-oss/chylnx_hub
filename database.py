@@ -1,12 +1,10 @@
 import sqlite3
 import hashlib
 import os
+from datetime import datetime
 
-# Use a persistent location on Render
-DB_PATH = '/opt/render/project/src/data/chylnx.db'
-
-# Create data directory if it doesn't exist
-os.makedirs('/opt/render/project/src/data', exist_ok=True)
+# Use /tmp directory on Render (writable)
+DB_PATH = '/tmp/chylnx.db'
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)
@@ -31,9 +29,9 @@ def init_db():
             email TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
             display_name TEXT,
-            payment_verified BOOLEAN DEFAULT 0,
+            payment_verified INTEGER DEFAULT 0,
             referral_code_used TEXT,
-            is_admin BOOLEAN DEFAULT 0,
+            is_admin INTEGER DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
@@ -58,9 +56,10 @@ def init_db():
         CREATE TABLE IF NOT EXISTS messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             sender_name TEXT NOT NULL,
+            sender_email TEXT,
             message_text TEXT NOT NULL,
             timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            is_system BOOLEAN DEFAULT 0
+            is_system INTEGER DEFAULT 0
         )
     ''')
     
@@ -74,10 +73,23 @@ def init_db():
         )
     ''')
     
+    # User sessions table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS user_sessions (
+            user_email TEXT PRIMARY KEY,
+            session_id TEXT,
+            last_heartbeat TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
     # Insert default referral codes
     cursor.execute('SELECT * FROM referral_codes WHERE code = "WELCOME2024"')
     if not cursor.fetchone():
         cursor.execute('INSERT INTO referral_codes (code, uses_remaining) VALUES ("WELCOME2024", 100)')
+    
+    cursor.execute('SELECT * FROM referral_codes WHERE code = "CHYLNXHUB"')
+    if not cursor.fetchone():
+        cursor.execute('INSERT INTO referral_codes (code, uses_remaining) VALUES ("CHYLNXHUB", 50)')
     
     # Create admin user
     cursor.execute('SELECT * FROM users WHERE email = "admin@chylnx.com"')
@@ -90,7 +102,7 @@ def init_db():
     
     conn.commit()
     conn.close()
-    print("✅ Database initialized!")
+    print(f"✅ Database initialized at {DB_PATH}")
 
 # ==================== USER FUNCTIONS ====================
 
@@ -105,6 +117,15 @@ def create_user(full_name, email, password, referral_code=None):
             VALUES (?, ?, ?, ?)
         ''', (full_name, email.lower(), password_hash, referral_code))
         conn.commit()
+        
+        # Decrement referral code usage if provided
+        if referral_code:
+            cursor.execute('''
+                UPDATE referral_codes SET uses_remaining = uses_remaining - 1
+                WHERE code = ? AND uses_remaining > 0
+            ''', (referral_code.upper(),))
+            conn.commit()
+        
         return True
     except sqlite3.IntegrityError:
         return False
@@ -133,7 +154,7 @@ def get_user_by_email(email):
 def get_all_users():
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute('SELECT id, full_name, email, payment_verified FROM users WHERE is_admin = 0')
+    cursor.execute('SELECT id, full_name, email, payment_verified, created_at FROM users WHERE is_admin = 0')
     users = cursor.fetchall()
     conn.close()
     return [dict(user) for user in users]
@@ -176,6 +197,14 @@ def get_pending_payments():
     conn.close()
     return [dict(p) for p in payments]
 
+def get_all_payments():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM payments ORDER BY submitted_at DESC')
+    payments = cursor.fetchall()
+    conn.close()
+    return [dict(p) for p in payments]
+
 def approve_payment(payment_id):
     conn = get_db()
     cursor = conn.cursor()
@@ -191,13 +220,13 @@ def approve_payment(payment_id):
     conn.close()
     return False
 
-def save_message(sender_name, message_text, is_system=False):
+def save_message(sender_name, message_text, sender_email=None, is_system=False):
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute('''
-        INSERT INTO messages (sender_name, message_text, is_system, timestamp)
-        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-    ''', (sender_name, message_text, is_system))
+        INSERT INTO messages (sender_name, sender_email, message_text, is_system, timestamp)
+        VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+    ''', (sender_name, sender_email, message_text, 1 if is_system else 0))
     conn.commit()
     message_id = cursor.lastrowid
     cursor.execute('SELECT * FROM messages WHERE id = ?', (message_id,))
@@ -223,11 +252,41 @@ def validate_referral_code(code):
     conn.close()
     return dict(ref) if ref else None
 
-def get_online_count():
-    return 1
+def get_all_referral_codes():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM referral_codes ORDER BY created_at DESC')
+    codes = cursor.fetchall()
+    conn.close()
+    return [dict(c) for c in codes]
 
 def set_user_online(email, session_id):
-    pass
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT OR REPLACE INTO user_sessions (user_email, session_id, last_heartbeat)
+        VALUES (?, ?, CURRENT_TIMESTAMP)
+    ''', (email.lower(), session_id))
+    conn.commit()
+    conn.close()
+
+def get_online_count():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT COUNT(*) as count FROM user_sessions 
+        WHERE last_heartbeat > datetime('now', '-2 minutes')
+    ''')
+    count = cursor.fetchone()['count']
+    conn.close()
+    return count
 
 def heartbeat(email):
-    pass
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        UPDATE user_sessions SET last_heartbeat = CURRENT_TIMESTAMP
+        WHERE user_email = ?
+    ''', (email.lower(),))
+    conn.commit()
+    conn.close()
