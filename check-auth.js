@@ -31,6 +31,6 @@ async function ensureAuthenticated(redirectTo = '/login.html') {
 
 async function logout() {
     await fetch(`${API_URL}/auth/logout`, { method: 'POST', credentials: 'include' });
-    localStorage.removeItem('chylnx_user');
+    localStorage.clear();
     window.location.href = '/login.html';
 }

@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <script src="/check-auth.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Chat - Chylnx Hub</title>
@@ -218,6 +217,26 @@
         let currentUser = null;
         let messages = [];
 
+        // Define ensureAuthenticated directly in this file
+        async function ensureAuthenticated() {
+            try {
+                const response = await fetch(`${API_URL}/auth/me`, {
+                    credentials: 'include',
+                    headers: { 'Cache-Control': 'no-cache' }
+                });
+                
+                if (response.ok) {
+                    const user = await response.json();
+                    localStorage.setItem('chylnx_user', JSON.stringify(user));
+                    return user;
+                }
+                return null;
+            } catch (error) {
+                console.error('Auth error:', error);
+                return null;
+            }
+        }
+
         async function getCurrentUser() {
             try {
                 const res = await fetch(`${API_URL}/auth/me`, { credentials: 'include' });
@@ -242,23 +261,26 @@
             }
         }
 
-async function init() {
-    const user = await ensureAuthenticated();
-    if (!user) return;
-    
-    currentUser = user;
-    
-    if (!currentUser.paymentVerified && !currentUser.isAdmin) {
-        showNoAccess();
-        return;
-    }
-    
-    if (!currentUser.displayName) {
-        showNameSetup();
-    } else {
-        startChat();
-    }
-}
+        async function init() {
+            const user = await ensureAuthenticated();
+            if (!user) {
+                window.location.href = '/login.html';
+                return;
+            }
+            
+            currentUser = user;
+            
+            if (!currentUser.paymentVerified && !currentUser.isAdmin) {
+                showNoAccess();
+                return;
+            }
+            
+            if (!currentUser.displayName) {
+                showNameSetup();
+            } else {
+                startChat();
+            }
+        }
         
         function showNoAccess() {
             document.getElementById('app').innerHTML = `
@@ -299,7 +321,8 @@ async function init() {
             
             const success = await setDisplayName(name);
             if (success) {
-                document.querySelector('.overlay').remove();
+                const overlay = document.querySelector('.overlay');
+                if (overlay) overlay.remove();
                 currentUser.displayName = name;
                 startChat();
             } else {
@@ -311,11 +334,12 @@ async function init() {
             socket = io('/', { withCredentials: true });
             
             socket.on('connect', () => {
+                console.log('Socket connected');
                 socket.emit('join_chat');
             });
             
             socket.on('chat_history', (data) => {
-                messages = data.messages;
+                messages = data.messages || [];
                 renderChat();
             });
             
@@ -323,28 +347,36 @@ async function init() {
                 messages.push(msg);
                 renderChat();
             });
-            // Add this to your socket events in chat.html
-socket.on('admin_broadcast', (data) => {
-    messages.push({
-        id: Date.now(),
-        sender: '📢 ANNOUNCEMENT',
-        text: data.message,
-        timestamp: new Date().toISOString(),
-        isSystem: true
-    });
-    renderChat();
-});
+            
+            socket.on('admin_broadcast', (data) => {
+                messages.push({
+                    id: Date.now(),
+                    sender: '📢 ANNOUNCEMENT',
+                    text: data.message,
+                    timestamp: new Date().toISOString(),
+                    isSystem: true
+                });
+                renderChat();
+            });
             
             socket.on('online_count', (data) => {
                 const span = document.getElementById('onlineCount');
                 if (span) span.innerText = data.count;
             });
             
+            socket.on('error', (data) => {
+                console.error('Socket error:', data);
+                if (data.message === 'Payment required') {
+                    alert('Payment required to chat');
+                    window.location.href = '/payment.html';
+                }
+            });
+            
             renderChat();
         }
         
         function renderChat() {
-            const displayName = currentUser.displayName || currentUser.fullName?.split(' ')[0] || 'User';
+            const displayName = currentUser.displayName || (currentUser.fullName ? currentUser.fullName.split(' ')[0] : 'User');
             
             const html = `
                 <div class="chat-header">
@@ -369,7 +401,8 @@ socket.on('admin_broadcast', (data) => {
             
             document.getElementById('app').innerHTML = html;
             scrollToBottom();
-            document.getElementById('messageInput')?.focus();
+            const input = document.getElementById('messageInput');
+            if (input) input.focus();
         }
         
         function renderMessage(msg, currentName) {
@@ -389,6 +422,7 @@ socket.on('admin_broadcast', (data) => {
         
         function sendMessage() {
             const input = document.getElementById('messageInput');
+            if (!input) return;
             const text = input.value.trim();
             if (!text || !socket) return;
             socket.emit('send_message', { text });
@@ -402,8 +436,10 @@ socket.on('admin_broadcast', (data) => {
         function scrollToBottom() {
             setTimeout(() => {
                 const container = document.getElementById('messagesContainer');
-                if (container) container.scrollTop = container.scrollHeight;
-            }, 50);
+                if (container) {
+                    container.scrollTop = container.scrollHeight;
+                }
+            }, 100);
         }
         
         function escapeHtml(text) {
@@ -415,9 +451,11 @@ socket.on('admin_broadcast', (data) => {
         
         async function logout() {
             await fetch(`${API_URL}/auth/logout`, { method: 'POST', credentials: 'include' });
+            localStorage.clear();
             window.location.href = '/login.html';
         }
         
+        // Start the app
         init();
     </script>
 </body>
