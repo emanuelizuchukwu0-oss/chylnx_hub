@@ -10,9 +10,9 @@ from datetime import datetime, timedelta
 app = Flask(__name__, static_folder='.', static_url_path='')
 app.config['SECRET_KEY'] = secrets.token_hex(32)
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-app.config['SESSION_COOKIE_SECURE'] = False  # Set to True if using HTTPS
+app.config['SESSION_COOKIE_SECURE'] = False
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)  # Session lasts 30 days
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 CORS(app, supports_credentials=True)
 socketio = SocketIO(app, cors_allowed_origins='*', async_mode='threading')
 
@@ -58,13 +58,17 @@ def init_db():
         is_system INTEGER DEFAULT 0
     )''')
     
-    # Settings table for timers and info bar
+    # Settings table
     c.execute('''CREATE TABLE IF NOT EXISTS settings (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         setting_key TEXT UNIQUE NOT NULL,
         setting_value TEXT,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
+    
+    # Indexes for faster queries
+    c.execute("CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_messages_time ON messages(timestamp DESC)")
     
     # Create admin if not exists
     c.execute("SELECT * FROM users WHERE email = 'admin@chylnx.com'")
@@ -102,25 +106,22 @@ def get_user(email):
     conn.close()
     return dict(user) if user else None
 
-def get_setting(key):
+def save_message_to_db(sender_name, message_text, is_system=0):
     conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    result = conn.execute("SELECT setting_value FROM settings WHERE setting_key = ?", (key,)).fetchone()
-    conn.close()
-    return result['setting_value'] if result else None
-
-def update_setting(key, value):
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("UPDATE settings SET setting_value = ?, updated_at = CURRENT_TIMESTAMP WHERE setting_key = ?", (value, key))
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO messages (sender_name, message_text, is_system, timestamp) VALUES (?, ?, ?, CURRENT_TIMESTAMP)",
+                  (sender_name, message_text, is_system))
     conn.commit()
+    message_id = cursor.lastrowid
     conn.close()
+    return message_id
 
-def get_all_settings():
+def get_recent_messages(limit=50):
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
-    settings = conn.execute("SELECT setting_key, setting_value FROM settings").fetchall()
+    messages = conn.execute("SELECT id, sender_name, message_text, timestamp, is_system FROM messages ORDER BY timestamp DESC LIMIT ?", (limit,)).fetchall()
     conn.close()
-    return {s['setting_key']: s['setting_value'] for s in settings}
+    return [dict(m) for m in reversed(messages)]
 
 # Serve HTML files
 @app.route('/')
@@ -293,17 +294,17 @@ def get_messages():
     if not user or (not user['payment_verified'] and not user['is_admin']):
         return jsonify({'error': 'Access denied'}), 403
     
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    messages = [dict(m) for m in conn.execute("SELECT * FROM messages ORDER BY timestamp DESC LIMIT 50").fetchall()]
-    conn.close()
-    return jsonify({'messages': list(reversed(messages))})
+    messages = get_recent_messages(50)
+    return jsonify({'messages': messages})
 
 # Settings Routes
 @app.route('/api/settings', methods=['GET'])
 def get_settings():
-    settings = get_all_settings()
-    return jsonify({'settings': settings})
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    settings = conn.execute("SELECT setting_key, setting_value FROM settings").fetchall()
+    conn.close()
+    return jsonify({'settings': {s['setting_key']: s['setting_value'] for s in settings}})
 
 @app.route('/api/admin/update-settings', methods=['POST'])
 def update_settings():
@@ -320,7 +321,10 @@ def update_settings():
     setting_value = data.get('value')
     
     if setting_key and setting_value is not None:
-        update_setting(setting_key, str(setting_value))
+        conn = sqlite3.connect(DB_PATH)
+        conn.execute("UPDATE settings SET setting_value = ?, updated_at = CURRENT_TIMESTAMP WHERE setting_key = ?", (str(setting_value), setting_key))
+        conn.commit()
+        conn.close()
         return jsonify({'success': True})
     return jsonify({'error': 'Invalid data'}), 400
 
@@ -399,50 +403,30 @@ def verify_user():
     conn.close()
     return jsonify({'success': True})
 
-@app.route('/api/admin/set-display-name', methods=['POST'])
-def admin_set_display_name():
-    email = session.get('user_email')
-    if not email:
-        return jsonify({'error': 'Not logged in'}), 401
-    
-    user = get_user(email)
-    if not user or not user['is_admin']:
-        return jsonify({'error': 'Unauthorized'}), 401
-    
-    data = request.json
-    target_email = data.get('email', '').lower()
-    display_name = data.get('displayName', '').strip()
-    
-    if not target_email or not display_name:
-        return jsonify({'error': 'Missing fields'}), 400
-    
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("UPDATE users SET display_name = ? WHERE email = ?", (display_name, target_email))
-    conn.commit()
-    conn.close()
-    return jsonify({'success': True})
+# ==================== SOCKET.IO EVENTS (FIXED) ====================
 
-# ==================== SOCKET.IO EVENTS ====================
-
-# Store active users to track online count
+# Store active users
 active_users = {}
 
 @socketio.on('connect')
 def handle_connect():
-    print(f'Client connected: {request.sid}')
+    print(f'✅ Client connected: {request.sid}')
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    print(f'Client disconnected: {request.sid}')
+    print(f'❌ Client disconnected: {request.sid}')
+    # Remove user from active users
     email = session.get('user_email')
     if email and email in active_users:
         del active_users[email]
-        online_count = len(active_users)
-        emit('online_count', {'count': online_count}, room='main_chat')
+        # Broadcast updated count
+        emit('online_count', {'count': len(active_users)}, room='main_chat', broadcast=True)
 
 @socketio.on('join_chat')
-def handle_join():
+def handle_join_chat():
     email = session.get('user_email')
+    print(f'Join chat attempt from: {email}')
+    
     if not email:
         emit('error', {'message': 'Not authenticated'})
         return
@@ -456,79 +440,85 @@ def handle_join():
         emit('error', {'message': 'Payment required'})
         return
     
+    # Store user
+    display_name = user.get('display_name', user['full_name'].split()[0])
     active_users[email] = {
         'sid': request.sid,
-        'display_name': user.get('display_name', user['full_name'].split()[0]),
+        'name': display_name,
         'is_admin': user['is_admin']
     }
     
-    display_name = user.get('display_name', user['full_name'].split()[0])
+    # Join the room
     join_room('main_chat')
+    print(f'✅ User {display_name} joined main_chat')
     
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    messages = [dict(m) for m in conn.execute("SELECT id, sender_name, message_text, timestamp, is_system FROM messages ORDER BY timestamp DESC LIMIT 50").fetchall()]
-    conn.close()
-    emit('chat_history', {'messages': list(reversed(messages))})
+    # Send recent messages to this user
+    messages = get_recent_messages(50)
+    emit('chat_history', {'messages': messages})
     
-    online_count = len(active_users)
-    emit('online_count', {'count': online_count}, room='main_chat')
+    # Update online count for everyone
+    emit('online_count', {'count': len(active_users)}, room='main_chat')
     
-    system_message = {
+    # Send join notification to everyone else
+    join_message = f'{display_name} joined the chat'
+    save_message_to_db('System', join_message, is_system=1)
+    emit('new_message', {
         'id': 0,
         'sender': 'System',
-        'text': f'{display_name} joined the chat',
+        'text': join_message,
         'timestamp': datetime.now().isoformat(),
         'isSystem': True
-    }
-    emit('new_message', system_message, room='main_chat', skip_sid=request.sid)
-    
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("INSERT INTO messages (sender_name, message_text, is_system, timestamp) VALUES (?, ?, ?, ?)",
-                ('System', f'{display_name} joined the chat', 1, datetime.now().isoformat()))
-    conn.commit()
-    conn.close()
+    }, room='main_chat', skip_sid=request.sid)
 
 @socketio.on('send_message')
-def handle_message(data):
+def handle_send_message(data):
     email = session.get('user_email')
+    print(f'Send message from: {email}, data: {data}')
+    
     if not email:
+        emit('error', {'message': 'Not authenticated'})
         return
     
     user = get_user(email)
     if not user:
+        emit('error', {'message': 'User not found'})
         return
     
     if not user['payment_verified'] and not user['is_admin']:
         emit('error', {'message': 'Payment required'})
         return
     
-    text = data.get('text', '').strip()
-    if not text or len(text) > 500:
+    message_text = data.get('text', '').strip()
+    if not message_text:
+        return
+    
+    if len(message_text) > 500:
+        emit('error', {'message': 'Message too long'})
         return
     
     display_name = user.get('display_name', user['full_name'].split()[0])
     
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("INSERT INTO messages (sender_name, message_text, timestamp) VALUES (?, ?, ?)",
-                  (display_name, text, datetime.now().isoformat()))
-    conn.commit()
-    message_id = cursor.lastrowid
-    conn.close()
+    # Save to database
+    message_id = save_message_to_db(display_name, message_text, is_system=0)
     
+    # Broadcast to everyone in the room
     emit('new_message', {
         'id': message_id,
         'sender': display_name,
-        'text': text,
+        'text': message_text,
         'timestamp': datetime.now().isoformat(),
         'isSystem': False
     }, room='main_chat')
+    
+    print(f'✅ Message broadcasted: {display_name}: {message_text}')
 
 @socketio.on('admin_broadcast')
 def handle_admin_broadcast(data):
     email = session.get('user_email')
+    print(f'Admin broadcast from: {email}')
+    
     if not email:
+        emit('error', {'message': 'Not authenticated'})
         return
     
     user = get_user(email)
@@ -541,22 +531,21 @@ def handle_admin_broadcast(data):
         return
     
     display_name = user.get('display_name', 'Admin')
+    broadcast_text = f'🔊 ANNOUNCEMENT from {display_name}: {message}'
     
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("INSERT INTO messages (sender_name, message_text, is_system, timestamp) VALUES (?, ?, ?, ?)",
-                  ('📢 ANNOUNCEMENT', f'🔊 {display_name}: {message}', 1, datetime.now().isoformat()))
-    conn.commit()
-    message_id = cursor.lastrowid
-    conn.close()
+    # Save to database
+    save_message_to_db('📢 ANNOUNCEMENT', broadcast_text, is_system=1)
     
+    # Broadcast to everyone
     emit('new_message', {
-        'id': message_id,
+        'id': 0,
         'sender': '📢 ANNOUNCEMENT',
-        'text': f'🔊 {display_name}: {message}',
+        'text': broadcast_text,
         'timestamp': datetime.now().isoformat(),
         'isSystem': True
     }, room='main_chat')
+    
+    print(f'✅ Admin broadcast sent: {broadcast_text}')
 
 @socketio.on('typing')
 def handle_typing(data):

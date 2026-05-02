@@ -57,6 +57,25 @@
             border-radius: 50px;
             cursor: pointer;
             margin-top: 10px;
+            position: relative;
+        }
+        button:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+        .loader {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid white;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
         .error {
             background: #fee2e2;
@@ -96,11 +115,6 @@
             width: auto;
             margin: 0;
         }
-        .remember-me label {
-            margin: 0;
-            font-size: 14px;
-            color: #374151;
-        }
     </style>
 </head>
 <body>
@@ -110,13 +124,13 @@
         <div id="errorDiv" class="error" style="display: none;"></div>
         
         <div id="loginForm">
-            <input type="email" id="email" placeholder="Email address">
-            <input type="password" id="password" placeholder="Password">
+            <input type="email" id="email" placeholder="Email address" autocomplete="email">
+            <input type="password" id="password" placeholder="Password" autocomplete="current-password">
             <div class="remember-me">
                 <input type="checkbox" id="rememberMe">
-                <label>Remember me (stay logged in)</label>
+                <label>Remember me</label>
             </div>
-            <button onclick="login()">Sign In →</button>
+            <button id="loginBtn" onclick="login()">Sign In →</button>
             <div class="switch">Don't have an account? <a onclick="showSignup()">Sign up</a></div>
         </div>
         
@@ -124,7 +138,7 @@
             <input type="text" id="fullName" placeholder="Full name">
             <input type="email" id="signupEmail" placeholder="Email address">
             <input type="password" id="signupPassword" placeholder="Password (min 6 characters)">
-            <button onclick="signup()">Create Account →</button>
+            <button id="signupBtn" onclick="signup()">Create Account →</button>
             <div class="switch">Already have an account? <a onclick="showLogin()">Sign in</a></div>
         </div>
         
@@ -137,6 +151,17 @@
             div.innerText = msg;
             div.style.display = 'block';
             setTimeout(() => div.style.display = 'none', 5000);
+        }
+
+        function showLoading(buttonId, show) {
+            const btn = document.getElementById(buttonId);
+            if (show) {
+                btn.disabled = true;
+                btn.innerHTML = 'Please wait... <span class="loader"></span>';
+            } else {
+                btn.disabled = false;
+                btn.innerHTML = buttonId === 'loginBtn' ? 'Sign In →' : 'Create Account →';
+            }
         }
 
         function showLogin() {
@@ -161,6 +186,8 @@
                 return;
             }
             
+            showLoading('loginBtn', true);
+            
             try {
                 const res = await fetch('/api/auth/login', {
                     method: 'POST',
@@ -174,8 +201,6 @@
                     localStorage.setItem('chylnx_user', JSON.stringify(data.user));
                     if (rememberMe) {
                         localStorage.setItem('remember_me', 'true');
-                    } else {
-                        localStorage.removeItem('remember_me');
                     }
                     
                     if (data.user.isAdmin) {
@@ -185,9 +210,11 @@
                     }
                 } else {
                     showError(data.error || 'Login failed');
+                    showLoading('loginBtn', false);
                 }
             } catch (err) {
-                showError('Cannot connect to server');
+                showError('Cannot connect to server. Please try again.');
+                showLoading('loginBtn', false);
             }
         }
 
@@ -204,6 +231,8 @@
                 showError('Password must be at least 6 characters');
                 return;
             }
+            
+            showLoading('signupBtn', true);
             
             try {
                 const res = await fetch('/api/auth/register', {
@@ -224,27 +253,10 @@
                 }
             } catch (err) {
                 showError('Cannot connect to server');
+            } finally {
+                showLoading('signupBtn', false);
             }
         }
-
-        // Check if already logged in
-        async function checkExistingSession() {
-            try {
-                const res = await fetch('/api/auth/me', { credentials: 'include' });
-                if (res.ok) {
-                    const user = await res.json();
-                    if (user.isAdmin) {
-                        window.location.href = '/admin_dashboard.html';
-                    } else {
-                        window.location.href = '/index.html';
-                    }
-                }
-            } catch (err) {
-                // Not logged in, stay on login page
-            }
-        }
-        
-        checkExistingSession();
     </script>
 </body>
 </html>
