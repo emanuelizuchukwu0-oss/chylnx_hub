@@ -250,28 +250,17 @@
     <div id="app"></div>
 
     <script>
-        const API_URL = 'http://localhost:5000/api';
+        // FIXED: Use relative URLs for Render
+        const API_URL = '/api';
+        const SOCKET_URL = '';  // Empty means same origin
         let socket = null;
         let currentUser = null;
         let messages = [];
         let typingTimeout = null;
 
-        async function checkAccess() {
+        async function getCurrentUser() {
             try {
-                const response = await fetch(`${API_URL}/check-access`, {
-                    credentials: 'include'
-                });
-                const data = await response.json();
-                return data.hasAccess;
-            } catch (error) {
-                console.error('Error checking access:', error);
-                return false;
-            }
-        }
-
-        async function getUserInfo() {
-            try {
-                const response = await fetch(`${API_URL}/user`, {
+                const response = await fetch(`${API_URL}/auth/me`, {
                     credentials: 'include'
                 });
                 if (response.ok) {
@@ -279,6 +268,7 @@
                 }
                 return null;
             } catch (error) {
+                console.error('Error:', error);
                 return null;
             }
         }
@@ -298,23 +288,18 @@
         }
 
         async function init() {
-            // Check if logged in
-            const userInfo = await getUserInfo();
-            if (!userInfo) {
-                window.location.href = 'login.html';
+            currentUser = await getCurrentUser();
+            
+            if (!currentUser) {
+                window.location.href = '/login.html';
                 return;
             }
             
-            currentUser = userInfo;
-            
-            // Check payment access
-            const hasAccess = await checkAccess();
-            if (!hasAccess) {
+            if (!currentUser.paymentVerified) {
                 showNoAccess();
                 return;
             }
             
-            // Check if display name is set
             if (!currentUser.displayName) {
                 showNameSetup();
             } else {
@@ -336,7 +321,7 @@
         }
         
         function goToPayment() {
-            window.location.href = 'payment.html';
+            window.location.href = '/payment.html';
         }
         
         function showNameSetup() {
@@ -371,14 +356,15 @@
         }
         
         function startChat() {
-            // Connect Socket.IO
-            socket = io('http://localhost:5000', {
-                withCredentials: true
+            // Connect Socket.IO to same origin
+            socket = io('/', {
+                withCredentials: true,
+                path: '/socket.io'
             });
             
             socket.on('connect', () => {
                 console.log('Connected to chat server');
-                socket.emit('join_chat');
+                socket.emit('join_chat', {});
             });
             
             socket.on('chat_history', (data) => {
@@ -396,38 +382,35 @@
                 if (countSpan) countSpan.innerText = data.count;
             });
             
-            socket.on('user_typing', (data) => {
-                showTypingIndicator(data.user, data.isTyping);
+            socket.on('error', (data) => {
+                console.error('Socket error:', data);
+                if (data.message === 'Payment required') {
+                    alert('⚠️ Payment required to chat. Please complete payment.');
+                    window.location.href = '/payment.html';
+                }
             });
-            
-            socket.on('payment_verified', () => {
-                alert('✅ Your payment has been verified! You now have full access.');
-            });
-            
-            // Heartbeat every 30 seconds
-            setInterval(() => {
-                if (socket) socket.emit('heartbeat');
-            }, 30000);
             
             renderChat();
         }
         
         function renderChat() {
+            const displayName = currentUser.displayName || currentUser.fullName?.split(' ')[0] || 'User';
+            
             const html = `
                 <div class="chat-header">
                     <div class="logo-small">💬 chylnx hub</div>
                     <div class="online-info">
                         <span class="online-dot"></span>
-                        <span id="onlineCount">0</span> online
+                        <span id="onlineCount">1</span> online
                     </div>
                     <div class="user-badge">
-                        👤 ${escapeHtml(currentUser.displayName || currentUser.email)}
+                        👤 ${escapeHtml(displayName)}
                         <button onclick="logout()" style="background: none; border: none; color: white; cursor: pointer; font-size: 14px;">🚪</button>
                     </div>
                 </div>
                 
                 <div class="messages-container" id="messagesContainer">
-                    ${messages.map(msg => renderMessage(msg)).join('')}
+                    ${messages.map(msg => renderMessage(msg, displayName)).join('')}
                 </div>
                 
                 <div id="typingIndicator" class="typing-indicator"></div>
@@ -443,13 +426,13 @@
             document.getElementById('messageInput')?.focus();
         }
         
-        function renderMessage(msg) {
+        function renderMessage(msg, currentDisplayName) {
             if (msg.isSystem) {
                 return `<div class="system-message">📢 ${escapeHtml(msg.text)}</div>`;
             }
             
-            const isOwn = msg.sender === (currentUser.displayName || currentUser.email.split('@')[0]);
-            const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const isOwn = msg.sender === currentDisplayName;
+            const time = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
             
             return `
                 <div class="message ${isOwn ? 'message-own' : 'message-other'}">
@@ -469,7 +452,6 @@
             socket.emit('send_message', { text: text });
             input.value = '';
             
-            // Stop typing indicator
             if (typingTimeout) clearTimeout(typingTimeout);
             socket.emit('typing', { isTyping: false });
         }
@@ -491,17 +473,6 @@
             }, 1000);
         }
         
-        function showTypingIndicator(user, isTyping) {
-            const indicator = document.getElementById('typingIndicator');
-            if (indicator) {
-                if (isTyping) {
-                    indicator.innerText = `✏️ ${user} is typing...`;
-                } else {
-                    indicator.innerText = '';
-                }
-            }
-        }
-        
         function scrollToBottom() {
             setTimeout(() => {
                 const container = document.getElementById('messagesContainer');
@@ -512,17 +483,18 @@
         }
         
         function escapeHtml(text) {
+            if (!text) return '';
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
         }
         
-        function logout() {
-            localStorage.removeItem('chylnx_user');
-            window.location.href = 'login.html';
+        async function logout() {
+            await fetch(`${API_URL}/auth/logout`, { method: 'POST', credentials: 'include' });
+            localStorage.clear();
+            window.location.href = '/login.html';
         }
         
-        // Start app
         init();
     </script>
 </body>

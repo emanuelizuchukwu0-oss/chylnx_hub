@@ -206,11 +206,12 @@
             <button class="submit-btn" onclick="submitPayment()">✅ I HAVE PAID - Submit for Verification</button>
         </div>
 
-        <a href="index.html" class="back-link">← Back to Home</a>
+        <a href="/index.html" class="back-link">← Back to Home</a>
     </div>
 
     <script>
-        const API_URL = 'http://127.0.0.1:5000/api';
+        // FIXED: Use relative URL for Render
+        const API_URL = '/api';
         let selectedMethod = 'transfer';
 
         document.querySelectorAll('.method-btn').forEach(btn => {
@@ -261,7 +262,8 @@
                     alert('❌ ' + (data.error || 'Failed to submit payment'));
                 }
             } catch (error) {
-                alert('❌ Cannot connect to server. Make sure backend is running.');
+                console.error('Error:', error);
+                alert('❌ Cannot connect to server. Please try again.');
             }
         }
 
@@ -280,7 +282,7 @@
         }
 
         function closeOverlayAndGoHome() {
-            window.location.href = 'index.html';
+            window.location.href = '/index.html';
         }
     </script>
 </body>

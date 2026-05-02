@@ -106,7 +106,7 @@
             font-size: 20px;
         }
 
-        .payment-item, .user-item, .code-item {
+        .payment-item, .user-item {
             background: #0f0f1a;
             padding: 15px;
             border-radius: 12px;
@@ -122,17 +122,13 @@
             font-size: 14px;
         }
 
-        .verify-btn, .approve-btn {
+        .verify-btn {
             background: #10b981;
             color: white;
             border: none;
             padding: 8px 20px;
             border-radius: 30px;
             cursor: pointer;
-        }
-
-        .verify-btn:hover {
-            background: #059669;
         }
 
         .logout-btn {
@@ -142,31 +138,6 @@
             padding: 8px 20px;
             border-radius: 30px;
             cursor: pointer;
-        }
-
-        .create-code {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
-
-        .create-code input {
-            flex: 1;
-            padding: 12px;
-            border-radius: 12px;
-            border: none;
-            background: #0f0f1a;
-            color: white;
-        }
-
-        .create-code button {
-            background: #667eea;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 12px;
-            cursor: pointer;
-            color: white;
         }
 
         .badge {
@@ -183,16 +154,6 @@
         .badge-approved {
             background: #10b981;
         }
-
-        .delete-btn {
-            background: #ef4444;
-            border: none;
-            padding: 5px 12px;
-            border-radius: 8px;
-            cursor: pointer;
-            color: white;
-            font-size: 12px;
-        }
     </style>
 </head>
 <body>
@@ -200,8 +161,6 @@
         <div class="logo">chylnx hub<br><span style="font-size: 12px;">ADMIN</span></div>
         <div class="nav-item active" onclick="showSection('payments')">💰 Pending Payments</div>
         <div class="nav-item" onclick="showSection('users')">👥 Users</div>
-        <div class="nav-item" onclick="showSection('referrals')">🎁 Referral Codes</div>
-        <div class="nav-item" onclick="showSection('allpayments')">📋 All Payments</div>
         <div class="nav-item" onclick="logout()" style="margin-top: 50px; color: #ef4444;">🚪 Logout</div>
     </div>
 
@@ -211,9 +170,7 @@
             <span id="adminEmail">Loading...</span>
         </div>
 
-        <div class="stats-grid" id="statsGrid">
-            <!-- Stats will load here -->
-        </div>
+        <div class="stats-grid" id="statsGrid"></div>
 
         <div id="paymentsSection" class="section">
             <h2>⏳ Pending Payment Verifications</h2>
@@ -224,26 +181,10 @@
             <h2>👥 Registered Users</h2>
             <div id="usersList">Loading...</div>
         </div>
-
-        <div id="referralsSection" class="section" style="display: none;">
-            <h2>🎁 Manage Referral Codes</h2>
-            <div class="create-code">
-                <input type="text" id="newCode" placeholder="NEW REFERRAL CODE">
-                <input type="number" id="newUses" placeholder="Uses" value="10" style="width: 100px;">
-                <input type="number" id="newDiscount" placeholder="Discount %" value="10" style="width: 100px;">
-                <button onclick="createReferralCode()">+ Create Code</button>
-            </div>
-            <div id="referralCodesList">Loading...</div>
-        </div>
-
-        <div id="allpaymentsSection" class="section" style="display: none;">
-            <h2>📋 All Payment Transactions</h2>
-            <div id="allPaymentsList">Loading...</div>
-        </div>
     </div>
 
     <script>
-        const API_URL = 'http://localhost:5000/api';
+        const API_URL = '/api';
 
         async function getCurrentUser() {
             try {
@@ -262,7 +203,7 @@
         async function checkAdmin() {
             const user = await getCurrentUser();
             if (!user || !user.isAdmin) {
-                window.location.href = 'login.html';
+                window.location.href = '/login.html';
                 return false;
             }
             document.getElementById('adminEmail').innerText = user.email;
@@ -271,10 +212,8 @@
 
         async function loadStats() {
             try {
-                const [usersRes, paymentsRes] = await Promise.all([
-                    fetch(`${API_URL}/admin/users`, { credentials: 'include' }),
-                    fetch(`${API_URL}/admin/pending-payments`, { credentials: 'include' })
-                ]);
+                const usersRes = await fetch(`${API_URL}/admin/users`, { credentials: 'include' });
+                const paymentsRes = await fetch(`${API_URL}/admin/pending-payments`, { credentials: 'include' });
                 
                 const users = await usersRes.json();
                 const pending = await paymentsRes.json();
@@ -313,11 +252,11 @@
                     document.getElementById('pendingPaymentsList').innerHTML = data.payments.map(payment => `
                         <div class="payment-item">
                             <div class="payment-details">
-                                <strong>${payment.full_name}</strong><br>
-                                📧 ${payment.user_email}<br>
-                                🏦 ${payment.bank_name}<br>
-                                🆔 Ref: ${payment.reference}<br>
-                                💳 Method: ${payment.payment_method}<br>
+                                <strong>${escapeHtml(payment.full_name)}</strong><br>
+                                📧 ${escapeHtml(payment.user_email)}<br>
+                                🏦 ${escapeHtml(payment.bank_name)}<br>
+                                🆔 Ref: ${escapeHtml(payment.reference)}<br>
+                                💳 Method: ${escapeHtml(payment.payment_method)}<br>
                                 💰 ₦${payment.amount}<br>
                                 📅 ${new Date(payment.submitted_at).toLocaleString()}
                             </div>
@@ -342,79 +281,15 @@
                 document.getElementById('usersList').innerHTML = data.users.map(user => `
                     <div class="user-item">
                         <div>
-                            <strong>${user.full_name}</strong><br>
-                            📧 ${user.email}<br>
-                            🎭 Display: ${user.display_name || 'Not set'}<br>
-                            🎁 Referral: ${user.referral_code_used || 'None'}<br>
-                            📅 Joined: ${new Date(user.created_at).toLocaleDateString()}
+                            <strong>${escapeHtml(user.full_name)}</strong><br>
+                            📧 ${escapeHtml(user.email)}<br>
+                            ${user.payment_verified ? '✅ Verified' : '⏳ Pending'}
                         </div>
-                        <div>
-                            <span class="badge ${user.payment_verified ? 'badge-approved' : 'badge-pending'}">
-                                ${user.payment_verified ? '✅ Verified' : '⏳ Pending'}
-                            </span>
-                            ${!user.payment_verified ? `<button class="verify-btn" style="margin-left: 10px; background: #667eea;" onclick="verifyUserManually('${user.email}')">🔓 Verify Manually</button>` : ''}
-                        </div>
+                        ${!user.payment_verified ? `<button class="verify-btn" onclick="verifyUserManually('${user.email}')">🔓 Verify Manually</button>` : ''}
                     </div>
                 `).join('');
             } catch (error) {
                 document.getElementById('usersList').innerHTML = '<p style="color: red;">Error loading users</p>';
-            }
-        }
-
-        async function loadReferralCodes() {
-            try {
-                const response = await fetch(`${API_URL}/admin/referral-codes`, {
-                    credentials: 'include'
-                });
-                const data = await response.json();
-                
-                document.getElementById('referralCodesList').innerHTML = data.codes.map(code => `
-                    <div class="code-item">
-                        <div>
-                            <strong style="font-family: monospace; font-size: 18px;">${code.code}</strong><br>
-                            Uses left: ${code.uses_remaining} | Discount: ${code.discount_percent}%<br>
-                            Created by: ${code.created_by} | ${new Date(code.created_at).toLocaleDateString()}
-                        </div>
-                        <button class="delete-btn" onclick="deleteReferralCode('${code.code}')">Delete</button>
-                    </div>
-                `).join('');
-                
-                if (data.codes.length === 0) {
-                    document.getElementById('referralCodesList').innerHTML = '<p style="color: #888;">No referral codes</p>';
-                }
-            } catch (error) {
-                document.getElementById('referralCodesList').innerHTML = '<p style="color: red;">Error loading codes</p>';
-            }
-        }
-
-        async function loadAllPayments() {
-            try {
-                const response = await fetch(`${API_URL}/admin/all-payments`, {
-                    credentials: 'include'
-                });
-                const data = await response.json();
-                
-                document.getElementById('allPaymentsList').innerHTML = data.payments.map(payment => `
-                    <div class="payment-item">
-                        <div class="payment-details">
-                            <strong>${payment.full_name}</strong><br>
-                            📧 ${payment.user_email}<br>
-                            🏦 ${payment.bank_name}<br>
-                            🆔 Ref: ${payment.reference}<br>
-                            💳 Method: ${payment.payment_method}<br>
-                            💰 ₦${payment.amount}<br>
-                            📅 ${new Date(payment.submitted_at).toLocaleString()}<br>
-                            Status: <span class="badge ${payment.status === 'approved' ? 'badge-approved' : 'badge-pending'}">${payment.status}</span>
-                            ${payment.verified_at ? `✅ Verified: ${new Date(payment.verified_at).toLocaleString()}` : ''}
-                        </div>
-                    </div>
-                `).join('');
-                
-                if (data.payments.length === 0) {
-                    document.getElementById('allPaymentsList').innerHTML = '<p style="color: #888;">No payments recorded</p>';
-                }
-            } catch (error) {
-                document.getElementById('allPaymentsList').innerHTML = '<p style="color: red;">Error loading payments</p>';
             }
         }
 
@@ -461,83 +336,26 @@
             }
         }
 
-        async function createReferralCode() {
-            const code = document.getElementById('newCode').value.trim().toUpperCase();
-            const usesRemaining = parseInt(document.getElementById('newUses').value);
-            const discountPercent = parseInt(document.getElementById('newDiscount').value);
-            
-            if (!code) {
-                alert('Please enter a code');
-                return;
-            }
-            
-            try {
-                const response = await fetch(`${API_URL}/admin/create-referral`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ code, usesRemaining, discountPercent })
-                });
-                
-                if (response.ok) {
-                    alert('✅ Referral code created!');
-                    document.getElementById('newCode').value = '';
-                    loadReferralCodes();
-                } else {
-                    const data = await response.json();
-                    alert(data.error || 'Failed to create code');
-                }
-            } catch (error) {
-                alert('Error creating code');
-            }
-        }
-
-        async function deleteReferralCode(code) {
-            if (!confirm(`Delete referral code "${code}"?`)) return;
-            
-            try {
-                const response = await fetch(`${API_URL}/admin/delete-referral`, {
-                    method: 'DELETE',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ code })
-                });
-                
-                if (response.ok) {
-                    alert('✅ Code deleted');
-                    loadReferralCodes();
-                } else {
-                    alert('Failed to delete code');
-                }
-            } catch (error) {
-                alert('Error deleting code');
-            }
-        }
-
         function showSection(section) {
-            // Hide all sections
             document.getElementById('paymentsSection').style.display = 'none';
             document.getElementById('usersSection').style.display = 'none';
-            document.getElementById('referralsSection').style.display = 'none';
-            document.getElementById('allpaymentsSection').style.display = 'none';
             
-            // Show selected
             document.getElementById(`${section}Section`).style.display = 'block';
             
-            // Update nav active states
-            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
-            event.target.closest('.nav-item').classList.add('active');
-            
-            // Load data based on section
             if (section === 'payments') loadPendingPayments();
             if (section === 'users') loadUsers();
-            if (section === 'referrals') loadReferralCodes();
-            if (section === 'allpayments') loadAllPayments();
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
         async function logout() {
             await fetch(`${API_URL}/auth/logout`, { method: 'POST', credentials: 'include' });
-            window.location.href = 'login.html';
+            window.location.href = '/login.html';
         }
 
         async function init() {
