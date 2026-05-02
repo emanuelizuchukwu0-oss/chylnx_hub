@@ -19,12 +19,11 @@
             position: fixed;
             left: 0;
             top: 0;
-            width: 280px;
+            width: 260px;
             height: 100%;
             background: #1a1a2e;
             padding: 20px;
             overflow-y: auto;
-            z-index: 100;
         }
         .logo {
             font-size: 24px;
@@ -52,7 +51,7 @@
             background: linear-gradient(135deg, #667eea, #764ba2);
         }
         .main-content {
-            margin-left: 280px;
+            margin-left: 260px;
             padding: 20px;
         }
         .header {
@@ -198,13 +197,13 @@
             font-weight: 600;
             width: 100%;
         }
-        .logout-btn {
+        .error-box {
             background: #ef4444;
-            color: white;
-            border: none;
-            padding: 8px 20px;
-            border-radius: 30px;
-            cursor: pointer;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            text-align: center;
+            display: none;
         }
         .success-msg {
             background: #10b981;
@@ -215,37 +214,16 @@
             text-align: center;
             display: none;
         }
-        .loading {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.8);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-            font-size: 20px;
-        }
-        .loading.hide {
-            display: none;
-        }
     </style>
-    <script src="/check-auth.js"></script>
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 </head>
 <body>
-    <div id="loading" class="loading hide">
-        <div>Loading... ⏳</div>
-    </div>
-
     <div class="sidebar">
         <div class="logo">chylnx hub<br><span style="font-size: 12px;">ADMIN</span></div>
-        <div class="nav-item" data-section="broadcast">📢 Broadcast</div>
-        <div class="nav-item" data-section="timers">⏰ Timers & Info Bar</div>
-        <div class="nav-item" data-section="payments">💰 Pending Payments</div>
-        <div class="nav-item" data-section="users">👥 Users</div>
+        <div class="nav-item active" onclick="showSection('broadcast')">📢 Broadcast</div>
+        <div class="nav-item" onclick="showSection('timers')">⏰ Timers & Info Bar</div>
+        <div class="nav-item" onclick="showSection('payments')">💰 Pending Payments</div>
+        <div class="nav-item" onclick="showSection('users')">👥 Users</div>
         <div class="nav-item" onclick="handleLogout()" style="margin-top: 50px; color: #ef4444;">🚪 Logout</div>
     </div>
 
@@ -254,6 +232,8 @@
             <h1>Admin Dashboard</h1>
             <span id="adminEmail">Loading...</span>
         </div>
+
+        <div id="errorDisplay" class="error-box"></div>
 
         <div class="stats-grid" id="statsGrid">
             <div class="stat-card"><div class="stat-number">-</div><div>Total Users</div></div>
@@ -320,16 +300,14 @@
     <script>
         const API_URL = '/api';
         let socket = null;
-        let currentSection = 'broadcast';
 
-        function showLoading() {
-            const el = document.getElementById('loading');
-            if (el) el.classList.remove('hide');
-        }
-
-        function hideLoading() {
-            const el = document.getElementById('loading');
-            if (el) el.classList.add('hide');
+        function showError(message) {
+            const errorDiv = document.getElementById('errorDisplay');
+            errorDiv.innerText = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
         }
 
         function showSuccess(message) {
@@ -347,18 +325,33 @@
 
         async function getCurrentUser() {
             try {
-                const response = await fetch(`${API_URL}/auth/me`, { credentials: 'include' });
-                if (response.ok) return await response.json();
+                const response = await fetch(`${API_URL}/auth/me`, { 
+                    credentials: 'include',
+                    headers: { 'Cache-Control': 'no-cache' }
+                });
+                if (response.ok) {
+                    return await response.json();
+                }
                 return null;
             } catch (error) {
+                console.error('Get user error:', error);
                 return null;
             }
         }
 
         async function initSocket() {
             if (socket) return;
-            socket = io('/', { withCredentials: true });
-            socket.on('connect', () => console.log('Socket connected'));
+            try {
+                socket = io('/', { withCredentials: true });
+                socket.on('connect', () => {
+                    console.log('Socket connected for admin');
+                });
+                socket.on('connect_error', (error) => {
+                    console.error('Socket connection error:', error);
+                });
+            } catch (error) {
+                console.error('Socket init error:', error);
+            }
         }
 
         async function loadStats() {
@@ -368,6 +361,10 @@
                     fetch(`${API_URL}/admin/pending-payments`, { credentials: 'include' })
                 ]);
                 
+                if (!usersRes.ok || !paymentsRes.ok) {
+                    throw new Error('Failed to load stats');
+                }
+                
                 const users = await usersRes.json();
                 const pending = await paymentsRes.json();
                 
@@ -375,93 +372,114 @@
                 const verifiedUsers = users.users?.filter(u => u.payment_verified).length || 0;
                 const pendingPayments = pending.payments?.length || 0;
                 
-                document.querySelector('.stats-grid').innerHTML = `
+                document.getElementById('statsGrid').innerHTML = `
                     <div class="stat-card"><div class="stat-number">${totalUsers}</div><div>Total Users</div></div>
                     <div class="stat-card"><div class="stat-number">${verifiedUsers}</div><div>Verified Users</div></div>
                     <div class="stat-card"><div class="stat-number">${pendingPayments}</div><div>Pending Payments</div></div>
                 `;
             } catch (error) {
                 console.error('Stats error:', error);
+                showError('Failed to load statistics');
             }
         }
 
         async function loadSettings() {
             try {
                 const res = await fetch(`${API_URL}/settings`, { credentials: 'include' });
+                if (!res.ok) throw new Error('Failed to load settings');
+                
                 const data = await res.json();
                 const settings = data.settings || {};
                 
-                document.getElementById('gameHours').value = settings.game_timer_hours || 24;
-                document.getElementById('gameMinutes').value = settings.game_timer_minutes || 0;
-                document.getElementById('gameSeconds').value = settings.game_timer_seconds || 0;
-                document.getElementById('weeklyDays').value = settings.weekly_timer_days || 7;
-                document.getElementById('weeklyHours').value = settings.weekly_timer_hours || 0;
-                document.getElementById('weeklyMinutes').value = settings.weekly_timer_minutes || 0;
-                document.getElementById('weeklySeconds').value = settings.weekly_timer_seconds || 0;
-                document.getElementById('infoText').value = settings.info_bar_text || 'Welcome to Chylnx Hub!';
-                document.getElementById('infoColor').value = settings.info_bar_color || '#667eea';
+                const gameHours = document.getElementById('gameHours');
+                const gameMinutes = document.getElementById('gameMinutes');
+                const gameSeconds = document.getElementById('gameSeconds');
+                const weeklyDays = document.getElementById('weeklyDays');
+                const weeklyHours = document.getElementById('weeklyHours');
+                const weeklyMinutes = document.getElementById('weeklyMinutes');
+                const weeklySeconds = document.getElementById('weeklySeconds');
+                const infoText = document.getElementById('infoText');
+                const infoColor = document.getElementById('infoColor');
+                
+                if (gameHours) gameHours.value = settings.game_timer_hours || 24;
+                if (gameMinutes) gameMinutes.value = settings.game_timer_minutes || 0;
+                if (gameSeconds) gameSeconds.value = settings.game_timer_seconds || 0;
+                if (weeklyDays) weeklyDays.value = settings.weekly_timer_days || 7;
+                if (weeklyHours) weeklyHours.value = settings.weekly_timer_hours || 0;
+                if (weeklyMinutes) weeklyMinutes.value = settings.weekly_timer_minutes || 0;
+                if (weeklySeconds) weeklySeconds.value = settings.weekly_timer_seconds || 0;
+                if (infoText) infoText.value = settings.info_bar_text || 'Welcome to Chylnx Hub!';
+                if (infoColor) infoColor.value = settings.info_bar_color || '#667eea';
             } catch (error) {
                 console.error('Settings error:', error);
+                showError('Failed to load settings');
             }
         }
 
         async function loadPendingPayments() {
-            showLoading();
             try {
                 const response = await fetch(`${API_URL}/admin/pending-payments`, { credentials: 'include' });
+                if (!response.ok) throw new Error('Failed to load payments');
+                
                 const data = await response.json();
                 const payments = data.payments || [];
+                const container = document.getElementById('pendingPaymentsList');
                 
-                if (payments.length > 0) {
-                    document.getElementById('pendingPaymentsList').innerHTML = payments.map(payment => `
-                        <div class="payment-item">
-                            <div>
-                                <strong>${escapeHtml(payment.full_name)}</strong><br>
-                                📧 ${escapeHtml(payment.user_email)}<br>
-                                🏦 ${escapeHtml(payment.bank_name)}<br>
-                                🆔 Ref: ${escapeHtml(payment.reference)}
+                if (container) {
+                    if (payments.length > 0) {
+                        container.innerHTML = payments.map(payment => `
+                            <div class="payment-item">
+                                <div>
+                                    <strong>${escapeHtml(payment.full_name)}</strong><br>
+                                    📧 ${escapeHtml(payment.user_email)}<br>
+                                    🏦 ${escapeHtml(payment.bank_name)}<br>
+                                    🆔 Ref: ${escapeHtml(payment.reference)}
+                                </div>
+                                <button class="verify-btn" onclick="verifyPayment(${payment.id})">✅ Verify & Grant Access</button>
                             </div>
-                            <button class="verify-btn" onclick="verifyPayment(${payment.id})">✅ Verify & Grant Access</button>
-                        </div>
-                    `).join('');
-                } else {
-                    document.getElementById('pendingPaymentsList').innerHTML = '<p>No pending payments</p>';
+                        `).join('');
+                    } else {
+                        container.innerHTML = '<p>No pending payments</p>';
+                    }
                 }
             } catch (error) {
-                document.getElementById('pendingPaymentsList').innerHTML = '<p>Error loading payments</p>';
-            } finally {
-                hideLoading();
+                console.error('Payments error:', error);
+                const container = document.getElementById('pendingPaymentsList');
+                if (container) container.innerHTML = '<p>Error loading payments</p>';
             }
         }
 
         async function loadUsers() {
-            showLoading();
             try {
                 const response = await fetch(`${API_URL}/admin/users`, { credentials: 'include' });
+                if (!response.ok) throw new Error('Failed to load users');
+                
                 const data = await response.json();
                 const users = data.users || [];
+                const container = document.getElementById('usersList');
                 
-                document.getElementById('usersList').innerHTML = users.map(user => `
-                    <div class="user-item">
-                        <div>
-                            <strong>${escapeHtml(user.full_name)}</strong><br>
-                            📧 ${escapeHtml(user.email)}<br>
-                            ${user.payment_verified ? '<span class="badge badge-approved">✅ Verified</span>' : '<span class="badge badge-pending">⏳ Pending</span>'}
+                if (container) {
+                    container.innerHTML = users.map(user => `
+                        <div class="user-item">
+                            <div>
+                                <strong>${escapeHtml(user.full_name)}</strong><br>
+                                📧 ${escapeHtml(user.email)}<br>
+                                ${user.payment_verified ? '<span class="badge badge-approved">✅ Verified</span>' : '<span class="badge badge-pending">⏳ Pending</span>'}
+                            </div>
+                            <div>
+                                ${!user.payment_verified ? `<button class="verify-btn" onclick="verifyUserManually('${user.email}')">🔓 Verify</button>` : ''}
+                            </div>
                         </div>
-                        <div>
-                            ${!user.payment_verified ? `<button class="verify-btn" onclick="verifyUserManually('${user.email}')">🔓 Verify</button>` : ''}
-                        </div>
-                    </div>
-                `).join('');
+                    `).join('');
+                }
             } catch (error) {
-                document.getElementById('usersList').innerHTML = '<p>Error loading users</p>';
-            } finally {
-                hideLoading();
+                console.error('Users error:', error);
+                const container = document.getElementById('usersList');
+                if (container) container.innerHTML = '<p>Error loading users</p>';
             }
         }
 
         async function verifyPayment(paymentId) {
-            showLoading();
             try {
                 const response = await fetch(`${API_URL}/admin/verify`, {
                     method: 'POST',
@@ -480,13 +498,10 @@
                 }
             } catch (error) {
                 alert('Error verifying payment');
-            } finally {
-                hideLoading();
             }
         }
 
         async function verifyUserManually(email) {
-            showLoading();
             try {
                 const response = await fetch(`${API_URL}/admin/verify-user-payment`, {
                     method: 'POST',
@@ -504,13 +519,10 @@
                 }
             } catch (error) {
                 alert('Error verifying user');
-            } finally {
-                hideLoading();
             }
         }
 
         async function applyGameTimer() {
-            showLoading();
             try {
                 const hours = document.getElementById('gameHours').value;
                 const minutes = document.getElementById('gameMinutes').value;
@@ -538,13 +550,10 @@
                 showSuccess('✅ Game timer applied!');
             } catch (error) {
                 alert('Error applying timer');
-            } finally {
-                hideLoading();
             }
         }
 
         async function applyWeeklyTimer() {
-            showLoading();
             try {
                 const days = document.getElementById('weeklyDays').value;
                 const hours = document.getElementById('weeklyHours').value;
@@ -579,13 +588,10 @@
                 showSuccess('✅ Weekly timer applied!');
             } catch (error) {
                 alert('Error applying timer');
-            } finally {
-                hideLoading();
             }
         }
 
         async function applyInfoBar() {
-            showLoading();
             try {
                 const text = document.getElementById('infoText').value;
                 const color = document.getElementById('infoColor').value;
@@ -606,8 +612,6 @@
                 showSuccess('✅ Info bar applied!');
             } catch (error) {
                 alert('Error applying info bar');
-            } finally {
-                hideLoading();
             }
         }
 
@@ -619,9 +623,18 @@
             }
             
             if (!socket) {
-                alert('Connecting to chat server...');
                 initSocket();
-                setTimeout(() => sendBroadcast(), 1000);
+                setTimeout(() => {
+                    if (socket) {
+                        socket.emit('admin_broadcast', { message: message });
+                        document.getElementById('broadcastMessage').value = '';
+                        const successDiv = document.getElementById('broadcastSuccess');
+                        successDiv.style.display = 'block';
+                        setTimeout(() => successDiv.style.display = 'none', 3000);
+                    } else {
+                        alert('Could not connect to chat server');
+                    }
+                }, 1000);
                 return;
             }
             
@@ -633,40 +646,24 @@
         }
 
         function showSection(section) {
-            currentSection = section;
-            
-            // Hide all sections
-            document.getElementById('broadcastSection').style.display = 'none';
-            const timersSection = document.getElementById('timersSection');
-            const paymentsSection = document.getElementById('paymentsSection');
-            const usersSection = document.getElementById('usersSection');
-            
-            if (timersSection) timersSection.style.display = 'none';
-            if (paymentsSection) paymentsSection.style.display = 'none';
-            if (usersSection) usersSection.style.display = 'none';
-            
-            // Show selected section
-            if (section === 'broadcast') {
-                document.getElementById('broadcastSection').style.display = 'block';
-            } else if (section === 'timers') {
-                if (timersSection) timersSection.style.display = 'block';
-                loadSettings();
-            } else if (section === 'payments') {
-                if (paymentsSection) paymentsSection.style.display = 'block';
-                loadPendingPayments();
-            } else if (section === 'users') {
-                if (usersSection) usersSection.style.display = 'block';
-                loadUsers();
-            }
-            
-            // Update nav active states
-            document.querySelectorAll('.nav-item').forEach(item => {
-                if (item.getAttribute('data-section') === section) {
-                    item.classList.add('active');
-                } else if (item.getAttribute('data-section')) {
-                    item.classList.remove('active');
-                }
+            const sections = ['broadcastSection', 'timersSection', 'paymentsSection', 'usersSection'];
+            sections.forEach(s => {
+                const el = document.getElementById(s);
+                if (el) el.style.display = 'none';
             });
+            
+            const selectedSection = document.getElementById(`${section}Section`);
+            if (selectedSection) selectedSection.style.display = 'block';
+            
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            event.target.closest('.nav-item').classList.add('active');
+            
+            if (section === 'timers') loadSettings();
+            if (section === 'payments') loadPendingPayments();
+            if (section === 'users') loadUsers();
         }
 
         function escapeHtml(text) {
@@ -677,43 +674,33 @@
         }
 
         async function handleLogout() {
-            showLoading();
             await fetch(`${API_URL}/auth/logout`, { method: 'POST', credentials: 'include' });
             localStorage.clear();
             window.location.href = '/login.html';
         }
 
         async function init() {
-            showLoading();
             try {
                 const user = await getCurrentUser();
-                if (!user || !user.isAdmin) {
+                if (!user) {
                     window.location.href = '/login.html';
+                    return;
+                }
+                
+                if (!user.isAdmin) {
+                    window.location.href = '/index.html';
                     return;
                 }
                 
                 document.getElementById('adminEmail').innerText = user.email;
                 initSocket();
                 await loadStats();
-                
-                // Setup navigation
-                document.querySelectorAll('.nav-item[data-section]').forEach(item => {
-                    item.addEventListener('click', (e) => {
-                        const section = item.getAttribute('data-section');
-                        showSection(section);
-                    });
-                });
-                
-                // Show default section
-                showSection('broadcast');
             } catch (error) {
                 console.error('Init error:', error);
-            } finally {
-                hideLoading();
+                showError('Failed to load dashboard. Please refresh.');
             }
         }
 
-        // Start the app
         init();
     </script>
 </body>
