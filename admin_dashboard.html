@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <script src="/check-auth.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - Chylnx Hub</title>
@@ -25,6 +24,7 @@
             background: #1a1a2e;
             padding: 20px;
             overflow-y: auto;
+            z-index: 100;
         }
         .logo {
             font-size: 24px;
@@ -112,14 +112,6 @@
             border-radius: 30px;
             cursor: pointer;
         }
-        .logout-btn {
-            background: #ef4444;
-            color: white;
-            border: none;
-            padding: 8px 20px;
-            border-radius: 30px;
-            cursor: pointer;
-        }
         .badge {
             padding: 4px 12px;
             border-radius: 20px;
@@ -175,14 +167,6 @@
             margin-top: 10px;
             width: 100%;
         }
-        .apply-btn:hover {
-            background: #5a67d8;
-        }
-        .chat-access-btn {
-            background: #10b981;
-            margin-top: 10px;
-            margin-left: 10px;
-        }
         .broadcast-section {
             background: linear-gradient(135deg, #667eea, #764ba2);
             padding: 20px;
@@ -214,8 +198,13 @@
             font-weight: 600;
             width: 100%;
         }
-        .broadcast-btn:hover {
-            background: #f0f0f0;
+        .logout-btn {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 30px;
+            cursor: pointer;
         }
         .success-msg {
             background: #10b981;
@@ -226,16 +215,38 @@
             text-align: center;
             display: none;
         }
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            font-size: 20px;
+        }
+        .loading.hide {
+            display: none;
+        }
     </style>
+    <script src="/check-auth.js"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 </head>
 <body>
+    <div id="loading" class="loading hide">
+        <div>Loading... ⏳</div>
+    </div>
+
     <div class="sidebar">
         <div class="logo">chylnx hub<br><span style="font-size: 12px;">ADMIN</span></div>
-        <div class="nav-item" onclick="showSection('broadcast')">📢 Broadcast</div>
-        <div class="nav-item" onclick="showSection('timers')">⏰ Timers & Info Bar</div>
-        <div class="nav-item" onclick="showSection('payments')">💰 Pending Payments</div>
-        <div class="nav-item" onclick="showSection('users')">👥 Users</div>
-        <div class="nav-item" onclick="logout()" style="margin-top: 50px; color: #ef4444;">🚪 Logout</div>
+        <div class="nav-item" data-section="broadcast">📢 Broadcast</div>
+        <div class="nav-item" data-section="timers">⏰ Timers & Info Bar</div>
+        <div class="nav-item" data-section="payments">💰 Pending Payments</div>
+        <div class="nav-item" data-section="users">👥 Users</div>
+        <div class="nav-item" onclick="handleLogout()" style="margin-top: 50px; color: #ef4444;">🚪 Logout</div>
     </div>
 
     <div class="main-content">
@@ -244,7 +255,11 @@
             <span id="adminEmail">Loading...</span>
         </div>
 
-        <div class="stats-grid" id="statsGrid"></div>
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card"><div class="stat-number">-</div><div>Total Users</div></div>
+            <div class="stat-card"><div class="stat-number">-</div><div>Verified Users</div></div>
+            <div class="stat-card"><div class="stat-number">-</div><div>Pending Payments</div></div>
+        </div>
 
         <!-- Broadcast Section -->
         <div id="broadcastSection" class="broadcast-section">
@@ -261,18 +276,9 @@
             <div class="setting-group">
                 <h3>🎮 Game Timer</h3>
                 <div class="setting-row">
-                    <div>
-                        <label>Hours</label>
-                        <input type="number" id="gameHours" min="0" max="168" value="24">
-                    </div>
-                    <div>
-                        <label>Minutes</label>
-                        <input type="number" id="gameMinutes" min="0" max="59" value="0">
-                    </div>
-                    <div>
-                        <label>Seconds</label>
-                        <input type="number" id="gameSeconds" min="0" max="59" value="0">
-                    </div>
+                    <div><label>Hours</label><input type="number" id="gameHours" min="0" max="168" value="24"></div>
+                    <div><label>Minutes</label><input type="number" id="gameMinutes" min="0" max="59" value="0"></div>
+                    <div><label>Seconds</label><input type="number" id="gameSeconds" min="0" max="59" value="0"></div>
                 </div>
                 <button class="apply-btn" onclick="applyGameTimer()">🎯 Apply Game Timer</button>
             </div>
@@ -280,22 +286,10 @@
             <div class="setting-group">
                 <h3>📅 Weekly Timer</h3>
                 <div class="setting-row-4">
-                    <div>
-                        <label>Days</label>
-                        <input type="number" id="weeklyDays" min="0" max="30" value="7">
-                    </div>
-                    <div>
-                        <label>Hours</label>
-                        <input type="number" id="weeklyHours" min="0" max="23" value="0">
-                    </div>
-                    <div>
-                        <label>Minutes</label>
-                        <input type="number" id="weeklyMinutes" min="0" max="59" value="0">
-                    </div>
-                    <div>
-                        <label>Seconds</label>
-                        <input type="number" id="weeklySeconds" min="0" max="59" value="0">
-                    </div>
+                    <div><label>Days</label><input type="number" id="weeklyDays" min="0" max="30" value="7"></div>
+                    <div><label>Hours</label><input type="number" id="weeklyHours" min="0" max="23" value="0"></div>
+                    <div><label>Minutes</label><input type="number" id="weeklyMinutes" min="0" max="59" value="0"></div>
+                    <div><label>Seconds</label><input type="number" id="weeklySeconds" min="0" max="59" value="0"></div>
                 </div>
                 <button class="apply-btn" onclick="applyWeeklyTimer()">📅 Apply Weekly Timer</button>
             </div>
@@ -310,28 +304,45 @@
             </div>
         </div>
 
+        <!-- Payments Section -->
         <div id="paymentsSection" class="section" style="display: none;">
             <h2>⏳ Pending Payment Verifications</h2>
             <div id="pendingPaymentsList">Loading...</div>
         </div>
 
+        <!-- Users Section -->
         <div id="usersSection" class="section" style="display: none;">
             <h2>👥 Registered Users</h2>
             <div id="usersList">Loading...</div>
         </div>
     </div>
 
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script>
         const API_URL = '/api';
         let socket = null;
+        let currentSection = 'broadcast';
 
-        // Initialize socket connection
-        function initSocket() {
-            socket = io('/', { withCredentials: true });
-            socket.on('connect', () => {
-                console.log('Socket connected for admin');
-            });
+        function showLoading() {
+            const el = document.getElementById('loading');
+            if (el) el.classList.remove('hide');
+        }
+
+        function hideLoading() {
+            const el = document.getElementById('loading');
+            if (el) el.classList.add('hide');
+        }
+
+        function showSuccess(message) {
+            const div = document.createElement('div');
+            div.className = 'success-msg';
+            div.innerText = message;
+            div.style.display = 'block';
+            div.style.position = 'fixed';
+            div.style.top = '20px';
+            div.style.right = '20px';
+            div.style.zIndex = '9999';
+            document.body.appendChild(div);
+            setTimeout(() => div.remove(), 3000);
         }
 
         async function getCurrentUser() {
@@ -339,159 +350,23 @@
                 const response = await fetch(`${API_URL}/auth/me`, { credentials: 'include' });
                 if (response.ok) return await response.json();
                 return null;
-            } catch {
+            } catch (error) {
                 return null;
             }
         }
 
-        async function checkAdmin() {
-            const user = await getCurrentUser();
-            if (!user || !user.isAdmin) {
-                window.location.href = '/login.html';
-                return false;
-            }
-            document.getElementById('adminEmail').innerText = user.email;
-            initSocket();
-            return true;
-        }
-
-        async function loadSettings() {
-            try {
-                const res = await fetch(`${API_URL}/settings`, { credentials: 'include' });
-                const data = await res.json();
-                const settings = data.settings;
-                
-                document.getElementById('gameHours').value = settings.game_timer_hours || 24;
-                document.getElementById('gameMinutes').value = settings.game_timer_minutes || 0;
-                document.getElementById('gameSeconds').value = settings.game_timer_seconds || 0;
-                document.getElementById('weeklyDays').value = settings.weekly_timer_days || 7;
-                document.getElementById('weeklyHours').value = settings.weekly_timer_hours || 0;
-                document.getElementById('weeklyMinutes').value = settings.weekly_timer_minutes || 0;
-                document.getElementById('weeklySeconds').value = settings.weekly_timer_seconds || 0;
-                document.getElementById('infoText').value = settings.info_bar_text || 'Welcome to Chylnx Hub! 🎮 Join our community chat and connect with others.';
-                document.getElementById('infoColor').value = settings.info_bar_color || '#667eea';
-            } catch (error) {
-                console.error('Error loading settings:', error);
-            }
-        }
-
-        async function applyGameTimer() {
-            const hours = document.getElementById('gameHours').value;
-            const minutes = document.getElementById('gameMinutes').value;
-            const seconds = document.getElementById('gameSeconds').value;
-            
-            await fetch(`${API_URL}/admin/update-settings`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ key: 'game_timer_hours', value: hours })
-            });
-            await fetch(`${API_URL}/admin/update-settings`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ key: 'game_timer_minutes', value: minutes })
-            });
-            await fetch(`${API_URL}/admin/update-settings`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ key: 'game_timer_seconds', value: seconds })
-            });
-            
-            showSuccess('✅ Game timer applied successfully!');
-        }
-
-        async function applyWeeklyTimer() {
-            const days = document.getElementById('weeklyDays').value;
-            const hours = document.getElementById('weeklyHours').value;
-            const minutes = document.getElementById('weeklyMinutes').value;
-            const seconds = document.getElementById('weeklySeconds').value;
-            
-            await fetch(`${API_URL}/admin/update-settings`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ key: 'weekly_timer_days', value: days })
-            });
-            await fetch(`${API_URL}/admin/update-settings`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ key: 'weekly_timer_hours', value: hours })
-            });
-            await fetch(`${API_URL}/admin/update-settings`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ key: 'weekly_timer_minutes', value: minutes })
-            });
-            await fetch(`${API_URL}/admin/update-settings`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ key: 'weekly_timer_seconds', value: seconds })
-            });
-            
-            showSuccess('✅ Weekly timer applied successfully!');
-        }
-
-        async function applyInfoBar() {
-            const text = document.getElementById('infoText').value;
-            const color = document.getElementById('infoColor').value;
-            
-            await fetch(`${API_URL}/admin/update-settings`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ key: 'info_bar_text', value: text })
-            });
-            await fetch(`${API_URL}/admin/update-settings`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ key: 'info_bar_color', value: color })
-            });
-            
-            showSuccess('✅ Info bar applied successfully!');
-        }
-
-        function showSuccess(message) {
-            const successDiv = document.createElement('div');
-            successDiv.className = 'success-msg';
-            successDiv.innerText = message;
-            successDiv.style.display = 'block';
-            successDiv.style.position = 'fixed';
-            successDiv.style.top = '20px';
-            successDiv.style.right = '20px';
-            successDiv.style.zIndex = '9999';
-            document.body.appendChild(successDiv);
-            setTimeout(() => successDiv.remove(), 3000);
-        }
-
-        async function sendBroadcast() {
-            const message = document.getElementById('broadcastMessage').value.trim();
-            if (!message) {
-                alert('Please enter a message to broadcast');
-                return;
-            }
-            
-            if (socket) {
-                socket.emit('admin_broadcast', { message: message });
-                document.getElementById('broadcastMessage').value = '';
-                document.getElementById('broadcastSuccess').style.display = 'block';
-                setTimeout(() => {
-                    document.getElementById('broadcastSuccess').style.display = 'none';
-                }, 3000);
-            } else {
-                alert('Socket not connected. Please refresh the page.');
-            }
+        async function initSocket() {
+            if (socket) return;
+            socket = io('/', { withCredentials: true });
+            socket.on('connect', () => console.log('Socket connected'));
         }
 
         async function loadStats() {
             try {
-                const usersRes = await fetch(`${API_URL}/admin/users`, { credentials: 'include' });
-                const paymentsRes = await fetch(`${API_URL}/admin/pending-payments`, { credentials: 'include' });
+                const [usersRes, paymentsRes] = await Promise.all([
+                    fetch(`${API_URL}/admin/users`, { credentials: 'include' }),
+                    fetch(`${API_URL}/admin/pending-payments`, { credentials: 'include' })
+                ]);
                 
                 const users = await usersRes.json();
                 const pending = await paymentsRes.json();
@@ -500,32 +375,45 @@
                 const verifiedUsers = users.users?.filter(u => u.payment_verified).length || 0;
                 const pendingPayments = pending.payments?.length || 0;
                 
-                document.getElementById('statsGrid').innerHTML = `
-                    <div class="stat-card">
-                        <div class="stat-number">${totalUsers}</div>
-                        <div>Total Users</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-number">${verifiedUsers}</div>
-                        <div>Verified Users</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-number">${pendingPayments}</div>
-                        <div>Pending Payments</div>
-                    </div>
+                document.querySelector('.stats-grid').innerHTML = `
+                    <div class="stat-card"><div class="stat-number">${totalUsers}</div><div>Total Users</div></div>
+                    <div class="stat-card"><div class="stat-number">${verifiedUsers}</div><div>Verified Users</div></div>
+                    <div class="stat-card"><div class="stat-number">${pendingPayments}</div><div>Pending Payments</div></div>
                 `;
             } catch (error) {
-                console.error('Error loading stats:', error);
+                console.error('Stats error:', error);
+            }
+        }
+
+        async function loadSettings() {
+            try {
+                const res = await fetch(`${API_URL}/settings`, { credentials: 'include' });
+                const data = await res.json();
+                const settings = data.settings || {};
+                
+                document.getElementById('gameHours').value = settings.game_timer_hours || 24;
+                document.getElementById('gameMinutes').value = settings.game_timer_minutes || 0;
+                document.getElementById('gameSeconds').value = settings.game_timer_seconds || 0;
+                document.getElementById('weeklyDays').value = settings.weekly_timer_days || 7;
+                document.getElementById('weeklyHours').value = settings.weekly_timer_hours || 0;
+                document.getElementById('weeklyMinutes').value = settings.weekly_timer_minutes || 0;
+                document.getElementById('weeklySeconds').value = settings.weekly_timer_seconds || 0;
+                document.getElementById('infoText').value = settings.info_bar_text || 'Welcome to Chylnx Hub!';
+                document.getElementById('infoColor').value = settings.info_bar_color || '#667eea';
+            } catch (error) {
+                console.error('Settings error:', error);
             }
         }
 
         async function loadPendingPayments() {
+            showLoading();
             try {
                 const response = await fetch(`${API_URL}/admin/pending-payments`, { credentials: 'include' });
                 const data = await response.json();
+                const payments = data.payments || [];
                 
-                if (data.payments && data.payments.length > 0) {
-                    document.getElementById('pendingPaymentsList').innerHTML = data.payments.map(payment => `
+                if (payments.length > 0) {
+                    document.getElementById('pendingPaymentsList').innerHTML = payments.map(payment => `
                         <div class="payment-item">
                             <div>
                                 <strong>${escapeHtml(payment.full_name)}</strong><br>
@@ -541,15 +429,19 @@
                 }
             } catch (error) {
                 document.getElementById('pendingPaymentsList').innerHTML = '<p>Error loading payments</p>';
+            } finally {
+                hideLoading();
             }
         }
 
         async function loadUsers() {
+            showLoading();
             try {
                 const response = await fetch(`${API_URL}/admin/users`, { credentials: 'include' });
                 const data = await response.json();
+                const users = data.users || [];
                 
-                document.getElementById('usersList').innerHTML = data.users.map(user => `
+                document.getElementById('usersList').innerHTML = users.map(user => `
                     <div class="user-item">
                         <div>
                             <strong>${escapeHtml(user.full_name)}</strong><br>
@@ -557,17 +449,19 @@
                             ${user.payment_verified ? '<span class="badge badge-approved">✅ Verified</span>' : '<span class="badge badge-pending">⏳ Pending</span>'}
                         </div>
                         <div>
-                            ${!user.payment_verified ? `<button class="verify-btn" onclick="verifyUserManually('${user.email}')">🔓 Verify Manually</button>` : ''}
-                            <button class="verify-btn chat-access-btn" onclick="grantChatAccess('${user.email}')">💬 Grant Chat Access</button>
+                            ${!user.payment_verified ? `<button class="verify-btn" onclick="verifyUserManually('${user.email}')">🔓 Verify</button>` : ''}
                         </div>
                     </div>
                 `).join('');
             } catch (error) {
                 document.getElementById('usersList').innerHTML = '<p>Error loading users</p>';
+            } finally {
+                hideLoading();
             }
         }
 
         async function verifyPayment(paymentId) {
+            showLoading();
             try {
                 const response = await fetch(`${API_URL}/admin/verify`, {
                     method: 'POST',
@@ -577,19 +471,22 @@
                 });
                 
                 if (response.ok) {
-                    alert('✅ Payment verified! User can now access chat.');
-                    loadPendingPayments();
-                    loadStats();
-                    loadUsers();
+                    showSuccess('✅ Payment verified!');
+                    await loadPendingPayments();
+                    await loadStats();
+                    await loadUsers();
                 } else {
                     alert('❌ Failed to verify payment');
                 }
             } catch (error) {
                 alert('Error verifying payment');
+            } finally {
+                hideLoading();
             }
         }
 
         async function verifyUserManually(email) {
+            showLoading();
             try {
                 const response = await fetch(`${API_URL}/admin/verify-user-payment`, {
                     method: 'POST',
@@ -599,58 +496,177 @@
                 });
                 
                 if (response.ok) {
-                    alert(`✅ ${email} has been verified!`);
-                    loadUsers();
-                    loadStats();
+                    showSuccess(`✅ ${email} verified!`);
+                    await loadUsers();
+                    await loadStats();
                 } else {
                     alert('❌ Failed to verify user');
                 }
             } catch (error) {
                 alert('Error verifying user');
+            } finally {
+                hideLoading();
             }
         }
 
-        async function grantChatAccess(email) {
+        async function applyGameTimer() {
+            showLoading();
             try {
-                const displayName = prompt('Enter a display name for this user:', email.split('@')[0]);
-                if (!displayName) return;
+                const hours = document.getElementById('gameHours').value;
+                const minutes = document.getElementById('gameMinutes').value;
+                const seconds = document.getElementById('gameSeconds').value;
                 
-                await fetch(`${API_URL}/admin/set-display-name`, {
+                await fetch(`${API_URL}/admin/update-settings`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
-                    body: JSON.stringify({ email, displayName })
+                    body: JSON.stringify({ key: 'game_timer_hours', value: hours })
                 });
-                
-                await fetch(`${API_URL}/admin/verify-user-payment`, {
+                await fetch(`${API_URL}/admin/update-settings`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
-                    body: JSON.stringify({ email })
+                    body: JSON.stringify({ key: 'game_timer_minutes', value: minutes })
+                });
+                await fetch(`${API_URL}/admin/update-settings`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ key: 'game_timer_seconds', value: seconds })
                 });
                 
-                alert(`✅ ${email} can now access the chat!`);
-                loadUsers();
-                loadStats();
+                showSuccess('✅ Game timer applied!');
             } catch (error) {
-                alert('Error granting access');
+                alert('Error applying timer');
+            } finally {
+                hideLoading();
             }
+        }
+
+        async function applyWeeklyTimer() {
+            showLoading();
+            try {
+                const days = document.getElementById('weeklyDays').value;
+                const hours = document.getElementById('weeklyHours').value;
+                const minutes = document.getElementById('weeklyMinutes').value;
+                const seconds = document.getElementById('weeklySeconds').value;
+                
+                await fetch(`${API_URL}/admin/update-settings`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ key: 'weekly_timer_days', value: days })
+                });
+                await fetch(`${API_URL}/admin/update-settings`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ key: 'weekly_timer_hours', value: hours })
+                });
+                await fetch(`${API_URL}/admin/update-settings`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ key: 'weekly_timer_minutes', value: minutes })
+                });
+                await fetch(`${API_URL}/admin/update-settings`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ key: 'weekly_timer_seconds', value: seconds })
+                });
+                
+                showSuccess('✅ Weekly timer applied!');
+            } catch (error) {
+                alert('Error applying timer');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function applyInfoBar() {
+            showLoading();
+            try {
+                const text = document.getElementById('infoText').value;
+                const color = document.getElementById('infoColor').value;
+                
+                await fetch(`${API_URL}/admin/update-settings`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ key: 'info_bar_text', value: text })
+                });
+                await fetch(`${API_URL}/admin/update-settings`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ key: 'info_bar_color', value: color })
+                });
+                
+                showSuccess('✅ Info bar applied!');
+            } catch (error) {
+                alert('Error applying info bar');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function sendBroadcast() {
+            const message = document.getElementById('broadcastMessage').value.trim();
+            if (!message) {
+                alert('Please enter a message');
+                return;
+            }
+            
+            if (!socket) {
+                alert('Connecting to chat server...');
+                initSocket();
+                setTimeout(() => sendBroadcast(), 1000);
+                return;
+            }
+            
+            socket.emit('admin_broadcast', { message: message });
+            document.getElementById('broadcastMessage').value = '';
+            const successDiv = document.getElementById('broadcastSuccess');
+            successDiv.style.display = 'block';
+            setTimeout(() => successDiv.style.display = 'none', 3000);
         }
 
         function showSection(section) {
+            currentSection = section;
+            
+            // Hide all sections
             document.getElementById('broadcastSection').style.display = 'none';
-            document.getElementById('timersSection').style.display = 'none';
-            document.getElementById('paymentsSection').style.display = 'none';
-            document.getElementById('usersSection').style.display = 'none';
+            const timersSection = document.getElementById('timersSection');
+            const paymentsSection = document.getElementById('paymentsSection');
+            const usersSection = document.getElementById('usersSection');
             
-            document.getElementById(`${section}Section`).style.display = 'block';
+            if (timersSection) timersSection.style.display = 'none';
+            if (paymentsSection) paymentsSection.style.display = 'none';
+            if (usersSection) usersSection.style.display = 'none';
             
-            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
-            event.target.closest('.nav-item').classList.add('active');
+            // Show selected section
+            if (section === 'broadcast') {
+                document.getElementById('broadcastSection').style.display = 'block';
+            } else if (section === 'timers') {
+                if (timersSection) timersSection.style.display = 'block';
+                loadSettings();
+            } else if (section === 'payments') {
+                if (paymentsSection) paymentsSection.style.display = 'block';
+                loadPendingPayments();
+            } else if (section === 'users') {
+                if (usersSection) usersSection.style.display = 'block';
+                loadUsers();
+            }
             
-            if (section === 'payments') loadPendingPayments();
-            if (section === 'users') loadUsers();
-            if (section === 'timers') loadSettings();
+            // Update nav active states
+            document.querySelectorAll('.nav-item').forEach(item => {
+                if (item.getAttribute('data-section') === section) {
+                    item.classList.add('active');
+                } else if (item.getAttribute('data-section')) {
+                    item.classList.remove('active');
+                }
+            });
         }
 
         function escapeHtml(text) {
@@ -660,23 +676,44 @@
             return div.innerHTML;
         }
 
-        async function logout() {
+        async function handleLogout() {
+            showLoading();
             await fetch(`${API_URL}/auth/logout`, { method: 'POST', credentials: 'include' });
+            localStorage.clear();
             window.location.href = '/login.html';
         }
 
-      async function init() {
-    const user = await ensureAuthenticated();
-    if (!user || !user.isAdmin) return;
-    
-    document.getElementById('adminEmail').innerText = user.email;
-    initSocket();
-    
-    await loadStats();
-    await loadPendingPayments();
-    await loadSettings();
-}
+        async function init() {
+            showLoading();
+            try {
+                const user = await getCurrentUser();
+                if (!user || !user.isAdmin) {
+                    window.location.href = '/login.html';
+                    return;
+                }
+                
+                document.getElementById('adminEmail').innerText = user.email;
+                initSocket();
+                await loadStats();
+                
+                // Setup navigation
+                document.querySelectorAll('.nav-item[data-section]').forEach(item => {
+                    item.addEventListener('click', (e) => {
+                        const section = item.getAttribute('data-section');
+                        showSection(section);
+                    });
+                });
+                
+                // Show default section
+                showSection('broadcast');
+            } catch (error) {
+                console.error('Init error:', error);
+            } finally {
+                hideLoading();
+            }
+        }
 
+        // Start the app
         init();
     </script>
 </body>
