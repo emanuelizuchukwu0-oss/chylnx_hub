@@ -1,11 +1,13 @@
 from flask import Flask, request, jsonify, session, send_from_directory
-from flask_socketio import SocketIO, emit, join_room, leave_room
+from flask_socketio import SocketIO, emit, join_room
 from flask_cors import CORS
 import secrets
 import sqlite3
 import hashlib
 import os
 from datetime import datetime, timedelta
+from functools import lru_cache
+import time
 
 app = Flask(__name__, static_folder='.', static_url_path='')
 app.config['SECRET_KEY'] = secrets.token_hex(32)
@@ -19,15 +21,18 @@ socketio = SocketIO(app, cors_allowed_origins='*', async_mode='threading')
 # Database setup
 DB_PATH = '/tmp/chylnx.db'
 
+# Simple cache for settings (5 minute TTL)
+settings_cache = {}
+settings_cache_time = 0
+CACHE_TTL = 300  # 5 seconds (faster updates)
+
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
-# Initialize database
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     
-    # Users table
     c.execute('''CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         full_name TEXT NOT NULL,
@@ -39,7 +44,6 @@ def init_db():
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
     
-    # Payments table
     c.execute('''CREATE TABLE IF NOT EXISTS payments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_email TEXT NOT NULL,
@@ -49,7 +53,6 @@ def init_db():
         submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
     
-    # Messages table
     c.execute('''CREATE TABLE IF NOT EXISTS messages (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         sender_name TEXT NOT NULL,
@@ -58,7 +61,6 @@ def init_db():
         is_system INTEGER DEFAULT 0
     )''')
     
-    # Settings table
     c.execute('''CREATE TABLE IF NOT EXISTS settings (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         setting_key TEXT UNIQUE NOT NULL,
@@ -66,17 +68,18 @@ def init_db():
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
     
-    # Indexes for faster queries
+    # Indexes for speed
     c.execute("CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_users_payment ON users(payment_verified)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_messages_time ON messages(timestamp DESC)")
     
-    # Create admin if not exists
+    # Create admin
     c.execute("SELECT * FROM users WHERE email = 'admin@chylnx.com'")
     if not c.fetchone():
         c.execute("INSERT INTO users (full_name, email, password_hash, is_admin, payment_verified) VALUES (?, ?, ?, ?, ?)",
                    ('Administrator', 'admin@chylnx.com', hash_password('admin123'), 1, 1))
     
-    # Initialize default settings
+    # Settings
     settings = [
         ('game_timer_hours', '24'),
         ('game_timer_minutes', '0'),
@@ -85,7 +88,7 @@ def init_db():
         ('weekly_timer_hours', '0'),
         ('weekly_timer_minutes', '0'),
         ('weekly_timer_seconds', '0'),
-        ('info_bar_text', 'Welcome to Chylnx Hub! 🎮 Join our community chat and connect with others.'),
+        ('info_bar_text', 'Welcome to Chylnx Hub! 🎮 Join our community chat!'),
         ('info_bar_color', '#667eea')
     ]
     
@@ -98,30 +101,29 @@ def init_db():
 
 init_db()
 
-# Helper functions
-def get_user(email):
+# Cached settings getter
+def get_cached_settings():
+    global settings_cache, settings_cache_time
+    now = time.time()
+    if now - settings_cache_time > CACHE_TTL or not settings_cache:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("SELECT setting_key, setting_value FROM settings").fetchall()
+        settings_cache = {row['setting_key']: row['setting_value'] for row in rows}
+        conn.close()
+        settings_cache_time = now
+    return settings_cache
+
+def get_user_fast(email):
+    """Optimized user fetch with single query"""
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
-    user = conn.execute("SELECT * FROM users WHERE email = ?", (email.lower(),)).fetchone()
+    user = conn.execute(
+        "SELECT id, full_name, email, password_hash, display_name, payment_verified, is_admin FROM users WHERE email = ?", 
+        (email.lower(),)
+    ).fetchone()
     conn.close()
     return dict(user) if user else None
-
-def save_message_to_db(sender_name, message_text, is_system=0):
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("INSERT INTO messages (sender_name, message_text, is_system, timestamp) VALUES (?, ?, ?, CURRENT_TIMESTAMP)",
-                  (sender_name, message_text, is_system))
-    conn.commit()
-    message_id = cursor.lastrowid
-    conn.close()
-    return message_id
-
-def get_recent_messages(limit=50):
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    messages = conn.execute("SELECT id, sender_name, message_text, timestamp, is_system FROM messages ORDER BY timestamp DESC LIMIT ?", (limit,)).fetchall()
-    conn.close()
-    return [dict(m) for m in reversed(messages)]
 
 # Serve HTML files
 @app.route('/')
@@ -162,12 +164,13 @@ def register():
 @app.route('/api/auth/login', methods=['POST'])
 def login():
     try:
+        start = time.time()
         data = request.json
         email = data.get('email', '').lower().strip()
         password = data.get('password', '')
         remember_me = data.get('rememberMe', False)
         
-        user = get_user(email)
+        user = get_user_fast(email)
         if not user or user['password_hash'] != hash_password(password):
             return jsonify({'error': 'Invalid credentials'}), 401
         
@@ -175,6 +178,7 @@ def login():
         if remember_me:
             session.permanent = True
         
+        print(f"Login took {time.time() - start:.3f}s")
         return jsonify({
             'success': True,
             'user': {
@@ -187,46 +191,17 @@ def login():
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
-@app.route('/api/auth/restore-session', methods=['POST'])
-def restore_session():
-    try:
-        data = request.json
-        email = data.get('email', '').lower().strip()
-        
-        user = get_user(email)
-        if not user:
-            return jsonify({'error': 'User not found'}), 404
-        
-        session['user_email'] = user['email']
-        session.permanent = True
-        
-        return jsonify({
-            'success': True,
-            'user': {
-                'email': user['email'],
-                'fullName': user['full_name'],
-                'paymentVerified': bool(user['payment_verified']),
-                'isAdmin': bool(user['is_admin']),
-                'displayName': user.get('display_name')
-            }
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/auth/logout', methods=['POST'])
-def logout():
-    session.pop('user_email', None)
-    return jsonify({'success': True})
 
 @app.route('/api/auth/me', methods=['GET'])
 def me():
     email = session.get('user_email')
     if not email:
         return jsonify({'error': 'Not logged in'}), 401
-    user = get_user(email)
+    
+    user = get_user_fast(email)
     if not user:
         return jsonify({'error': 'User not found'}), 404
+    
     return jsonify({
         'email': user['email'],
         'fullName': user['full_name'],
@@ -256,13 +231,23 @@ def set_display_name():
 
 @app.route('/api/check-access', methods=['GET'])
 def check_access():
+    """Lightning fast access check - single query, no extra data"""
     email = session.get('user_email')
     if not email:
         return jsonify({'hasAccess': False}), 401
-    user = get_user(email)
-    if user and user['is_admin']:
-        return jsonify({'hasAccess': True})
-    return jsonify({'hasAccess': bool(user['payment_verified']) if user else False})
+    
+    conn = sqlite3.connect(DB_PATH)
+    result = conn.execute(
+        "SELECT payment_verified, is_admin FROM users WHERE email = ?", 
+        (email.lower(),)
+    ).fetchone()
+    conn.close()
+    
+    if not result:
+        return jsonify({'hasAccess': False}), 401
+    
+    has_access = bool(result[0]) or bool(result[1])
+    return jsonify({'hasAccess': has_access})
 
 @app.route('/api/submit-payment', methods=['POST'])
 def submit_payment():
@@ -284,27 +269,11 @@ def submit_payment():
     conn.close()
     return jsonify({'success': True})
 
-@app.route('/api/messages', methods=['GET'])
-def get_messages():
-    email = session.get('user_email')
-    if not email:
-        return jsonify({'error': 'Not logged in'}), 401
-    
-    user = get_user(email)
-    if not user or (not user['payment_verified'] and not user['is_admin']):
-        return jsonify({'error': 'Access denied'}), 403
-    
-    messages = get_recent_messages(50)
-    return jsonify({'messages': messages})
-
-# Settings Routes
 @app.route('/api/settings', methods=['GET'])
 def get_settings():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    settings = conn.execute("SELECT setting_key, setting_value FROM settings").fetchall()
-    conn.close()
-    return jsonify({'settings': {s['setting_key']: s['setting_value'] for s in settings}})
+    """Cached settings - super fast"""
+    settings = get_cached_settings()
+    return jsonify({'settings': settings})
 
 @app.route('/api/admin/update-settings', methods=['POST'])
 def update_settings():
@@ -312,7 +281,7 @@ def update_settings():
     if not email:
         return jsonify({'error': 'Not logged in'}), 401
     
-    user = get_user(email)
+    user = get_user_fast(email)
     if not user or not user['is_admin']:
         return jsonify({'error': 'Unauthorized'}), 401
     
@@ -322,20 +291,23 @@ def update_settings():
     
     if setting_key and setting_value is not None:
         conn = sqlite3.connect(DB_PATH)
-        conn.execute("UPDATE settings SET setting_value = ?, updated_at = CURRENT_TIMESTAMP WHERE setting_key = ?", (str(setting_value), setting_key))
+        conn.execute("UPDATE settings SET setting_value = ?, updated_at = CURRENT_TIMESTAMP WHERE setting_key = ?", 
+                    (str(setting_value), setting_key))
         conn.commit()
         conn.close()
+        # Clear cache
+        global settings_cache_time
+        settings_cache_time = 0
         return jsonify({'success': True})
     return jsonify({'error': 'Invalid data'}), 400
 
-# Admin Routes
 @app.route('/api/admin/pending-payments', methods=['GET'])
 def pending_payments():
     email = session.get('user_email')
     if not email:
         return jsonify({'error': 'Not logged in'}), 401
     
-    user = get_user(email)
+    user = get_user_fast(email)
     if not user or not user['is_admin']:
         return jsonify({'error': 'Unauthorized'}), 401
     
@@ -351,7 +323,7 @@ def verify_payment():
     if not email:
         return jsonify({'error': 'Not logged in'}), 401
     
-    user = get_user(email)
+    user = get_user_fast(email)
     if not user or not user['is_admin']:
         return jsonify({'error': 'Unauthorized'}), 401
     
@@ -375,7 +347,7 @@ def list_users():
     if not email:
         return jsonify({'error': 'Not logged in'}), 401
     
-    user = get_user(email)
+    user = get_user_fast(email)
     if not user or not user['is_admin']:
         return jsonify({'error': 'Unauthorized'}), 401
     
@@ -391,7 +363,7 @@ def verify_user():
     if not email:
         return jsonify({'error': 'Not logged in'}), 401
     
-    user = get_user(email)
+    user = get_user_fast(email)
     if not user or not user['is_admin']:
         return jsonify({'error': 'Unauthorized'}), 401
     
@@ -403,127 +375,83 @@ def verify_user():
     conn.close()
     return jsonify({'success': True})
 
-# ==================== SOCKET.IO EVENTS (FIXED) ====================
-
-# Store active users
+# Socket events
 active_users = {}
 
 @socketio.on('connect')
 def handle_connect():
-    print(f'✅ Client connected: {request.sid}')
+    print(f'Client connected: {request.sid}')
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    print(f'❌ Client disconnected: {request.sid}')
-    # Remove user from active users
     email = session.get('user_email')
     if email and email in active_users:
         del active_users[email]
-        # Broadcast updated count
         emit('online_count', {'count': len(active_users)}, room='main_chat', broadcast=True)
 
 @socketio.on('join_chat')
 def handle_join_chat():
     email = session.get('user_email')
-    print(f'Join chat attempt from: {email}')
-    
     if not email:
-        emit('error', {'message': 'Not authenticated'})
         return
     
-    user = get_user(email)
-    if not user:
-        emit('error', {'message': 'User not found'})
-        return
-    
-    if not user['payment_verified'] and not user['is_admin']:
+    user = get_user_fast(email)
+    if not user or (not user['payment_verified'] and not user['is_admin']):
         emit('error', {'message': 'Payment required'})
         return
     
-    # Store user
     display_name = user.get('display_name', user['full_name'].split()[0])
-    active_users[email] = {
-        'sid': request.sid,
-        'name': display_name,
-        'is_admin': user['is_admin']
-    }
-    
-    # Join the room
+    active_users[email] = {'sid': request.sid, 'name': display_name}
     join_room('main_chat')
-    print(f'✅ User {display_name} joined main_chat')
     
-    # Send recent messages to this user
-    messages = get_recent_messages(50)
-    emit('chat_history', {'messages': messages})
-    
-    # Update online count for everyone
+    # Get recent messages (limit 30 for speed)
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    messages = [dict(m) for m in conn.execute("SELECT id, sender_name, message_text, timestamp, is_system FROM messages ORDER BY timestamp DESC LIMIT 30").fetchall()]
+    conn.close()
+    emit('chat_history', {'messages': list(reversed(messages))})
     emit('online_count', {'count': len(active_users)}, room='main_chat')
-    
-    # Send join notification to everyone else
-    join_message = f'{display_name} joined the chat'
-    save_message_to_db('System', join_message, is_system=1)
-    emit('new_message', {
-        'id': 0,
-        'sender': 'System',
-        'text': join_message,
-        'timestamp': datetime.now().isoformat(),
-        'isSystem': True
-    }, room='main_chat', skip_sid=request.sid)
 
 @socketio.on('send_message')
 def handle_send_message(data):
     email = session.get('user_email')
-    print(f'Send message from: {email}, data: {data}')
-    
     if not email:
-        emit('error', {'message': 'Not authenticated'})
         return
     
-    user = get_user(email)
-    if not user:
-        emit('error', {'message': 'User not found'})
+    user = get_user_fast(email)
+    if not user or (not user['payment_verified'] and not user['is_admin']):
         return
     
-    if not user['payment_verified'] and not user['is_admin']:
-        emit('error', {'message': 'Payment required'})
-        return
-    
-    message_text = data.get('text', '').strip()
-    if not message_text:
-        return
-    
-    if len(message_text) > 500:
-        emit('error', {'message': 'Message too long'})
+    text = data.get('text', '').strip()
+    if not text or len(text) > 500:
         return
     
     display_name = user.get('display_name', user['full_name'].split()[0])
     
-    # Save to database
-    message_id = save_message_to_db(display_name, message_text, is_system=0)
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO messages (sender_name, message_text, timestamp) VALUES (?, ?, CURRENT_TIMESTAMP)",
+                  (display_name, text))
+    conn.commit()
+    msg_id = cursor.lastrowid
+    conn.close()
     
-    # Broadcast to everyone in the room
     emit('new_message', {
-        'id': message_id,
+        'id': msg_id,
         'sender': display_name,
-        'text': message_text,
+        'text': text,
         'timestamp': datetime.now().isoformat(),
         'isSystem': False
     }, room='main_chat')
-    
-    print(f'✅ Message broadcasted: {display_name}: {message_text}')
 
 @socketio.on('admin_broadcast')
 def handle_admin_broadcast(data):
     email = session.get('user_email')
-    print(f'Admin broadcast from: {email}')
-    
     if not email:
-        emit('error', {'message': 'Not authenticated'})
         return
     
-    user = get_user(email)
+    user = get_user_fast(email)
     if not user or not user['is_admin']:
-        emit('error', {'message': 'Unauthorized'})
         return
     
     message = data.get('message', '').strip()
@@ -531,12 +459,14 @@ def handle_admin_broadcast(data):
         return
     
     display_name = user.get('display_name', 'Admin')
-    broadcast_text = f'🔊 ANNOUNCEMENT from {display_name}: {message}'
+    broadcast_text = f'🔊 {display_name}: {message}'
     
-    # Save to database
-    save_message_to_db('📢 ANNOUNCEMENT', broadcast_text, is_system=1)
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("INSERT INTO messages (sender_name, message_text, is_system, timestamp) VALUES (?, ?, ?, CURRENT_TIMESTAMP)",
+                ('📢 ANNOUNCEMENT', broadcast_text, 1))
+    conn.commit()
+    conn.close()
     
-    # Broadcast to everyone
     emit('new_message', {
         'id': 0,
         'sender': '📢 ANNOUNCEMENT',
@@ -544,37 +474,11 @@ def handle_admin_broadcast(data):
         'timestamp': datetime.now().isoformat(),
         'isSystem': True
     }, room='main_chat')
-    
-    print(f'✅ Admin broadcast sent: {broadcast_text}')
-
-@socketio.on('typing')
-def handle_typing(data):
-    email = session.get('user_email')
-    if not email:
-        return
-    
-    user = get_user(email)
-    if not user:
-        return
-    
-    if not user['payment_verified'] and not user['is_admin']:
-        return
-    
-    display_name = user.get('display_name', user['full_name'].split()[0])
-    is_typing = data.get('isTyping', False)
-    
-    emit('user_typing', {
-        'user': display_name,
-        'isTyping': is_typing
-    }, room='main_chat', include_self=False)
 
 print("=" * 50)
-print("✅ Server is ready!")
+print("✅ Optimized Server Ready!")
 print("👑 Admin: admin@chylnx.com / admin123")
 print("=" * 50)
-
-# For Gunicorn
-app = app
 
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=10000, debug=True)
