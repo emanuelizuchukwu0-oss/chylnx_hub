@@ -552,6 +552,21 @@
                 alert('Error applying timer');
             }
         }
+        // Add this to check if admin has display name
+async function checkAdminDisplayName() {
+    const user = await getCurrentUser();
+    if (user && user.isAdmin && !user.displayName) {
+        const name = prompt('Welcome Admin! Enter your display name for chat:');
+        if (name && name.trim()) {
+            await fetch(`${API_URL}/set-display-name`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ displayName: name.trim() })
+            });
+        }
+    }
+}
 
         async function applyWeeklyTimer() {
             try {
