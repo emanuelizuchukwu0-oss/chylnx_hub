@@ -197,6 +197,18 @@
             font-weight: 600;
             width: 100%;
         }
+        .go-chat-btn {
+            width: 100%;
+            background: #075E54;
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 16px;
+            margin-top: 15px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
         .error-box {
             background: #ef4444;
             padding: 10px;
@@ -221,6 +233,7 @@
     <div class="sidebar">
         <div class="logo">chylnx hub<br><span style="font-size: 12px;">ADMIN</span></div>
         <div class="nav-item active" onclick="showSection('broadcast')">📢 Broadcast</div>
+        <div class="nav-item" onclick="showSection('chat')">💬 Live Chat</div>
         <div class="nav-item" onclick="showSection('timers')">⏰ Timers & Info Bar</div>
         <div class="nav-item" onclick="showSection('payments')">💰 Pending Payments</div>
         <div class="nav-item" onclick="showSection('users')">👥 Users</div>
@@ -247,6 +260,23 @@
             <textarea id="broadcastMessage" class="broadcast-input" rows="3" placeholder="Type your announcement here..."></textarea>
             <button class="broadcast-btn" onclick="sendBroadcast()">📢 Send Broadcast</button>
             <div id="broadcastSuccess" class="success-msg">✅ Broadcast sent successfully!</div>
+        </div>
+
+        <!-- Live Chat Section for Admin -->
+        <div id="chatSection" class="section" style="display: none;">
+            <h2>💬 Live Chat (Chat with Users)</h2>
+            <div style="background: #0f0f1a; border-radius: 16px; height: 400px; display: flex; flex-direction: column;">
+                <div id="adminChatMessages" style="flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 8px;">
+                    <div style="text-align: center; color: #666; padding: 20px;">Connecting to chat...</div>
+                </div>
+                <div style="padding: 12px; background: #1a1a2e; border-radius: 0 0 16px 16px; display: flex; gap: 12px;">
+                    <input type="text" id="adminChatInput" placeholder="Type a message..." style="flex: 1; padding: 12px; border-radius: 25px; border: none; background: #2d2d44; color: white; outline: none;">
+                    <button onclick="sendAdminChatMessage()" style="background: #075E54; border: none; width: 45px; height: 45px; border-radius: 50%; cursor: pointer; color: white; font-size: 20px;">📤</button>
+                </div>
+            </div>
+            <div style="margin-top: 10px; font-size: 12px; color: #888; text-align: center;">
+                👑 You are chatting as Admin. Messages will appear with a crown 👑
+            </div>
         </div>
 
         <!-- Timers Section -->
@@ -300,6 +330,7 @@
     <script>
         const API_URL = '/api';
         let socket = null;
+        let adminMessages = [];
 
         function showError(message) {
             const errorDiv = document.getElementById('errorDisplay');
@@ -339,12 +370,21 @@
             }
         }
 
-        async function initSocket() {
+        async function initChatSocket() {
             if (socket) return;
             try {
                 socket = io('/', { withCredentials: true });
                 socket.on('connect', () => {
-                    console.log('Socket connected for admin');
+                    console.log('Admin socket connected');
+                    socket.emit('join_chat');
+                });
+                socket.on('chat_history', (data) => {
+                    adminMessages = data.messages || [];
+                    renderAdminChat();
+                });
+                socket.on('new_message', (msg) => {
+                    adminMessages.push(msg);
+                    renderAdminChat();
                 });
                 socket.on('connect_error', (error) => {
                     console.error('Socket connection error:', error);
@@ -352,6 +392,43 @@
             } catch (error) {
                 console.error('Socket init error:', error);
             }
+        }
+
+        function renderAdminChat() {
+            const container = document.getElementById('adminChatMessages');
+            if (!container) return;
+            
+            if (adminMessages.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: #666; padding: 20px;">No messages yet. Start the conversation!</div>';
+                return;
+            }
+            
+            let html = '';
+            adminMessages.forEach(msg => {
+                const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                if (msg.isSystem) {
+                    html += `<div style="text-align: center; font-size: 11px; color: #666; margin: 8px 0;">📢 ${escapeHtml(msg.text)}</div>`;
+                } else {
+                    const isOwn = msg.sender.includes('👑');
+                    html += `
+                        <div style="max-width: 75%; padding: 8px 12px; border-radius: 12px; ${isOwn ? 'background: #075E54; align-self: flex-end;' : 'background: #2d2d44; align-self: flex-start;'} margin-left: ${isOwn ? 'auto' : '0'};">
+                            <div style="font-size: 11px; font-weight: 600; margin-bottom: 4px; opacity: 0.8;">${escapeHtml(msg.sender)}</div>
+                            <div style="font-size: 14px;">${escapeHtml(msg.text)}</div>
+                            <div style="font-size: 9px; opacity: 0.6; text-align: right; margin-top: 4px;">${time}</div>
+                        </div>
+                    `;
+                }
+            });
+            container.innerHTML = html;
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function sendAdminChatMessage() {
+            const input = document.getElementById('adminChatInput');
+            const text = input.value.trim();
+            if (!text || !socket) return;
+            socket.emit('send_message', { text });
+            input.value = '';
         }
 
         async function loadStats() {
@@ -391,25 +468,15 @@
                 const data = await res.json();
                 const settings = data.settings || {};
                 
-                const gameHours = document.getElementById('gameHours');
-                const gameMinutes = document.getElementById('gameMinutes');
-                const gameSeconds = document.getElementById('gameSeconds');
-                const weeklyDays = document.getElementById('weeklyDays');
-                const weeklyHours = document.getElementById('weeklyHours');
-                const weeklyMinutes = document.getElementById('weeklyMinutes');
-                const weeklySeconds = document.getElementById('weeklySeconds');
-                const infoText = document.getElementById('infoText');
-                const infoColor = document.getElementById('infoColor');
-                
-                if (gameHours) gameHours.value = settings.game_timer_hours || 24;
-                if (gameMinutes) gameMinutes.value = settings.game_timer_minutes || 0;
-                if (gameSeconds) gameSeconds.value = settings.game_timer_seconds || 0;
-                if (weeklyDays) weeklyDays.value = settings.weekly_timer_days || 7;
-                if (weeklyHours) weeklyHours.value = settings.weekly_timer_hours || 0;
-                if (weeklyMinutes) weeklyMinutes.value = settings.weekly_timer_minutes || 0;
-                if (weeklySeconds) weeklySeconds.value = settings.weekly_timer_seconds || 0;
-                if (infoText) infoText.value = settings.info_bar_text || 'Welcome to Chylnx Hub!';
-                if (infoColor) infoColor.value = settings.info_bar_color || '#667eea';
+                document.getElementById('gameHours').value = settings.game_timer_hours || 24;
+                document.getElementById('gameMinutes').value = settings.game_timer_minutes || 0;
+                document.getElementById('gameSeconds').value = settings.game_timer_seconds || 0;
+                document.getElementById('weeklyDays').value = settings.weekly_timer_days || 7;
+                document.getElementById('weeklyHours').value = settings.weekly_timer_hours || 0;
+                document.getElementById('weeklyMinutes').value = settings.weekly_timer_minutes || 0;
+                document.getElementById('weeklySeconds').value = settings.weekly_timer_seconds || 0;
+                document.getElementById('infoText').value = settings.info_bar_text || 'Welcome to Chylnx Hub!';
+                document.getElementById('infoColor').value = settings.info_bar_color || '#667eea';
             } catch (error) {
                 console.error('Settings error:', error);
                 showError('Failed to load settings');
@@ -552,21 +619,6 @@
                 alert('Error applying timer');
             }
         }
-        // Add this to check if admin has display name
-async function checkAdminDisplayName() {
-    const user = await getCurrentUser();
-    if (user && user.isAdmin && !user.displayName) {
-        const name = prompt('Welcome Admin! Enter your display name for chat:');
-        if (name && name.trim()) {
-            await fetch(`${API_URL}/set-display-name`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ displayName: name.trim() })
-            });
-        }
-    }
-}
 
         async function applyWeeklyTimer() {
             try {
@@ -638,18 +690,8 @@ async function checkAdminDisplayName() {
             }
             
             if (!socket) {
-                initSocket();
-                setTimeout(() => {
-                    if (socket) {
-                        socket.emit('admin_broadcast', { message: message });
-                        document.getElementById('broadcastMessage').value = '';
-                        const successDiv = document.getElementById('broadcastSuccess');
-                        successDiv.style.display = 'block';
-                        setTimeout(() => successDiv.style.display = 'none', 3000);
-                    } else {
-                        alert('Could not connect to chat server');
-                    }
-                }, 1000);
+                initChatSocket();
+                setTimeout(() => sendBroadcast(), 1000);
                 return;
             }
             
@@ -661,7 +703,7 @@ async function checkAdminDisplayName() {
         }
 
         function showSection(section) {
-            const sections = ['broadcastSection', 'timersSection', 'paymentsSection', 'usersSection'];
+            const sections = ['broadcastSection', 'chatSection', 'timersSection', 'paymentsSection', 'usersSection'];
             sections.forEach(s => {
                 const el = document.getElementById(s);
                 if (el) el.style.display = 'none';
@@ -679,6 +721,7 @@ async function checkAdminDisplayName() {
             if (section === 'timers') loadSettings();
             if (section === 'payments') loadPendingPayments();
             if (section === 'users') loadUsers();
+            if (section === 'chat') initChatSocket();
         }
 
         function escapeHtml(text) {
@@ -708,8 +751,20 @@ async function checkAdminDisplayName() {
                 }
                 
                 document.getElementById('adminEmail').innerText = user.email;
-                initSocket();
                 await loadStats();
+                
+                // Check if admin has display name
+                if (!user.displayName) {
+                    const name = prompt('Welcome Admin! Enter your display name for chat:');
+                    if (name && name.trim()) {
+                        await fetch(`${API_URL}/set-display-name`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            credentials: 'include',
+                            body: JSON.stringify({ displayName: name.trim() })
+                        });
+                    }
+                }
             } catch (error) {
                 console.error('Init error:', error);
                 showError('Failed to load dashboard. Please refresh.');
