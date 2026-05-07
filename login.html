@@ -5,98 +5,419 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chylnx Hub - Login</title>
     <style>
+        :root {
+            --green-dark: #0a3d0a;
+            --green-mid: #1a5c1a;
+            --green-light: #2d8a2d;
+            --green-bright: #4caf50;
+            --green-glow: #8bc34a;
+        }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(180deg, #0a3d0a 0%, #1a5c1a 30%, #0d4a0d 60%, #0a3d0a 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 20px;
+            position: relative;
+            overflow: hidden;
         }
-        .card {
-            max-width: 400px;
+
+        /* ===================== */
+        /* FALLING OBJECTS       */
+        /* ===================== */
+        .falling-objects {
+            position: fixed;
+            top: 0;
+            left: 0;
             width: 100%;
-            background: white;
-            border-radius: 32px;
-            padding: 40px;
-            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+            overflow: hidden;
         }
+
+        .falling-object {
+            position: absolute;
+            top: -60px;
+            animation: fall linear infinite;
+            opacity: 0.12;
+            filter: blur(0.5px);
+            will-change: transform;
+        }
+
+        .chess-piece {
+            font-size: 30px;
+            text-shadow: 0 0 10px rgba(255,255,255,0.3);
+        }
+
+        .planet {
+            border-radius: 50%;
+            box-shadow: inset -4px -4px 8px rgba(0,0,0,0.3), 0 0 15px rgba(255,255,255,0.2);
+        }
+
+        .book {
+            font-size: 24px;
+            text-shadow: 0 0 8px rgba(255,255,255,0.2);
+        }
+
+        .particle {
+            position: absolute;
+            background: rgba(139,195,74,0.4);
+            border-radius: 50%;
+            pointer-events: none;
+            animation: floatUp linear infinite;
+        }
+
+        /* Stars / sparkles */
+        .sparkle {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: #fff;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: sparkle 3s ease-in-out infinite;
+        }
+
+        @keyframes fall {
+            0% {
+                transform: translateY(-60px) rotate(0deg) translateX(0px);
+                opacity: 0;
+            }
+            5% {
+                opacity: 0.2;
+            }
+            90% {
+                opacity: 0.12;
+            }
+            100% {
+                transform: translateY(105vh) rotate(720deg) translateX(80px);
+                opacity: 0;
+            }
+        }
+
+        @keyframes fallSlow {
+            0% {
+                transform: translateY(-60px) rotate(0deg) translateX(0px);
+                opacity: 0;
+            }
+            5% {
+                opacity: 0.15;
+            }
+            90% {
+                opacity: 0.1;
+            }
+            100% {
+                transform: translateY(105vh) rotate(360deg) translateX(-60px);
+                opacity: 0;
+            }
+        }
+
+        @keyframes fallFast {
+            0% {
+                transform: translateY(-60px) rotate(0deg) translateX(0px);
+                opacity: 0;
+            }
+            5% {
+                opacity: 0.2;
+            }
+            90% {
+                opacity: 0.1;
+            }
+            100% {
+                transform: translateY(105vh) rotate(900deg) translateX(100px);
+                opacity: 0;
+            }
+        }
+
+        @keyframes floatUp {
+            0% {
+                transform: translateY(100vh) scale(0);
+                opacity: 0;
+            }
+            10% {
+                opacity: 0.6;
+            }
+            90% {
+                opacity: 0.2;
+            }
+            100% {
+                transform: translateY(-100px) scale(1.5);
+                opacity: 0;
+            }
+        }
+
+        @keyframes sparkle {
+            0%, 100% {
+                opacity: 0;
+                transform: scale(0);
+            }
+            50% {
+                opacity: 0.8;
+                transform: scale(1);
+            }
+        }
+
+        /* ===================== */
+        /* MAIN CARD             */
+        /* ===================== */
+        .card {
+            max-width: 420px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 32px;
+            padding: 40px 35px;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35), 0 0 60px rgba(76,175,80,0.15);
+            backdrop-filter: blur(10px);
+            position: relative;
+            z-index: 10;
+            animation: cardGlow 4s ease-in-out infinite;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        @keyframes cardGlow {
+            0%, 100% { box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35), 0 0 40px rgba(76,175,80,0.15); }
+            50% { box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35), 0 0 70px rgba(139,195,74,0.3); }
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(135deg, #2d8a2d, #4caf50, #8bc34a, #2d8a2d);
+            border-radius: 34px;
+            z-index: -1;
+            opacity: 0.3;
+            animation: borderGlow 3s ease-in-out infinite;
+        }
+
+        @keyframes borderGlow {
+            0%, 100% { opacity: 0.2; }
+            50% { opacity: 0.4; }
+        }
+
         .logo {
             text-align: center;
             font-size: 32px;
             font-weight: 800;
-            color: #667eea;
+            background: linear-gradient(135deg, #1a5c1a, #2d8a2d);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+        }
+
+        .logo-subtitle {
+            text-align: center;
+            font-size: 13px;
+            color: #6b7280;
             margin-bottom: 30px;
         }
+
+        /* ===================== */
+        /* FORM ELEMENTS         */
+        /* ===================== */
+        .form-group {
+            margin-bottom: 18px;
+            position: relative;
+        }
+
+        .form-group .icon {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 16px;
+            color: #9ca3af;
+            pointer-events: none;
+            z-index: 2;
+        }
+
         input {
             width: 100%;
-            padding: 14px;
+            padding: 14px 16px 14px 44px;
             border: 2px solid #e5e7eb;
             border-radius: 16px;
-            font-size: 16px;
-            margin-bottom: 15px;
+            font-size: 15px;
             outline: none;
+            transition: all 0.2s ease;
+            background: #f9fafb;
+            color: #1f2937;
         }
+
         input:focus {
-            border-color: #667eea;
+            border-color: #4caf50;
+            background: #fff;
+            box-shadow: 0 0 0 4px rgba(76,175,80,0.1);
         }
+
+        input::placeholder {
+            color: #9ca3af;
+        }
+
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover,
+        input:-webkit-autofill:focus {
+            -webkit-box-shadow: 0 0 0 30px #f0fdf4 inset;
+            -webkit-text-fill-color: #1f2937;
+        }
+
+        .remember-me {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            cursor: pointer;
+        }
+
+        .remember-me input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #4caf50;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        .remember-me label {
+            font-size: 14px;
+            color: #6b7280;
+            cursor: pointer;
+            user-select: none;
+        }
+
         button {
             width: 100%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #2d8a2d, #4caf50);
             color: white;
             border: none;
-            padding: 14px;
+            padding: 15px;
             font-size: 16px;
             font-weight: 600;
             border-radius: 50px;
             cursor: pointer;
             margin-top: 10px;
             position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            letter-spacing: 0.5px;
         }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(76,175,80,0.4);
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
         button:disabled {
             opacity: 0.7;
             cursor: not-allowed;
+            transform: none;
         }
+
+        button::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 60%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        button:hover::after {
+            opacity: 1;
+        }
+
         .loader {
             display: inline-block;
             width: 20px;
             height: 20px;
-            border: 2px solid white;
-            border-top-color: transparent;
+            border: 2px solid rgba(255,255,255,0.5);
+            border-top-color: white;
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
             margin-left: 10px;
             vertical-align: middle;
         }
+
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+
         .error {
-            background: #fee2e2;
+            background: #fef2f2;
             color: #dc2626;
-            padding: 12px;
+            padding: 12px 16px;
             border-radius: 12px;
             font-size: 13px;
             margin-bottom: 20px;
             text-align: center;
+            border-left: 3px solid #dc2626;
+            display: none;
+            animation: shake 0.3s ease;
         }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .success {
+            background: #f0fdf4;
+            color: #166534;
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 13px;
+            margin-bottom: 20px;
+            text-align: center;
+            border-left: 3px solid #22c55e;
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
         .switch {
             text-align: center;
             margin-top: 20px;
             color: #6b7280;
             font-size: 14px;
         }
+
         .switch a {
-            color: #667eea;
+            color: #2d8a2d;
             cursor: pointer;
             text-decoration: none;
+            font-weight: 600;
+            transition: color 0.2s ease;
         }
+
+        .switch a:hover {
+            color: #1a5c1a;
+            text-decoration: underline;
+        }
+
         .admin-note {
             text-align: center;
             font-size: 11px;
@@ -105,158 +426,496 @@
             padding-top: 15px;
             border-top: 1px solid #e5e7eb;
         }
-        .remember-me {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 20px;
+
+        .admin-note span {
+            color: #4caf50;
+            font-weight: 600;
         }
-        .remember-me input {
-            width: auto;
-            margin: 0;
+
+        /* Leaf decorations */
+        .leaf-decoration {
+            position: absolute;
+            font-size: 20px;
+            opacity: 0.3;
+            pointer-events: none;
+            animation: leafFloat 6s ease-in-out infinite;
+        }
+
+        .leaf-1 {
+            top: -15px;
+            right: -10px;
+            animation-delay: 0s;
+        }
+
+        .leaf-2 {
+            bottom: -15px;
+            left: -10px;
+            animation-delay: 3s;
+        }
+
+        @keyframes leafFloat {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-10px) rotate(10deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 480px) {
+            .card {
+                padding: 30px 20px;
+                border-radius: 24px;
+            }
+
+            .card::before {
+                border-radius: 26px;
+            }
+
+            .logo {
+                font-size: 26px;
+            }
+
+            input {
+                font-size: 14px;
+                padding: 12px 12px 12px 40px;
+            }
+
+            button {
+                padding: 13px;
+                font-size: 15px;
+            }
         }
     </style>
 </head>
 <body>
+    <!-- Falling Objects Container -->
+    <div class="falling-objects" id="fallingObjects"></div>
+
+    <!-- Floating Particles -->
+    <div id="particlesContainer"></div>
+
+    <!-- Sparkles -->
+    <div id="sparklesContainer"></div>
+
+    <!-- Main Login Card -->
     <div class="card">
-        <div class="logo">chylnx hub</div>
+        <!-- Leaf decorations -->
+        <div class="leaf-decoration leaf-1">🌿</div>
+        <div class="leaf-decoration leaf-2">🍃</div>
+
+        <div class="logo">🎮 chylnx hub</div>
+        <div class="logo-subtitle">Welcome back! Sign in to continue</div>
         
-        <div id="errorDiv" class="error" style="display: none;"></div>
+        <!-- Error Message -->
+        <div id="errorDiv" class="error"></div>
         
+        <!-- Success Message -->
+        <div id="successDiv" class="success"></div>
+        
+        <!-- Login Form -->
         <div id="loginForm">
-            <input type="email" id="email" placeholder="Email address" autocomplete="email">
-            <input type="password" id="password" placeholder="Password" autocomplete="current-password">
-            <div class="remember-me">
+            <div class="form-group">
+                <span class="icon">📧</span>
+                <input type="email" id="email" placeholder="Email address" autocomplete="email" autofocus>
+            </div>
+            <div class="form-group">
+                <span class="icon">🔒</span>
+                <input type="password" id="password" placeholder="Password" autocomplete="current-password">
+            </div>
+            <div class="remember-me" onclick="document.getElementById('rememberMe').click()">
                 <input type="checkbox" id="rememberMe">
-                <label>Remember me</label>
+                <label for="rememberMe">Remember me for 30 days</label>
             </div>
             <button id="loginBtn" onclick="login()">Sign In →</button>
-            <div class="switch">Don't have an account? <a onclick="showSignup()">Sign up</a></div>
+            <div class="switch">
+                Don't have an account? <a onclick="showSignup()">Create one</a>
+            </div>
         </div>
         
+        <!-- Signup Form -->
         <div id="signupForm" style="display: none;">
-            <input type="text" id="fullName" placeholder="Full name">
-            <input type="email" id="signupEmail" placeholder="Email address">
-            <input type="password" id="signupPassword" placeholder="Password (min 6 characters)">
+            <div class="form-group">
+                <span class="icon">👤</span>
+                <input type="text" id="fullName" placeholder="Full name" autocomplete="name">
+            </div>
+            <div class="form-group">
+                <span class="icon">📧</span>
+                <input type="email" id="signupEmail" placeholder="Email address" autocomplete="email">
+            </div>
+            <div class="form-group">
+                <span class="icon">🔒</span>
+                <input type="password" id="signupPassword" placeholder="Password (min 8 characters)" autocomplete="new-password">
+            </div>
             <button id="signupBtn" onclick="signup()">Create Account →</button>
-            <div class="switch">Already have an account? <a onclick="showLogin()">Sign in</a></div>
+            <div class="switch">
+                Already have an account? <a onclick="showLogin()">Sign in</a>
+            </div>
         </div>
         
-        <div class="admin-note">👑 Admin: admin@chylnx.com / admin123</div>
+        <div class="admin-note">
+            👑 Admin access: <span>admin@chylnx.com</span>
+        </div>
     </div>
 
     <script>
-        function showError(msg) {
-            const div = document.getElementById('errorDiv');
-            div.innerText = msg;
-            div.style.display = 'block';
-            setTimeout(() => div.style.display = 'none', 5000);
-        }
+        (function() {
+            'use strict';
 
-        function showLoading(buttonId, show) {
-            const btn = document.getElementById(buttonId);
-            if (show) {
-                btn.disabled = true;
-                btn.innerHTML = 'Please wait... <span class="loader"></span>';
-            } else {
-                btn.disabled = false;
-                btn.innerHTML = buttonId === 'loginBtn' ? 'Sign In →' : 'Create Account →';
-            }
-        }
+            // =====================
+            // FALLING OBJECTS
+            // =====================
 
-        function showLogin() {
-            document.getElementById('loginForm').style.display = 'block';
-            document.getElementById('signupForm').style.display = 'none';
-            document.getElementById('errorDiv').style.display = 'none';
-        }
+            const chessPieces = ['♔', '♕', '♖', '♗', '♘', '♙', '♚', '♛', '♜', '♝', '♞', '♟'];
+            const books = ['📕', '📗', '📘', '📙', '📚', '📖', '📓', '📔'];
+            const planetColors = [
+                '#e74c3c', '#3498db', '#f39c12', '#9b59b6', '#1abc9c',
+                '#e67e22', '#2ecc71', '#f1c40f', '#e91e63', '#00bcd4',
+                '#ff5722', '#8bc34a', '#ff9800', '#795548'
+            ];
 
-        function showSignup() {
-            document.getElementById('loginForm').style.display = 'none';
-            document.getElementById('signupForm').style.display = 'block';
-            document.getElementById('errorDiv').style.display = 'none';
-        }
+            function createFallingObjects() {
+                const container = document.getElementById('fallingObjects');
+                if (!container) return;
 
-        async function login() {
-            const email = document.getElementById('email').value.trim();
-            const password = document.getElementById('password').value;
-            const rememberMe = document.getElementById('rememberMe').checked;
-            
-            if (!email || !password) {
-                showError('Please enter email and password');
-                return;
-            }
-            
-            showLoading('loginBtn', true);
-            
-            try {
-                const res = await fetch('/api/auth/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ email, password, rememberMe })
-                });
-                const data = await res.json();
-                
-                if (res.ok) {
-                    localStorage.setItem('chylnx_user', JSON.stringify(data.user));
-                    if (rememberMe) {
-                        localStorage.setItem('remember_me', 'true');
-                    }
+                const objectCount = 25;
+                const fragment = document.createDocumentFragment();
+
+                for (let i = 0; i < objectCount; i++) {
+                    const obj = document.createElement('div');
+                    obj.className = 'falling-object';
                     
-                    if (data.user.isAdmin) {
-                        window.location.href = '/admin_dashboard.html';
+                    const type = Math.random();
+                    const left = Math.random() * 100;
+                    const size = 18 + Math.random() * 35;
+                    const duration = 8 + Math.random() * 15;
+                    const delay = Math.random() * 20;
+                    
+                    obj.style.left = `${left}%`;
+                    obj.style.width = `${size}px`;
+                    obj.style.height = `${size}px`;
+                    obj.style.animationDuration = `${duration}s`;
+                    obj.style.animationDelay = `${delay}s`;
+                    obj.style.animationIterationCount = 'infinite';
+
+                    if (type < 0.35) {
+                        // Chess piece
+                        obj.classList.add('chess-piece');
+                        obj.textContent = chessPieces[Math.floor(Math.random() * chessPieces.length)];
+                        obj.style.fontSize = `${size}px`;
+                        obj.style.animationName = Math.random() > 0.5 ? 'fall' : 'fallSlow';
+                    } else if (type < 0.7) {
+                        // Planet
+                        obj.classList.add('planet');
+                        obj.style.background = planetColors[Math.floor(Math.random() * planetColors.length)];
+                        
+                        // Ring for some planets
+                        if (Math.random() > 0.5) {
+                            obj.style.boxShadow = `
+                                inset -4px -4px 8px rgba(0,0,0,0.3),
+                                0 0 15px rgba(255,255,255,0.2),
+                                0 0 0 ${size * 0.2}px rgba(255,255,255,0.1)
+                            `;
+                        }
+                        obj.style.animationName = Math.random() > 0.5 ? 'fallSlow' : 'fallFast';
                     } else {
-                        window.location.href = '/index.html';
+                        // Book
+                        obj.classList.add('book');
+                        obj.textContent = books[Math.floor(Math.random() * books.length)];
+                        obj.style.fontSize = `${size}px`;
+                        obj.style.animationName = 'fall';
                     }
+
+                    fragment.appendChild(obj);
+                }
+
+                container.appendChild(fragment);
+            }
+
+            // Floating particles
+            function createParticles() {
+                const container = document.getElementById('particlesContainer');
+                if (!container) return;
+
+                const fragment = document.createDocumentFragment();
+
+                for (let i = 0; i < 15; i++) {
+                    const particle = document.createElement('div');
+                    particle.classList.add('particle');
+                    
+                    const size = 2 + Math.random() * 5;
+                    const left = Math.random() * 100;
+                    const duration = 5 + Math.random() * 10;
+                    const delay = Math.random() * 8;
+                    
+                    particle.style.width = `${size}px`;
+                    particle.style.height = `${size}px`;
+                    particle.style.left = `${left}%`;
+                    particle.style.animationDuration = `${duration}s`;
+                    particle.style.animationDelay = `${delay}s`;
+                    
+                    fragment.appendChild(particle);
+                }
+
+                container.appendChild(fragment);
+            }
+
+            // Sparkles
+            function createSparkles() {
+                const container = document.getElementById('sparklesContainer');
+                if (!container) return;
+
+                const fragment = document.createDocumentFragment();
+
+                for (let i = 0; i < 20; i++) {
+                    const sparkle = document.createElement('div');
+                    sparkle.classList.add('sparkle');
+                    
+                    sparkle.style.left = `${Math.random() * 100}%`;
+                    sparkle.style.top = `${Math.random() * 100}%`;
+                    sparkle.style.animationDelay = `${Math.random() * 3}s`;
+                    sparkle.style.animationDuration = `${2 + Math.random() * 4}s`;
+                    
+                    fragment.appendChild(sparkle);
+                }
+
+                container.appendChild(fragment);
+            }
+
+            // =====================
+            // FORM HANDLERS
+            // =====================
+
+            function showError(msg) {
+                const errorDiv = document.getElementById('errorDiv');
+                const successDiv = document.getElementById('successDiv');
+                
+                successDiv.style.display = 'none';
+                errorDiv.textContent = msg;
+                errorDiv.style.display = 'block';
+                
+                // Re-trigger shake animation
+                errorDiv.style.animation = 'none';
+                errorDiv.offsetHeight;
+                errorDiv.style.animation = 'shake 0.3s ease';
+                
+                setTimeout(() => {
+                    errorDiv.style.display = 'none';
+                }, 5000);
+            }
+
+            function showSuccess(msg) {
+                const successDiv = document.getElementById('successDiv');
+                const errorDiv = document.getElementById('errorDiv');
+                
+                errorDiv.style.display = 'none';
+                successDiv.textContent = msg;
+                successDiv.style.display = 'block';
+                
+                setTimeout(() => {
+                    successDiv.style.display = 'none';
+                }, 5000);
+            }
+
+            function showLoading(buttonId, show) {
+                const btn = document.getElementById(buttonId);
+                if (!btn) return;
+                
+                if (show) {
+                    btn.disabled = true;
+                    btn.innerHTML = `Please wait... <span class="loader"></span>`;
                 } else {
-                    showError(data.error || 'Login failed');
+                    btn.disabled = false;
+                    btn.innerHTML = buttonId === 'loginBtn' ? 'Sign In →' : 'Create Account →';
+                }
+            }
+
+            function showLogin() {
+                document.getElementById('loginForm').style.display = 'block';
+                document.getElementById('signupForm').style.display = 'none';
+                document.getElementById('errorDiv').style.display = 'none';
+                document.getElementById('successDiv').style.display = 'none';
+                
+                // Focus email input
+                setTimeout(() => {
+                    const emailInput = document.getElementById('email');
+                    if (emailInput) emailInput.focus();
+                }, 100);
+            }
+
+            function showSignup() {
+                document.getElementById('loginForm').style.display = 'none';
+                document.getElementById('signupForm').style.display = 'block';
+                document.getElementById('errorDiv').style.display = 'none';
+                document.getElementById('successDiv').style.display = 'none';
+                
+                // Focus name input
+                setTimeout(() => {
+                    const nameInput = document.getElementById('fullName');
+                    if (nameInput) nameInput.focus();
+                }, 100);
+            }
+
+            // =====================
+            // API CALLS
+            // =====================
+
+            async function login() {
+                const email = document.getElementById('email').value.trim();
+                const password = document.getElementById('password').value;
+                const rememberMe = document.getElementById('rememberMe').checked;
+                
+                if (!email || !password) {
+                    showError('Please enter both email and password');
+                    return;
+                }
+                
+                showLoading('loginBtn', true);
+                
+                try {
+                    const res = await fetch('/api/auth/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ email, password, rememberMe })
+                    });
+                    
+                    const data = await res.json();
+                    
+                    if (res.ok) {
+                        // Store user data
+                        localStorage.setItem('chylnx_user', JSON.stringify(data.user));
+                        
+                        if (rememberMe) {
+                            localStorage.setItem('remember_me', 'true');
+                        }
+                        
+                        showSuccess('✅ Login successful! Redirecting...');
+                        
+                        // Redirect after short delay
+                        setTimeout(() => {
+                            if (data.user.isAdmin) {
+                                window.location.href = '/admin_dashboard.html';
+                            } else {
+                                window.location.href = '/index.html';
+                            }
+                        }, 500);
+                    } else {
+                        showError(data.error || 'Invalid email or password');
+                        showLoading('loginBtn', false);
+                        
+                        // Clear password field
+                        document.getElementById('password').value = '';
+                        document.getElementById('password').focus();
+                    }
+                } catch (err) {
+                    showError('Cannot connect to server. Please check your connection.');
                     showLoading('loginBtn', false);
                 }
-            } catch (err) {
-                showError('Cannot connect to server. Please try again.');
-                showLoading('loginBtn', false);
             }
-        }
 
-        async function signup() {
-            const fullName = document.getElementById('fullName').value.trim();
-            const email = document.getElementById('signupEmail').value.trim();
-            const password = document.getElementById('signupPassword').value;
-            
-            if (!fullName || !email || !password) {
-                showError('Please fill all fields');
-                return;
-            }
-            if (password.length < 6) {
-                showError('Password must be at least 6 characters');
-                return;
-            }
-            
-            showLoading('signupBtn', true);
-            
-            try {
-                const res = await fetch('/api/auth/register', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ fullName, email, password })
-                });
-                const data = await res.json();
+            async function signup() {
+                const fullName = document.getElementById('fullName').value.trim();
+                const email = document.getElementById('signupEmail').value.trim();
+                const password = document.getElementById('signupPassword').value;
                 
-                if (res.ok) {
-                    alert('Account created! Please sign in.');
-                    showLogin();
-                    document.getElementById('signupEmail').value = '';
-                    document.getElementById('signupPassword').value = '';
-                    document.getElementById('fullName').value = '';
-                } else {
-                    showError(data.error || 'Signup failed');
+                if (!fullName || !email || !password) {
+                    showError('Please fill in all fields');
+                    return;
                 }
-            } catch (err) {
-                showError('Cannot connect to server');
-            } finally {
-                showLoading('signupBtn', false);
+                
+                if (password.length < 8) {
+                    showError('Password must be at least 8 characters');
+                    return;
+                }
+                
+                if (fullName.length < 2) {
+                    showError('Name must be at least 2 characters');
+                    return;
+                }
+                
+                showLoading('signupBtn', true);
+                
+                try {
+                    const res = await fetch('/api/auth/register', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ fullName, email, password })
+                    });
+                    
+                    const data = await res.json();
+                    
+                    if (res.ok) {
+                        showSuccess('✅ Account created! You can now sign in.');
+                        
+                        // Switch to login form
+                        setTimeout(() => {
+                            showLogin();
+                            document.getElementById('email').value = email;
+                            document.getElementById('password').focus();
+                        }, 1000);
+                        
+                        // Clear signup form
+                        document.getElementById('signupEmail').value = '';
+                        document.getElementById('signupPassword').value = '';
+                        document.getElementById('fullName').value = '';
+                    } else {
+                        showError(data.error || 'Registration failed. Please try again.');
+                    }
+                } catch (err) {
+                    showError('Cannot connect to server. Please try again.');
+                } finally {
+                    showLoading('signupBtn', false);
+                }
             }
-        }
+
+            // =====================
+            // KEYBOARD SHORTCUTS
+            // =====================
+
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    const loginForm = document.getElementById('loginForm');
+                    const signupForm = document.getElementById('signupForm');
+                    
+                    if (loginForm.style.display !== 'none') {
+                        e.preventDefault();
+                        login();
+                    } else if (signupForm.style.display !== 'none') {
+                        e.preventDefault();
+                        signup();
+                    }
+                }
+            });
+
+            // =====================
+            // EXPOSE FUNCTIONS
+            // =====================
+
+            window.showLogin = showLogin;
+            window.showSignup = showSignup;
+            window.login = login;
+            window.signup = signup;
+
+            // =====================
+            // INITIALIZATION
+            // =====================
+
+            function init() {
+                createFallingObjects();
+                createParticles();
+                createSparkles();
+                
+                // Pre-fill email if remembered
+                const remembered = localStorage.getItem('remember_me');
+                if (remembered === 'true') {
+                    document.getElementById('rememberMe').checked = true;
+                }
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init);
+            } else {
+                init();
+            }
+        })();
     </script>
 </body>
 </html>

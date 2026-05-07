@@ -14,16 +14,18 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: #0f0f1a;
             color: white;
+            min-height: 100vh;
         }
         .sidebar {
             position: fixed;
             left: 0;
             top: 0;
             width: 260px;
-            height: 100%;
+            height: 100vh;
             background: #1a1a2e;
             padding: 20px;
             overflow-y: auto;
+            z-index: 100;
         }
         .logo {
             font-size: 24px;
@@ -31,6 +33,7 @@
             background: linear-gradient(135deg, #667eea, #764ba2);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            background-clip: text;
             margin-bottom: 30px;
             text-align: center;
         }
@@ -39,10 +42,11 @@
             margin: 8px 0;
             border-radius: 12px;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.2s ease;
             display: flex;
             align-items: center;
             gap: 12px;
+            user-select: none;
         }
         .nav-item:hover {
             background: #2d2d44;
@@ -53,6 +57,7 @@
         .main-content {
             margin-left: 260px;
             padding: 20px;
+            min-height: 100vh;
         }
         .header {
             background: #1a1a2e;
@@ -62,10 +67,15 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .header h1 {
+            font-size: clamp(18px, 4vw, 24px);
         }
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: 20px;
             margin-bottom: 30px;
         }
@@ -74,6 +84,10 @@
             padding: 20px;
             border-radius: 16px;
             text-align: center;
+            transition: transform 0.2s ease;
+        }
+        .stat-card:hover {
+            transform: translateY(-2px);
         }
         .stat-number {
             font-size: 36px;
@@ -81,6 +95,7 @@
             background: linear-gradient(135deg, #667eea, #764ba2);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
         .section {
             background: #1a1a2e;
@@ -110,14 +125,29 @@
             padding: 8px 20px;
             border-radius: 30px;
             cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+        .verify-btn:hover {
+            background: #059669;
+            transform: scale(1.02);
+        }
+        .verify-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
         }
         .badge {
             padding: 4px 12px;
             border-radius: 20px;
             font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
         }
         .badge-pending {
             background: #f59e0b;
+            color: #000;
         }
         .badge-approved {
             background: #10b981;
@@ -128,6 +158,9 @@
             background: #0f0f1a;
             border-radius: 12px;
         }
+        .setting-group h3 {
+            margin-bottom: 15px;
+        }
         .setting-group label {
             display: block;
             margin-bottom: 8px;
@@ -137,12 +170,18 @@
             width: 100%;
             padding: 10px;
             border-radius: 8px;
-            border: none;
+            border: 2px solid transparent;
             background: #2d2d44;
             color: white;
+            transition: border-color 0.2s ease;
+        }
+        .setting-group input:focus {
+            outline: none;
+            border-color: #667eea;
         }
         .setting-group input[type="color"] {
             height: 50px;
+            cursor: pointer;
         }
         .setting-row {
             display: grid;
@@ -165,6 +204,15 @@
             cursor: pointer;
             margin-top: 10px;
             width: 100%;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        .apply-btn:hover {
+            background: #5a6fd6;
+        }
+        .apply-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
         }
         .broadcast-section {
             background: linear-gradient(135deg, #667eea, #764ba2);
@@ -179,10 +227,17 @@
             width: 100%;
             padding: 12px;
             border-radius: 12px;
-            border: none;
+            border: 2px solid transparent;
             background: rgba(255,255,255,0.2);
             color: white;
             margin-bottom: 10px;
+            resize: vertical;
+            min-height: 60px;
+            transition: border-color 0.2s ease;
+        }
+        .broadcast-input:focus {
+            outline: none;
+            border-color: rgba(255,255,255,0.5);
         }
         .broadcast-input::placeholder {
             color: rgba(255,255,255,0.7);
@@ -196,6 +251,11 @@
             cursor: pointer;
             font-weight: 600;
             width: 100%;
+            transition: all 0.2s ease;
+        }
+        .broadcast-btn:hover {
+            transform: scale(1.01);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         }
         .go-chat-btn {
             width: 100%;
@@ -211,20 +271,127 @@
         }
         .error-box {
             background: #ef4444;
-            padding: 10px;
+            padding: 12px 16px;
             border-radius: 8px;
             margin-bottom: 15px;
             text-align: center;
             display: none;
+            animation: fadeIn 0.3s ease;
         }
         .success-msg {
             background: #10b981;
             color: white;
-            padding: 10px;
+            padding: 12px 16px;
             border-radius: 8px;
             margin-top: 10px;
             text-align: center;
             display: none;
+            animation: fadeIn 0.3s ease;
+        }
+        .chat-container {
+            background: #0f0f1a;
+            border-radius: 16px;
+            height: 400px;
+            display: flex;
+            flex-direction: column;
+        }
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .chat-messages::-webkit-scrollbar {
+            width: 6px;
+        }
+        .chat-messages::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: #2d2d44;
+            border-radius: 3px;
+        }
+        .chat-input-area {
+            padding: 12px;
+            background: #1a1a2e;
+            border-radius: 0 0 16px 16px;
+            display: flex;
+            gap: 12px;
+        }
+        .chat-input {
+            flex: 1;
+            padding: 12px 16px;
+            border-radius: 25px;
+            border: 2px solid transparent;
+            background: #2d2d44;
+            color: white;
+            outline: none;
+            transition: border-color 0.2s ease;
+        }
+        .chat-input:focus {
+            border-color: #667eea;
+        }
+        .send-btn {
+            background: #075E54;
+            border: none;
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            cursor: pointer;
+            color: white;
+            font-size: 20px;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+        .send-btn:hover {
+            background: #064940;
+            transform: scale(1.05);
+        }
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                padding: 12px;
+                justify-content: center;
+            }
+            .sidebar .logo {
+                width: 100%;
+                margin-bottom: 10px;
+            }
+            .sidebar .nav-item {
+                margin: 4px;
+                padding: 8px 12px;
+                font-size: 14px;
+            }
+            .main-content {
+                margin-left: 0;
+            }
+            .setting-row,
+            .setting-row-4 {
+                grid-template-columns: repeat(2, 1fr);
+            }
         }
     </style>
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
@@ -232,12 +399,12 @@
 <body>
     <div class="sidebar">
         <div class="logo">chylnx hub<br><span style="font-size: 12px;">ADMIN</span></div>
-        <div class="nav-item active" onclick="showSection('broadcast')">📢 Broadcast</div>
-        <div class="nav-item" onclick="showSection('chat')">💬 Live Chat</div>
-        <div class="nav-item" onclick="showSection('timers')">⏰ Timers & Info Bar</div>
-        <div class="nav-item" onclick="showSection('payments')">💰 Pending Payments</div>
-        <div class="nav-item" onclick="showSection('users')">👥 Users</div>
-        <div class="nav-item" onclick="handleLogout()" style="margin-top: 50px; color: #ef4444;">🚪 Logout</div>
+        <div class="nav-item active" data-section="broadcast">📢 Broadcast</div>
+        <div class="nav-item" data-section="chat">💬 Live Chat</div>
+        <div class="nav-item" data-section="timers">⏰ Timers & Info Bar</div>
+        <div class="nav-item" data-section="payments">💰 Pending Payments</div>
+        <div class="nav-item" data-section="users">👥 Users</div>
+        <div class="nav-item" data-section="logout" style="margin-top: 50px; color: #ef4444;">🚪 Logout</div>
     </div>
 
     <div class="main-content">
@@ -258,20 +425,20 @@
         <div id="broadcastSection" class="broadcast-section">
             <h3>📢 Send Broadcast Message to All Users</h3>
             <textarea id="broadcastMessage" class="broadcast-input" rows="3" placeholder="Type your announcement here..."></textarea>
-            <button class="broadcast-btn" onclick="sendBroadcast()">📢 Send Broadcast</button>
+            <button class="broadcast-btn" id="broadcastBtn">📢 Send Broadcast</button>
             <div id="broadcastSuccess" class="success-msg">✅ Broadcast sent successfully!</div>
         </div>
 
-        <!-- Live Chat Section for Admin -->
+        <!-- Live Chat Section -->
         <div id="chatSection" class="section" style="display: none;">
             <h2>💬 Live Chat (Chat with Users)</h2>
-            <div style="background: #0f0f1a; border-radius: 16px; height: 400px; display: flex; flex-direction: column;">
-                <div id="adminChatMessages" style="flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 8px;">
+            <div class="chat-container">
+                <div class="chat-messages" id="adminChatMessages">
                     <div style="text-align: center; color: #666; padding: 20px;">Connecting to chat...</div>
                 </div>
-                <div style="padding: 12px; background: #1a1a2e; border-radius: 0 0 16px 16px; display: flex; gap: 12px;">
-                    <input type="text" id="adminChatInput" placeholder="Type a message..." style="flex: 1; padding: 12px; border-radius: 25px; border: none; background: #2d2d44; color: white; outline: none;">
-                    <button onclick="sendAdminChatMessage()" style="background: #075E54; border: none; width: 45px; height: 45px; border-radius: 50%; cursor: pointer; color: white; font-size: 20px;">📤</button>
+                <div class="chat-input-area">
+                    <input type="text" id="adminChatInput" class="chat-input" placeholder="Type a message..." maxlength="1000">
+                    <button class="send-btn" id="sendChatBtn">📤</button>
                 </div>
             </div>
             <div style="margin-top: 10px; font-size: 12px; color: #888; text-align: center;">
@@ -290,7 +457,7 @@
                     <div><label>Minutes</label><input type="number" id="gameMinutes" min="0" max="59" value="0"></div>
                     <div><label>Seconds</label><input type="number" id="gameSeconds" min="0" max="59" value="0"></div>
                 </div>
-                <button class="apply-btn" onclick="applyGameTimer()">🎯 Apply Game Timer</button>
+                <button class="apply-btn" id="applyGameTimerBtn">🎯 Apply Game Timer</button>
             </div>
             
             <div class="setting-group">
@@ -301,198 +468,413 @@
                     <div><label>Minutes</label><input type="number" id="weeklyMinutes" min="0" max="59" value="0"></div>
                     <div><label>Seconds</label><input type="number" id="weeklySeconds" min="0" max="59" value="0"></div>
                 </div>
-                <button class="apply-btn" onclick="applyWeeklyTimer()">📅 Apply Weekly Timer</button>
+                <button class="apply-btn" id="applyWeeklyTimerBtn">📅 Apply Weekly Timer</button>
             </div>
             
             <div class="setting-group">
                 <h3>📢 Info Bar</h3>
                 <label>Message Text</label>
-                <input type="text" id="infoText" placeholder="Enter announcement message">
+                <input type="text" id="infoText" placeholder="Enter announcement message" maxlength="200">
                 <label style="margin-top: 10px;">Background Color</label>
                 <input type="color" id="infoColor" value="#667eea">
-                <button class="apply-btn" onclick="applyInfoBar()" style="margin-top: 15px;">📢 Apply Info Bar</button>
+                <button class="apply-btn" id="applyInfoBarBtn">📢 Apply Info Bar</button>
             </div>
         </div>
 
         <!-- Payments Section -->
         <div id="paymentsSection" class="section" style="display: none;">
             <h2>⏳ Pending Payment Verifications</h2>
-            <div id="pendingPaymentsList">Loading...</div>
+            <div id="pendingPaymentsList"><span class="loading-spinner"></span> Loading...</div>
         </div>
 
         <!-- Users Section -->
         <div id="usersSection" class="section" style="display: none;">
             <h2>👥 Registered Users</h2>
-            <div id="usersList">Loading...</div>
+            <div id="usersList"><span class="loading-spinner"></span> Loading...</div>
         </div>
     </div>
 
     <script>
-        const API_URL = '/api';
-        let socket = null;
-        let adminMessages = [];
-
-        function showError(message) {
-            const errorDiv = document.getElementById('errorDisplay');
-            errorDiv.innerText = message;
-            errorDiv.style.display = 'block';
-            setTimeout(() => {
-                errorDiv.style.display = 'none';
-            }, 5000);
-        }
-
-        function showSuccess(message) {
-            const div = document.createElement('div');
-            div.className = 'success-msg';
-            div.innerText = message;
-            div.style.display = 'block';
-            div.style.position = 'fixed';
-            div.style.top = '20px';
-            div.style.right = '20px';
-            div.style.zIndex = '9999';
-            document.body.appendChild(div);
-            setTimeout(() => div.remove(), 3000);
-        }
-
-        async function getCurrentUser() {
-            try {
-                const response = await fetch(`${API_URL}/auth/me`, { 
-                    credentials: 'include',
-                    headers: { 'Cache-Control': 'no-cache' }
-                });
-                if (response.ok) {
-                    return await response.json();
-                }
-                return null;
-            } catch (error) {
-                console.error('Get user error:', error);
-                return null;
-            }
-        }
-
-        async function initChatSocket() {
-            if (socket) return;
-            try {
-                socket = io('/', { withCredentials: true });
-                socket.on('connect', () => {
-                    console.log('Admin socket connected');
-                    socket.emit('join_chat');
-                });
-                socket.on('chat_history', (data) => {
-                    adminMessages = data.messages || [];
-                    renderAdminChat();
-                });
-                socket.on('new_message', (msg) => {
-                    adminMessages.push(msg);
-                    renderAdminChat();
-                });
-                socket.on('connect_error', (error) => {
-                    console.error('Socket connection error:', error);
-                });
-            } catch (error) {
-                console.error('Socket init error:', error);
-            }
-        }
-
-        function renderAdminChat() {
-            const container = document.getElementById('adminChatMessages');
-            if (!container) return;
+        (function() {
+            'use strict';
             
-            if (adminMessages.length === 0) {
-                container.innerHTML = '<div style="text-align: center; color: #666; padding: 20px;">No messages yet. Start the conversation!</div>';
-                return;
-            }
-            
-            let html = '';
-            adminMessages.forEach(msg => {
-                const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                if (msg.isSystem) {
-                    html += `<div style="text-align: center; font-size: 11px; color: #666; margin: 8px 0;">📢 ${escapeHtml(msg.text)}</div>`;
-                } else {
-                    const isOwn = msg.sender.includes('👑');
-                    html += `
-                        <div style="max-width: 75%; padding: 8px 12px; border-radius: 12px; ${isOwn ? 'background: #075E54; align-self: flex-end;' : 'background: #2d2d44; align-self: flex-start;'} margin-left: ${isOwn ? 'auto' : '0'};">
-                            <div style="font-size: 11px; font-weight: 600; margin-bottom: 4px; opacity: 0.8;">${escapeHtml(msg.sender)}</div>
-                            <div style="font-size: 14px;">${escapeHtml(msg.text)}</div>
-                            <div style="font-size: 9px; opacity: 0.6; text-align: right; margin-top: 4px;">${time}</div>
-                        </div>
-                    `;
-                }
-            });
-            container.innerHTML = html;
-            container.scrollTop = container.scrollHeight;
-        }
+            const API_URL = '/api';
+            let socket = null;
+            let adminMessages = [];
+            let isSocketConnecting = false;
+            let currentUser = null;
 
-        function sendAdminChatMessage() {
-            const input = document.getElementById('adminChatInput');
-            const text = input.value.trim();
-            if (!text || !socket) return;
-            socket.emit('send_message', { text });
-            input.value = '';
-        }
+            // DOM Elements
+            const elements = {
+                errorDisplay: document.getElementById('errorDisplay'),
+                adminEmail: document.getElementById('adminEmail'),
+                statsGrid: document.getElementById('statsGrid'),
+                broadcastMessage: document.getElementById('broadcastMessage'),
+                broadcastBtn: document.getElementById('broadcastBtn'),
+                broadcastSuccess: document.getElementById('broadcastSuccess'),
+                adminChatMessages: document.getElementById('adminChatMessages'),
+                adminChatInput: document.getElementById('adminChatInput'),
+                sendChatBtn: document.getElementById('sendChatBtn'),
+                pendingPaymentsList: document.getElementById('pendingPaymentsList'),
+                usersList: document.getElementById('usersList'),
+                gameHours: document.getElementById('gameHours'),
+                gameMinutes: document.getElementById('gameMinutes'),
+                gameSeconds: document.getElementById('gameSeconds'),
+                weeklyDays: document.getElementById('weeklyDays'),
+                weeklyHours: document.getElementById('weeklyHours'),
+                weeklyMinutes: document.getElementById('weeklyMinutes'),
+                weeklySeconds: document.getElementById('weeklySeconds'),
+                infoText: document.getElementById('infoText'),
+                infoColor: document.getElementById('infoColor'),
+                applyGameTimerBtn: document.getElementById('applyGameTimerBtn'),
+                applyWeeklyTimerBtn: document.getElementById('applyWeeklyTimerBtn'),
+                applyInfoBarBtn: document.getElementById('applyInfoBarBtn'),
+                navItems: document.querySelectorAll('.nav-item')
+            };
 
-        async function loadStats() {
-            try {
-                const [usersRes, paymentsRes] = await Promise.all([
-                    fetch(`${API_URL}/admin/users`, { credentials: 'include' }),
-                    fetch(`${API_URL}/admin/pending-payments`, { credentials: 'include' })
-                ]);
+            // Toast notification system
+            function showToast(message, type = 'success') {
+                const existingToasts = document.querySelectorAll('.toast-notification');
+                existingToasts.forEach(t => t.remove());
                 
-                if (!usersRes.ok || !paymentsRes.ok) {
-                    throw new Error('Failed to load stats');
-                }
-                
-                const users = await usersRes.json();
-                const pending = await paymentsRes.json();
-                
-                const totalUsers = users.users?.length || 0;
-                const verifiedUsers = users.users?.filter(u => u.payment_verified).length || 0;
-                const pendingPayments = pending.payments?.length || 0;
-                
-                document.getElementById('statsGrid').innerHTML = `
-                    <div class="stat-card"><div class="stat-number">${totalUsers}</div><div>Total Users</div></div>
-                    <div class="stat-card"><div class="stat-number">${verifiedUsers}</div><div>Verified Users</div></div>
-                    <div class="stat-card"><div class="stat-number">${pendingPayments}</div><div>Pending Payments</div></div>
+                const toast = document.createElement('div');
+                toast.className = 'toast-notification';
+                toast.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    z-index: 9999;
+                    background: ${type === 'error' ? '#ef4444' : '#10b981'};
+                    color: white;
+                    padding: 12px 20px;
+                    border-radius: 8px;
+                    font-weight: 500;
+                    animation: fadeIn 0.3s ease;
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+                    max-width: 350px;
                 `;
-            } catch (error) {
-                console.error('Stats error:', error);
-                showError('Failed to load statistics');
+                toast.textContent = message;
+                document.body.appendChild(toast);
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    toast.style.transition = 'opacity 0.3s ease';
+                    setTimeout(() => toast.remove(), 300);
+                }, 3000);
             }
-        }
 
-        async function loadSettings() {
-            try {
-                const res = await fetch(`${API_URL}/settings`, { credentials: 'include' });
-                if (!res.ok) throw new Error('Failed to load settings');
-                
-                const data = await res.json();
-                const settings = data.settings || {};
-                
-                document.getElementById('gameHours').value = settings.game_timer_hours || 24;
-                document.getElementById('gameMinutes').value = settings.game_timer_minutes || 0;
-                document.getElementById('gameSeconds').value = settings.game_timer_seconds || 0;
-                document.getElementById('weeklyDays').value = settings.weekly_timer_days || 7;
-                document.getElementById('weeklyHours').value = settings.weekly_timer_hours || 0;
-                document.getElementById('weeklyMinutes').value = settings.weekly_timer_minutes || 0;
-                document.getElementById('weeklySeconds').value = settings.weekly_timer_seconds || 0;
-                document.getElementById('infoText').value = settings.info_bar_text || 'Welcome to Chylnx Hub!';
-                document.getElementById('infoColor').value = settings.info_bar_color || '#667eea';
-            } catch (error) {
-                console.error('Settings error:', error);
-                showError('Failed to load settings');
+            function showError(message) {
+                elements.errorDisplay.textContent = message;
+                elements.errorDisplay.style.display = 'block';
+                clearTimeout(elements.errorDisplay._timeout);
+                elements.errorDisplay._timeout = setTimeout(() => {
+                    elements.errorDisplay.style.display = 'none';
+                }, 5000);
             }
-        }
 
-        async function loadPendingPayments() {
-            try {
-                const response = await fetch(`${API_URL}/admin/pending-payments`, { credentials: 'include' });
-                if (!response.ok) throw new Error('Failed to load payments');
+            function escapeHtml(text) {
+                if (!text) return '';
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            // API helper with retry logic
+            async function apiFetch(url, options = {}, retries = 2) {
+                const defaultOptions = {
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' }
+                };
                 
-                const data = await response.json();
-                const payments = data.payments || [];
-                const container = document.getElementById('pendingPaymentsList');
+                const mergedOptions = {
+                    ...defaultOptions,
+                    ...options,
+                    headers: { ...defaultOptions.headers, ...options.headers }
+                };
+
+                for (let i = 0; i <= retries; i++) {
+                    try {
+                        const response = await fetch(url, mergedOptions);
+                        
+                        if (response.status === 401) {
+                            window.location.href = '/login.html';
+                            throw new Error('Unauthorized');
+                        }
+                        
+                        if (!response.ok) {
+                            const errorData = await response.json().catch(() => ({}));
+                            throw new Error(errorData.message || `HTTP ${response.status}`);
+                        }
+                        
+                        return response;
+                    } catch (error) {
+                        if (i === retries) throw error;
+                        await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+                    }
+                }
+            }
+
+            // User authentication
+            async function getCurrentUser() {
+                if (currentUser) return currentUser;
                 
-                if (container) {
+                try {
+                    const response = await apiFetch(`${API_URL}/auth/me`);
+                    const user = await response.json();
+                    currentUser = user;
+                    return user;
+                } catch (error) {
+                    console.error('Get user error:', error);
+                    return null;
+                }
+            }
+
+            // Socket management
+            function initChatSocket() {
+                if (socket?.connected) return;
+                if (isSocketConnecting) return;
+                
+                isSocketConnecting = true;
+                
+                try {
+                    if (socket) {
+                        socket.disconnect();
+                        socket.removeAllListeners();
+                    }
+                    
+                    socket = io('/', { 
+                        withCredentials: true,
+                        reconnection: true,
+                        reconnectionAttempts: 5,
+                        reconnectionDelay: 1000
+                    });
+                    
+                    socket.on('connect', () => {
+                        console.log('Admin socket connected');
+                        isSocketConnecting = false;
+                        socket.emit('join_chat');
+                    });
+                    
+                    socket.on('chat_history', (data) => {
+                        adminMessages = Array.isArray(data?.messages) ? data.messages : [];
+                        renderAdminChat();
+                    });
+                    
+                    socket.on('new_message', (msg) => {
+                        if (!msg?.timestamp) return;
+                        // Prevent duplicate messages
+                        const isDuplicate = adminMessages.some(m => 
+                            m.timestamp === msg.timestamp && m.text === msg.text && m.sender === msg.sender
+                        );
+                        if (!isDuplicate) {
+                            adminMessages.push(msg);
+                            renderAdminChat();
+                        }
+                    });
+                    
+                    socket.on('disconnect', (reason) => {
+                        console.log('Socket disconnected:', reason);
+                    });
+                    
+                    socket.on('connect_error', (error) => {
+                        console.error('Socket connection error:', error);
+                        isSocketConnecting = false;
+                        showError('Chat connection failed. Retrying...');
+                    });
+                    
+                } catch (error) {
+                    console.error('Socket init error:', error);
+                    isSocketConnecting = false;
+                }
+            }
+
+            function renderAdminChat() {
+                const container = elements.adminChatMessages;
+                if (!container) return;
+                
+                if (adminMessages.length === 0) {
+                    container.innerHTML = '<div style="text-align: center; color: #666; padding: 20px;">No messages yet. Start the conversation!</div>';
+                    return;
+                }
+                
+                const fragment = document.createDocumentFragment();
+                const tempDiv = document.createElement('div');
+                
+                adminMessages.forEach(msg => {
+                    const time = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+                    
+                    if (msg.isSystem) {
+                        tempDiv.innerHTML = `<div style="text-align: center; font-size: 11px; color: #666; margin: 8px 0;">📢 ${escapeHtml(msg.text)}</div>`;
+                    } else {
+                        const isOwn = msg.sender?.includes('👑');
+                        tempDiv.innerHTML = `
+                            <div style="max-width: 75%; padding: 8px 12px; border-radius: 12px; ${isOwn ? 'background: #075E54; align-self: flex-end; margin-left: auto;' : 'background: #2d2d44; align-self: flex-start;'}">
+                                <div style="font-size: 11px; font-weight: 600; margin-bottom: 4px; opacity: 0.8;">${escapeHtml(msg.sender || 'Unknown')}</div>
+                                <div style="font-size: 14px; word-break: break-word;">${escapeHtml(msg.text)}</div>
+                                <div style="font-size: 9px; opacity: 0.6; text-align: right; margin-top: 4px;">${time}</div>
+                            </div>
+                        `;
+                    }
+                    
+                    while (tempDiv.firstChild) {
+                        fragment.appendChild(tempDiv.firstChild);
+                    }
+                });
+                
+                container.innerHTML = '';
+                container.appendChild(fragment);
+                container.scrollTop = container.scrollHeight;
+            }
+
+            function sendAdminChatMessage() {
+                const text = elements.adminChatInput.value.trim();
+                if (!text) return;
+                if (!socket?.connected) {
+                    showToast('Chat not connected. Please wait...', 'error');
+                    return;
+                }
+                
+                socket.emit('send_message', { text });
+                elements.adminChatInput.value = '';
+                elements.adminChatInput.focus();
+            }
+
+            // Stats loading
+            async function loadStats() {
+                try {
+                    const [usersRes, paymentsRes] = await Promise.all([
+                        apiFetch(`${API_URL}/admin/users`),
+                        apiFetch(`${API_URL}/admin/pending-payments`)
+                    ]);
+                    
+                    const [users, pending] = await Promise.all([
+                        usersRes.json(),
+                        paymentsRes.json()
+                    ]);
+                    
+                    const totalUsers = users.users?.length || 0;
+                    const verifiedUsers = users.users?.filter(u => u.payment_verified).length || 0;
+                    const pendingPayments = pending.payments?.length || 0;
+                    
+                    elements.statsGrid.innerHTML = `
+                        <div class="stat-card"><div class="stat-number">${totalUsers}</div><div>Total Users</div></div>
+                        <div class="stat-card"><div class="stat-number">${verifiedUsers}</div><div>Verified Users</div></div>
+                        <div class="stat-card"><div class="stat-number">${pendingPayments}</div><div>Pending Payments</div></div>
+                    `;
+                } catch (error) {
+                    console.error('Stats error:', error);
+                    showError('Failed to load statistics');
+                }
+            }
+
+            // Settings management
+            async function loadSettings() {
+                try {
+                    const res = await apiFetch(`${API_URL}/settings`);
+                    const data = await res.json();
+                    const settings = data.settings || {};
+                    
+                    elements.gameHours.value = settings.game_timer_hours ?? 24;
+                    elements.gameMinutes.value = settings.game_timer_minutes ?? 0;
+                    elements.gameSeconds.value = settings.game_timer_seconds ?? 0;
+                    elements.weeklyDays.value = settings.weekly_timer_days ?? 7;
+                    elements.weeklyHours.value = settings.weekly_timer_hours ?? 0;
+                    elements.weeklyMinutes.value = settings.weekly_timer_minutes ?? 0;
+                    elements.weeklySeconds.value = settings.weekly_timer_seconds ?? 0;
+                    elements.infoText.value = settings.info_bar_text || 'Welcome to Chylnx Hub!';
+                    elements.infoColor.value = settings.info_bar_color || '#667eea';
+                } catch (error) {
+                    console.error('Settings error:', error);
+                    showError('Failed to load settings');
+                }
+            }
+
+            // Batch update settings
+            async function batchUpdateSettings(updates) {
+                const promises = updates.map(({ key, value }) =>
+                    apiFetch(`${API_URL}/admin/update-settings`, {
+                        method: 'POST',
+                        body: JSON.stringify({ key, value: String(value) })
+                    }).catch(err => {
+                        console.error(`Failed to update ${key}:`, err);
+                        throw err;
+                    })
+                );
+                
+                await Promise.all(promises);
+            }
+
+            async function applyGameTimer() {
+                const btn = elements.applyGameTimerBtn;
+                btn.disabled = true;
+                btn.textContent = 'Applying...';
+                
+                try {
+                    await batchUpdateSettings([
+                        { key: 'game_timer_hours', value: elements.gameHours.value },
+                        { key: 'game_timer_minutes', value: elements.gameMinutes.value },
+                        { key: 'game_timer_seconds', value: elements.gameSeconds.value }
+                    ]);
+                    showToast('✅ Game timer applied!');
+                } catch (error) {
+                    showToast('Failed to apply game timer', 'error');
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = '🎯 Apply Game Timer';
+                }
+            }
+
+            async function applyWeeklyTimer() {
+                const btn = elements.applyWeeklyTimerBtn;
+                btn.disabled = true;
+                btn.textContent = 'Applying...';
+                
+                try {
+                    await batchUpdateSettings([
+                        { key: 'weekly_timer_days', value: elements.weeklyDays.value },
+                        { key: 'weekly_timer_hours', value: elements.weeklyHours.value },
+                        { key: 'weekly_timer_minutes', value: elements.weeklyMinutes.value },
+                        { key: 'weekly_timer_seconds', value: elements.weeklySeconds.value }
+                    ]);
+                    showToast('✅ Weekly timer applied!');
+                } catch (error) {
+                    showToast('Failed to apply weekly timer', 'error');
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = '📅 Apply Weekly Timer';
+                }
+            }
+
+            async function applyInfoBar() {
+                const btn = elements.applyInfoBarBtn;
+                btn.disabled = true;
+                btn.textContent = 'Applying...';
+                
+                try {
+                    await batchUpdateSettings([
+                        { key: 'info_bar_text', value: elements.infoText.value },
+                        { key: 'info_bar_color', value: elements.infoColor.value }
+                    ]);
+                    showToast('✅ Info bar applied!');
+                } catch (error) {
+                    showToast('Failed to apply info bar', 'error');
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = '📢 Apply Info Bar';
+                }
+            }
+
+            // Payments and users
+            async function loadPendingPayments() {
+                const container = elements.pendingPaymentsList;
+                if (!container) return;
+                
+                container.innerHTML = '<span class="loading-spinner"></span> Loading...';
+                
+                try {
+                    const response = await apiFetch(`${API_URL}/admin/pending-payments`);
+                    const data = await response.json();
+                    const payments = data.payments || [];
+                    
                     if (payments.length > 0) {
                         container.innerHTML = payments.map(payment => `
                             <div class="payment-item">
@@ -502,276 +884,331 @@
                                     🏦 ${escapeHtml(payment.bank_name)}<br>
                                     🆔 Ref: ${escapeHtml(payment.reference)}
                                 </div>
-                                <button class="verify-btn" onclick="verifyPayment(${payment.id})">✅ Verify & Grant Access</button>
+                                <button class="verify-btn" data-payment-id="${payment.id}">✅ Verify & Grant Access</button>
                             </div>
                         `).join('');
+                        
+                        // Add event listeners to verify buttons
+                        container.querySelectorAll('.verify-btn').forEach(btn => {
+                            btn.addEventListener('click', function() {
+                                verifyPayment(this.dataset.paymentId, this);
+                            });
+                        });
                     } else {
-                        container.innerHTML = '<p>No pending payments</p>';
+                        container.innerHTML = '<p style="text-align: center; color: #888; padding: 20px;">No pending payments</p>';
                     }
+                } catch (error) {
+                    console.error('Payments error:', error);
+                    container.innerHTML = '<p style="color: #ef4444;">Error loading payments</p>';
                 }
-            } catch (error) {
-                console.error('Payments error:', error);
-                const container = document.getElementById('pendingPaymentsList');
-                if (container) container.innerHTML = '<p>Error loading payments</p>';
             }
-        }
 
-        async function loadUsers() {
-            try {
-                const response = await fetch(`${API_URL}/admin/users`, { credentials: 'include' });
-                if (!response.ok) throw new Error('Failed to load users');
+            async function loadUsers() {
+                const container = elements.usersList;
+                if (!container) return;
                 
-                const data = await response.json();
-                const users = data.users || [];
-                const container = document.getElementById('usersList');
+                container.innerHTML = '<span class="loading-spinner"></span> Loading...';
                 
-                if (container) {
+                try {
+                    const response = await apiFetch(`${API_URL}/admin/users`);
+                    const data = await response.json();
+                    const users = data.users || [];
+                    
                     container.innerHTML = users.map(user => `
                         <div class="user-item">
                             <div>
                                 <strong>${escapeHtml(user.full_name)}</strong><br>
                                 📧 ${escapeHtml(user.email)}<br>
-                                ${user.payment_verified ? '<span class="badge badge-approved">✅ Verified</span>' : '<span class="badge badge-pending">⏳ Pending</span>'}
+                                ${user.payment_verified 
+                                    ? '<span class="badge badge-approved">✅ Verified</span>' 
+                                    : '<span class="badge badge-pending">⏳ Pending</span>'}
                             </div>
                             <div>
-                                ${!user.payment_verified ? `<button class="verify-btn" onclick="verifyUserManually('${user.email}')">🔓 Verify</button>` : ''}
+                                ${!user.payment_verified 
+                                    ? `<button class="verify-btn" data-user-email="${escapeHtml(user.email)}">🔓 Verify</button>` 
+                                    : ''}
                             </div>
                         </div>
                     `).join('');
-                }
-            } catch (error) {
-                console.error('Users error:', error);
-                const container = document.getElementById('usersList');
-                if (container) container.innerHTML = '<p>Error loading users</p>';
-            }
-        }
-
-        async function verifyPayment(paymentId) {
-            try {
-                const response = await fetch(`${API_URL}/admin/verify`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ paymentId })
-                });
-                
-                if (response.ok) {
-                    showSuccess('✅ Payment verified!');
-                    await loadPendingPayments();
-                    await loadStats();
-                    await loadUsers();
-                } else {
-                    alert('❌ Failed to verify payment');
-                }
-            } catch (error) {
-                alert('Error verifying payment');
-            }
-        }
-
-        async function verifyUserManually(email) {
-            try {
-                const response = await fetch(`${API_URL}/admin/verify-user-payment`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ email })
-                });
-                
-                if (response.ok) {
-                    showSuccess(`✅ ${email} verified!`);
-                    await loadUsers();
-                    await loadStats();
-                } else {
-                    alert('❌ Failed to verify user');
-                }
-            } catch (error) {
-                alert('Error verifying user');
-            }
-        }
-
-        async function applyGameTimer() {
-            try {
-                const hours = document.getElementById('gameHours').value;
-                const minutes = document.getElementById('gameMinutes').value;
-                const seconds = document.getElementById('gameSeconds').value;
-                
-                await fetch(`${API_URL}/admin/update-settings`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ key: 'game_timer_hours', value: hours })
-                });
-                await fetch(`${API_URL}/admin/update-settings`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ key: 'game_timer_minutes', value: minutes })
-                });
-                await fetch(`${API_URL}/admin/update-settings`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ key: 'game_timer_seconds', value: seconds })
-                });
-                
-                showSuccess('✅ Game timer applied!');
-            } catch (error) {
-                alert('Error applying timer');
-            }
-        }
-
-        async function applyWeeklyTimer() {
-            try {
-                const days = document.getElementById('weeklyDays').value;
-                const hours = document.getElementById('weeklyHours').value;
-                const minutes = document.getElementById('weeklyMinutes').value;
-                const seconds = document.getElementById('weeklySeconds').value;
-                
-                await fetch(`${API_URL}/admin/update-settings`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ key: 'weekly_timer_days', value: days })
-                });
-                await fetch(`${API_URL}/admin/update-settings`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ key: 'weekly_timer_hours', value: hours })
-                });
-                await fetch(`${API_URL}/admin/update-settings`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ key: 'weekly_timer_minutes', value: minutes })
-                });
-                await fetch(`${API_URL}/admin/update-settings`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ key: 'weekly_timer_seconds', value: seconds })
-                });
-                
-                showSuccess('✅ Weekly timer applied!');
-            } catch (error) {
-                alert('Error applying timer');
-            }
-        }
-
-        async function applyInfoBar() {
-            try {
-                const text = document.getElementById('infoText').value;
-                const color = document.getElementById('infoColor').value;
-                
-                await fetch(`${API_URL}/admin/update-settings`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ key: 'info_bar_text', value: text })
-                });
-                await fetch(`${API_URL}/admin/update-settings`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ key: 'info_bar_color', value: color })
-                });
-                
-                showSuccess('✅ Info bar applied!');
-            } catch (error) {
-                alert('Error applying info bar');
-            }
-        }
-
-        function sendBroadcast() {
-            const message = document.getElementById('broadcastMessage').value.trim();
-            if (!message) {
-                alert('Please enter a message');
-                return;
-            }
-            
-            if (!socket) {
-                initChatSocket();
-                setTimeout(() => sendBroadcast(), 1000);
-                return;
-            }
-            
-            socket.emit('admin_broadcast', { message: message });
-            document.getElementById('broadcastMessage').value = '';
-            const successDiv = document.getElementById('broadcastSuccess');
-            successDiv.style.display = 'block';
-            setTimeout(() => successDiv.style.display = 'none', 3000);
-        }
-
-        function showSection(section) {
-            const sections = ['broadcastSection', 'chatSection', 'timersSection', 'paymentsSection', 'usersSection'];
-            sections.forEach(s => {
-                const el = document.getElementById(s);
-                if (el) el.style.display = 'none';
-            });
-            
-            const selectedSection = document.getElementById(`${section}Section`);
-            if (selectedSection) selectedSection.style.display = 'block';
-            
-            document.querySelectorAll('.nav-item').forEach(item => {
-                item.classList.remove('active');
-            });
-            
-            event.target.closest('.nav-item').classList.add('active');
-            
-            if (section === 'timers') loadSettings();
-            if (section === 'payments') loadPendingPayments();
-            if (section === 'users') loadUsers();
-            if (section === 'chat') initChatSocket();
-        }
-
-        function escapeHtml(text) {
-            if (!text) return '';
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        async function handleLogout() {
-            await fetch(`${API_URL}/auth/logout`, { method: 'POST', credentials: 'include' });
-            localStorage.clear();
-            window.location.href = '/login.html';
-        }
-
-        async function init() {
-            try {
-                const user = await getCurrentUser();
-                if (!user) {
-                    window.location.href = '/login.html';
-                    return;
-                }
-                
-                if (!user.isAdmin) {
-                    window.location.href = '/index.html';
-                    return;
-                }
-                
-                document.getElementById('adminEmail').innerText = user.email;
-                await loadStats();
-                
-                // Check if admin has display name
-                if (!user.displayName) {
-                    const name = prompt('Welcome Admin! Enter your display name for chat:');
-                    if (name && name.trim()) {
-                        await fetch(`${API_URL}/set-display-name`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            credentials: 'include',
-                            body: JSON.stringify({ displayName: name.trim() })
+                    
+                    // Add event listeners
+                    container.querySelectorAll('.verify-btn').forEach(btn => {
+                        btn.addEventListener('click', function() {
+                            verifyUserManually(this.dataset.userEmail, this);
                         });
+                    });
+                } catch (error) {
+                    console.error('Users error:', error);
+                    container.innerHTML = '<p style="color: #ef4444;">Error loading users</p>';
+                }
+            }
+
+            async function verifyPayment(paymentId, btnElement) {
+                if (!paymentId) return;
+                
+                if (btnElement) {
+                    btnElement.disabled = true;
+                    btnElement.textContent = 'Verifying...';
+                }
+                
+                try {
+                    const response = await apiFetch(`${API_URL}/admin/verify`, {
+                        method: 'POST',
+                        body: JSON.stringify({ paymentId })
+                    });
+                    
+                    if (response.ok) {
+                        showToast('✅ Payment verified!');
+                        await Promise.all([
+                            loadPendingPayments(),
+                            loadStats(),
+                            loadUsers()
+                        ]);
+                    } else {
+                        throw new Error('Verification failed');
+                    }
+                } catch (error) {
+                    showToast('Failed to verify payment', 'error');
+                    if (btnElement) {
+                        btnElement.disabled = false;
+                        btnElement.textContent = '✅ Verify & Grant Access';
                     }
                 }
-            } catch (error) {
-                console.error('Init error:', error);
-                showError('Failed to load dashboard. Please refresh.');
             }
-        }
 
-        init();
+            async function verifyUserManually(email, btnElement) {
+                if (!email) return;
+                
+                if (btnElement) {
+                    btnElement.disabled = true;
+                    btnElement.textContent = 'Verifying...';
+                }
+                
+                try {
+                    const response = await apiFetch(`${API_URL}/admin/verify-user-payment`, {
+                        method: 'POST',
+                        body: JSON.stringify({ email })
+                    });
+                    
+                    if (response.ok) {
+                        showToast(`✅ ${email} verified!`);
+                        await Promise.all([loadUsers(), loadStats()]);
+                    } else {
+                        throw new Error('Verification failed');
+                    }
+                } catch (error) {
+                    showToast('Failed to verify user', 'error');
+                    if (btnElement) {
+                        btnElement.disabled = false;
+                        btnElement.textContent = '🔓 Verify';
+                    }
+                }
+            }
+
+            // Broadcast
+            function sendBroadcast() {
+                const message = elements.broadcastMessage.value.trim();
+                if (!message) {
+                    showToast('Please enter a message', 'error');
+                    return;
+                }
+                
+                if (!socket?.connected) {
+                    initChatSocket();
+                    setTimeout(() => {
+                        if (socket?.connected) {
+                            sendBroadcastNow(message);
+                        } else {
+                            showToast('Failed to connect to chat server', 'error');
+                        }
+                    }, 2000);
+                    return;
+                }
+                
+                sendBroadcastNow(message);
+            }
+
+            function sendBroadcastNow(message) {
+                socket.emit('admin_broadcast', { message });
+                elements.broadcastMessage.value = '';
+                elements.broadcastSuccess.style.display = 'block';
+                setTimeout(() => {
+                    elements.broadcastSuccess.style.display = 'none';
+                }, 3000);
+                showToast('📢 Broadcast sent!');
+            }
+
+            // Navigation
+            function showSection(section) {
+                const sections = {
+                    broadcast: 'broadcastSection',
+                    chat: 'chatSection',
+                    timers: 'timersSection',
+                    payments: 'paymentsSection',
+                    users: 'usersSection'
+                };
+                
+                // Hide all sections
+                Object.values(sections).forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.style.display = 'none';
+                });
+                
+                // Show selected section
+                if (section === 'logout') {
+                    handleLogout();
+                    return;
+                }
+                
+                const targetId = sections[section];
+                if (targetId) {
+                    const target = document.getElementById(targetId);
+                    if (target) target.style.display = 'block';
+                }
+                
+                // Update active nav
+                elements.navItems.forEach(item => {
+                    item.classList.remove('active');
+                    if (item.dataset.section === section) {
+                        item.classList.add('active');
+                    }
+                });
+                
+                // Load section data
+                switch(section) {
+                    case 'timers':
+                        loadSettings();
+                        break;
+                    case 'payments':
+                        loadPendingPayments();
+                        break;
+                    case 'users':
+                        loadUsers();
+                        break;
+                    case 'chat':
+                        initChatSocket();
+                        break;
+                }
+            }
+
+            // Logout
+            async function handleLogout() {
+                try {
+                    await apiFetch(`${API_URL}/auth/logout`, { method: 'POST' });
+                } catch (error) {
+                    console.error('Logout error:', error);
+                } finally {
+                    if (socket) {
+                        socket.disconnect();
+                        socket = null;
+                    }
+                    localStorage.clear();
+                    sessionStorage.clear();
+                    window.location.href = '/login.html';
+                }
+            }
+
+            // Event listeners setup
+            function setupEventListeners() {
+                // Navigation
+                elements.navItems.forEach(item => {
+                    item.addEventListener('click', function(e) {
+                        const section = this.dataset.section;
+                        if (section) showSection(section);
+                    });
+                });
+                
+                // Chat
+                elements.sendChatBtn.addEventListener('click', sendAdminChatMessage);
+                elements.adminChatInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        sendAdminChatMessage();
+                    }
+                });
+                
+                // Broadcast
+                elements.broadcastBtn.addEventListener('click', sendBroadcast);
+                elements.broadcastMessage.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter' && e.ctrlKey) {
+                        e.preventDefault();
+                        sendBroadcast();
+                    }
+                });
+                
+                // Timer buttons
+                elements.applyGameTimerBtn.addEventListener('click', applyGameTimer);
+                elements.applyWeeklyTimerBtn.addEventListener('click', applyWeeklyTimer);
+                elements.applyInfoBarBtn.addEventListener('click', applyInfoBar);
+                
+                // Input validation
+                [elements.gameHours, elements.gameMinutes, elements.gameSeconds].forEach(input => {
+                    input.addEventListener('change', function() {
+                        const min = parseInt(this.min) || 0;
+                        const max = parseInt(this.max) || 999;
+                        let value = parseInt(this.value) || 0;
+                        if (value < min) this.value = min;
+                        if (value > max) this.value = max;
+                    });
+                });
+                
+                // Handle page unload
+                window.addEventListener('beforeunload', () => {
+                    if (socket) {
+                        socket.disconnect();
+                    }
+                });
+            }
+
+            // Initialization
+            async function init() {
+                try {
+                    const user = await getCurrentUser();
+                    
+                    if (!user) {
+                        window.location.href = '/login.html';
+                        return;
+                    }
+                    
+                    if (!user.isAdmin) {
+                        window.location.href = '/index.html';
+                        return;
+                    }
+                    
+                    elements.adminEmail.textContent = user.email;
+                    
+                    setupEventListeners();
+                    await loadStats();
+                    
+                    // Handle display name
+                    if (!user.displayName) {
+                        const name = prompt('Welcome Admin! Enter your display name for chat:');
+                        if (name?.trim()) {
+                            try {
+                                await apiFetch(`${API_URL}/set-display-name`, {
+                                    method: 'POST',
+                                    body: JSON.stringify({ displayName: name.trim() })
+                                });
+                                showToast('Display name set!');
+                            } catch (error) {
+                                console.error('Failed to set display name:', error);
+                            }
+                        }
+                    }
+                    
+                } catch (error) {
+                    console.error('Init error:', error);
+                    showError('Failed to load dashboard. Please refresh the page.');
+                }
+            }
+
+            // Start the app
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init);
+            } else {
+                init();
+            }
+        })();
     </script>
 </body>
 </html>
