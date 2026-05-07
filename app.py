@@ -3,6 +3,8 @@ from flask_socketio import SocketIO, emit, join_room
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+import eventlet
+eventlet.monkey_patch()
 import secrets
 import sqlite3
 import hashlib
