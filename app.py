@@ -24,10 +24,20 @@ app = Flask(__name__, static_folder='.', static_url_path='')
 app.config['SECRET_KEY'] = secrets.token_hex(32)
 app.config['SESSION_COOKIE_SAMESITE'] = 'None'
 app.config['SESSION_COOKIE_SECURE'] = True
-app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_HTTPONLY'] = False  # ✅ Changed to False for Socket.IO
 
-CORS(app, supports_credentials=True)
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
+CORS(app, supports_credentials=True, origins="*")
+
+# ✅ FIXED Socket.IO config
+socketio = SocketIO(
+    app, 
+    cors_allowed_origins="*", 
+    async_mode='eventlet',
+    manage_session=True,
+    cookie='session',
+    logger=True,
+    engineio_logger=True
+)
 
 # Database path
 DB_PATH = f'/tmp/chylnx_fresh_{int(time.time())}.db'
@@ -110,34 +120,6 @@ for key, val in [
 conn.commit()
 conn.close()
 logger.info("✅ Database ready!")
-
-# ======================
-# DECORATOR - Login Required
-# ======================
-
-def login_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if 'user_email' not in session:
-            return jsonify({'error': 'Please login first'}), 401
-        return f(*args, **kwargs)
-    return decorated
-
-def admin_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if 'user_email' not in session:
-            return jsonify({'error': 'Please login first'}), 401
-        
-        conn = get_db()
-        user = conn.execute("SELECT is_admin FROM users WHERE email = ?", 
-                           (session['user_email'],)).fetchone()
-        conn.close()
-        
-        if not user or not user['is_admin']:
-            return jsonify({'error': 'Admin access required'}), 403
-        return f(*args, **kwargs)
-    return decorated
 
 # ======================
 # ROUTES
@@ -237,6 +219,7 @@ def login():
         
         session['user_email'] = user['email']
         logger.info(f"✅ Login: {email}")
+        logger.info(f"Session set: {dict(session)}")
         
         return jsonify({
             'success': True,
@@ -349,7 +332,7 @@ def submit_payment():
     return jsonify({'success': True})
 
 # ======================
-# ✅ ADMIN ROUTES - FIXED
+# ADMIN ROUTES
 # ======================
 
 @app.route('/api/admin/pending-payments', methods=['GET'])
@@ -365,7 +348,6 @@ def admin_pending_payments():
         conn.close()
         return jsonify({'error': 'Admin access required'}), 403
     
-    # Get pending payments with user name
     payments = conn.execute("""
         SELECT p.*, u.full_name 
         FROM payments p 
@@ -413,28 +395,23 @@ def admin_verify():
         return jsonify({'error': 'Payment ID required'}), 400
     
     conn = get_db()
-    
-    # Check if admin
     admin = conn.execute("SELECT is_admin FROM users WHERE email = ?", (email,)).fetchone()
     if not admin or not admin['is_admin']:
         conn.close()
         return jsonify({'error': 'Admin access required'}), 403
     
-    # Get payment
     payment = conn.execute("SELECT user_email FROM payments WHERE id = ? AND status = 'pending'", (payment_id,)).fetchone()
     
     if not payment:
         conn.close()
-        return jsonify({'error': 'Payment not found or already processed'}), 404
+        return jsonify({'error': 'Payment not found'}), 404
     
-    # Approve payment
     conn.execute("UPDATE payments SET status = 'approved' WHERE id = ?", (payment_id,))
     conn.execute("UPDATE users SET payment_verified = 1 WHERE email = ?", (payment['user_email'],))
     conn.commit()
     conn.close()
     
-    logger.info(f"✅ Payment {payment_id} verified for {payment['user_email']}")
-    return jsonify({'success': True, 'message': 'Payment verified!'})
+    return jsonify({'success': True})
 
 @app.route('/api/admin/verify-user-payment', methods=['POST'])
 def admin_verify_user():
@@ -449,20 +426,16 @@ def admin_verify_user():
         return jsonify({'error': 'User email required'}), 400
     
     conn = get_db()
-    
-    # Check if admin
     admin = conn.execute("SELECT is_admin FROM users WHERE email = ?", (email,)).fetchone()
     if not admin or not admin['is_admin']:
         conn.close()
         return jsonify({'error': 'Admin access required'}), 403
     
-    # Verify user
     conn.execute("UPDATE users SET payment_verified = 1 WHERE email = ?", (target_email,))
     conn.commit()
     conn.close()
     
-    logger.info(f"✅ User verified: {target_email}")
-    return jsonify({'success': True, 'message': f'{target_email} verified!'})
+    return jsonify({'success': True})
 
 @app.route('/api/admin/update-settings', methods=['POST'])
 def admin_update_settings():
@@ -478,8 +451,6 @@ def admin_update_settings():
         return jsonify({'error': 'Key required'}), 400
     
     conn = get_db()
-    
-    # Check if admin
     admin = conn.execute("SELECT is_admin FROM users WHERE email = ?", (email,)).fetchone()
     if not admin or not admin['is_admin']:
         conn.close()
@@ -491,15 +462,24 @@ def admin_update_settings():
     
     return jsonify({'success': True})
 
-# Socket.IO
+# ======================
+# ✅ FIXED SOCKET.IO EVENTS
+# ======================
+
 @socketio.on('connect')
 def handle_connect():
-    logger.info(f"Connected: {request.sid}")
+    logger.info(f"✅ Connected: {request.sid}")
+    logger.info(f"Session: {dict(session)}")
 
 @socketio.on('join_chat')
 def handle_join_chat():
     email = session.get('user_email')
+    logger.info(f"💬 Join chat request from: {email}")
+    logger.info(f"Full session: {dict(session)}")
+    
     if not email:
+        logger.error("❌ No email in session")
+        emit('error', {'message': 'Please login first'})
         return
     
     conn = get_db()
@@ -507,10 +487,19 @@ def handle_join_chat():
     conn.close()
     
     if not user:
+        logger.error(f"❌ User not found: {email}")
+        emit('error', {'message': 'User not found'})
+        return
+    
+    if not user['payment_verified'] and not user['is_admin']:
+        logger.error(f"❌ Not verified: {email}")
+        emit('error', {'message': 'Payment required to access chat'})
         return
     
     join_room('main_chat')
+    logger.info(f"✅ {email} joined main_chat")
     
+    # Send chat history
     conn = get_db()
     messages = conn.execute("SELECT * FROM messages ORDER BY rowid DESC LIMIT 50").fetchall()
     conn.close()
@@ -519,7 +508,11 @@ def handle_join_chat():
 @socketio.on('send_message')
 def handle_send_message(data):
     email = session.get('user_email')
+    logger.info(f"📩 Message from: {email}")
+    
     if not email:
+        logger.error("❌ No email in session for send_message")
+        emit('error', {'message': 'Please login first'})
         return
     
     conn = get_db()
@@ -527,6 +520,8 @@ def handle_send_message(data):
     
     if not user:
         conn.close()
+        logger.error(f"❌ User not found for send_message: {email}")
+        emit('error', {'message': 'User not found'})
         return
     
     text = safe_get(data, 'text', '').strip()
@@ -546,7 +541,13 @@ def handle_send_message(data):
     conn.commit()
     conn.close()
     
-    emit('new_message', {'sender': display_name, 'text': text, 'isSystem': False}, room='main_chat')
+    logger.info(f"✅ Message from {display_name}: {text[:50]}...")
+    
+    emit('new_message', {
+        'sender': display_name,
+        'text': text,
+        'isSystem': False
+    }, room='main_chat')
 
 @socketio.on('admin_broadcast')
 def handle_admin_broadcast(data):
