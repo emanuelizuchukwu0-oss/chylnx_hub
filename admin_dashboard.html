@@ -7,178 +7,175 @@
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
-        body{font-family:Arial,sans-serif;background:#0f0f1a;color:#fff;display:flex;min-height:100vh}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f0f1a;color:#fff;min-height:100vh}
         
-        .sidebar{width:260px;background:#1a1a2e;padding:20px;position:fixed;height:100vh;left:0;top:0}
-        .sidebar .logo{font-size:24px;font-weight:800;background:linear-gradient(135deg,#667eea,#764ba2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-align:center;margin-bottom:30px}
-        .nav-item{padding:12px 16px;margin:8px 0;border-radius:12px;cursor:pointer;display:flex;align-items:center;gap:10px;transition:all 0.2s}
+        .sidebar{position:fixed;left:0;top:0;width:260px;height:100vh;background:#1a1a2e;padding:20px;overflow-y:auto;z-index:100}
+        .logo{font-size:24px;font-weight:800;background:linear-gradient(135deg,#667eea,#764ba2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-align:center;margin-bottom:30px}
+        .nav-item{padding:12px 16px;margin:8px 0;border-radius:12px;cursor:pointer;display:flex;align-items:center;gap:12px;transition:all 0.2s}
         .nav-item:hover{background:#2d2d44}
         .nav-item.active{background:linear-gradient(135deg,#667eea,#764ba2)}
         
-        .main-content{margin-left:260px;padding:20px;flex:1}
+        .main-content{margin-left:260px;padding:20px;min-height:100vh}
         .header{background:#1a1a2e;padding:15px 20px;border-radius:16px;display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+        .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:20px;margin-bottom:30px}
+        .stat-card{background:#1a1a2e;padding:20px;border-radius:16px;text-align:center}
+        .stat-number{font-size:36px;font-weight:800;background:linear-gradient(135deg,#667eea,#764ba2);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+        .section{background:#1a1a2e;border-radius:16px;padding:20px;margin-bottom:20px}
+        .section h2{margin-bottom:20px;font-size:20px}
         
-        .section{background:#1a1a2e;border-radius:16px;padding:20px;margin-bottom:20px;display:none}
-        .section.active{display:block}
+        .payment-item,.user-item{background:#0f0f1a;padding:15px;border-radius:12px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+        .verify-btn{background:#10b981;color:#fff;border:none;padding:8px 20px;border-radius:30px;cursor:pointer;font-weight:600}
+        .verify-btn:hover{background:#059669}
+        .badge{padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600}
+        .badge-pending{background:#f59e0b;color:#000}
+        .badge-approved{background:#10b981}
         
-        /* Chat Styles */
-        .chat-container{background:#0f0f1a;border-radius:16px;overflow:hidden}
-        .chat-tabs{display:flex;background:#1a1a2e;border-bottom:2px solid #2d2d44}
-        .tab-btn{flex:1;padding:12px;text-align:center;cursor:pointer;color:#888;border:none;background:none;font-size:14px;transition:all 0.2s}
-        .tab-btn.active{color:#fff;border-bottom:2px solid #667eea}
+        .broadcast-section{background:linear-gradient(135deg,#667eea,#764ba2);padding:20px;border-radius:16px;margin-bottom:20px}
+        .broadcast-input{width:100%;padding:12px;border-radius:12px;border:none;background:rgba(255,255,255,0.2);color:#fff;margin-bottom:10px;resize:vertical;min-height:60px}
+        .broadcast-btn{background:#fff;color:#667eea;border:none;padding:10px 20px;border-radius:30px;cursor:pointer;font-weight:600;width:100%}
         
-        .chat-messages{height:300px;overflow-y:auto;padding:15px;display:flex;flex-direction:column;gap:8px}
-        .chat-input-area{padding:12px;background:#1a1a2e;display:flex;gap:10px}
-        .chat-input{flex:1;padding:10px 15px;border-radius:25px;border:none;background:#2d2d44;color:#fff;outline:none}
-        .send-btn{background:#075E54;border:none;width:42px;height:42px;border-radius:50%;color:#fff;font-size:18px;cursor:pointer}
+        /* ✅ CHAT WITH WIN FEATURE */
+        .chat-container{background:#0f0f1a;border-radius:16px;height:400px;display:flex;flex-direction:column}
+        .chat-messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px}
+        .chat-input-area{padding:12px;background:#1a1a2e;border-radius:0 0 16px 16px;display:flex;gap:12px}
+        .chat-input{flex:1;padding:12px 16px;border-radius:25px;border:none;background:#2d2d44;color:#fff;outline:none}
+        .send-btn{background:#075E54;border:none;width:45px;height:45px;border-radius:50%;cursor:pointer;color:#fff;font-size:20px}
         
-        /* Online Users */
-        .online-users-list{max-height:200px;overflow-y:auto}
-        .online-user-item{display:flex;align-items:center;justify-content:space-between;padding:10px 15px;background:#0f0f1a;border-radius:10px;margin-bottom:8px}
-        .online-dot{width:8px;height:8px;background:#25D366;border-radius:50%;margin-right:10px}
-        .select-user{cursor:pointer;user-select:none}
-        .select-user.selected{background:#2d2d44;border:2px solid #667eea}
+        /* ✅ WIN BAR */
+        .win-bar{display:none;background:linear-gradient(135deg,#f59e0b,#ef4444);padding:12px 15px;border-radius:12px;margin-bottom:15px;text-align:center;animation:fadeIn 0.3s}
+        .win-bar .selected-user{color:#fff;font-weight:bold;font-size:16px}
+        .win-bar button{background:#fff;color:#ef4444;border:none;padding:10px 24px;border-radius:20px;font-weight:700;cursor:pointer;font-size:14px;margin-left:10px}
+        .win-bar button:hover{transform:scale(1.05)}
         
-        /* Win Button */
-        .win-btn{background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff;border:none;padding:12px 24px;border-radius:30px;font-size:16px;font-weight:700;cursor:pointer;width:100%;margin-top:10px;transition:all 0.3s}
-        .win-btn:hover{transform:scale(1.02);box-shadow:0 10px 30px rgba(245,158,11,0.3)}
-        .win-btn:disabled{opacity:0.5;cursor:not-allowed;transform:none}
+        /* Clickable sender names */
+        .sender-clickable{cursor:pointer;color:#f59e0b!important;text-decoration:underline}
+        .sender-clickable:hover{color:#fbbf24!important}
         
-        /* Winner Overlay */
-        .winner-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);display:flex;align-items:center;justify-content:center;z-index:9999;animation:fadeIn 0.5s}
-        .winner-card{background:linear-gradient(135deg,#1a1a2e,#2d2d44);border:3px solid #f59e0b;border-radius:24px;padding:40px;text-align:center;max-width:450px;animation:bounceIn 0.6s}
-        .winner-emoji{font-size:80px;animation:bounce 1s infinite}
-        .winner-title{font-size:28px;font-weight:800;background:linear-gradient(135deg,#f59e0b,#ef4444);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin:15px 0}
-        .winner-name{font-size:24px;font-weight:700;color:#f59e0b;margin:10px 0}
-        .confetti{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9998}
-        .confetti-piece{position:absolute;width:10px;height:10px;animation:confettiFall 3s linear}
+        .setting-group{margin-bottom:20px;padding:15px;background:#0f0f1a;border-radius:12px}
+        .setting-group h3{margin-bottom:15px}
+        .setting-group label{display:block;margin-bottom:8px;font-weight:600}
+        .setting-group input{width:100%;padding:10px;border-radius:8px;border:none;background:#2d2d44;color:#fff}
+        .setting-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:15px}
+        .apply-btn{background:#667eea;color:#fff;border:none;padding:10px 20px;border-radius:30px;cursor:pointer;width:100%;font-weight:600}
         
         @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-        @keyframes bounceIn{0%{transform:scale(0.3);opacity:0}50%{transform:scale(1.05)}70%{transform:scale(0.9)}100%{transform:scale(1);opacity:1}}
-        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-20px)}}
-        @keyframes confettiFall{0%{transform:translateY(-100px) rotate(0deg);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}
         
-        .toast{position:fixed;top:20px;right:20px;z-index:10000;padding:12px 20px;border-radius:8px;color:#fff;font-weight:500;animation:fadeIn 0.3s}
-        .toast.success{background:#10b981}
-        .toast.error{background:#ef4444}
+        @media(max-width:768px){
+            .sidebar{width:100%;height:auto;position:relative;display:flex;flex-wrap:wrap;gap:8px;padding:12px;justify-content:center}
+            .sidebar .logo{width:100%;margin-bottom:10px}
+            .sidebar .nav-item{margin:4px;padding:8px 12px;font-size:14px}
+            .main-content{margin-left:0}
+        }
     </style>
 </head>
 <body>
     <div class="sidebar">
         <div class="logo">chylnx hub<br><span style="font-size:12px">ADMIN</span></div>
-        <div class="nav-item active" onclick="showSection('broadcast')">📢 Broadcast</div>
-        <div class="nav-item" onclick="showSection('chat')">💬 Live Chat</div>
-        <div class="nav-item" onclick="showSection('payments')">💰 Pending Payments</div>
-        <div class="nav-item" onclick="showSection('users')">👥 Users</div>
-        <div class="nav-item" onclick="logout()" style="color:#ef4444;margin-top:50px">🚪 Logout</div>
+        <div class="nav-item active" data-section="broadcast">📢 Broadcast</div>
+        <div class="nav-item" data-section="chat">💬 Live Chat</div>
+        <div class="nav-item" data-section="timers">⏰ Timers & Info Bar</div>
+        <div class="nav-item" data-section="payments">💰 Pending Payments</div>
+        <div class="nav-item" data-section="users">👥 Users</div>
+        <div class="nav-item" data-section="logout" style="margin-top:50px;color:#ef4444">🚪 Logout</div>
     </div>
 
     <div class="main-content">
-        <div class="header">
-            <h1>Admin Dashboard</h1>
-            <span id="adminEmail">Loading...</span>
+        <div class="header"><h1>Admin Dashboard</h1><span id="adminEmail">Loading...</span></div>
+        
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card"><div class="stat-number">-</div><div>Total Users</div></div>
+            <div class="stat-card"><div class="stat-number">-</div><div>Verified Users</div></div>
+            <div class="stat-card"><div class="stat-number">-</div><div>Pending Payments</div></div>
         </div>
 
-        <!-- Broadcast Section -->
-        <div id="broadcastSection" class="section active">
-            <h2>📢 Broadcast</h2>
-            <textarea id="broadcastMsg" style="width:100%;padding:12px;border-radius:12px;background:#2d2d44;color:#fff;border:none;min-height:100px;margin:10px 0" placeholder="Type announcement..."></textarea>
-            <button onclick="sendBroadcast()" style="background:#667eea;color:#fff;border:none;padding:12px 24px;border-radius:30px;cursor:pointer;width:100%">Send Broadcast</button>
+        <!-- Broadcast -->
+        <div id="broadcastSection" class="broadcast-section">
+            <h3>📢 Send Broadcast Message to All Users</h3>
+            <textarea id="broadcastMessage" class="broadcast-input" rows="3" placeholder="Type your announcement here..."></textarea>
+            <button class="broadcast-btn" id="broadcastBtn">📢 Send Broadcast</button>
         </div>
 
-        <!-- ✅ CHAT SECTION WITH WIN FEATURE -->
-        <div id="chatSection" class="section">
-            <div class="chat-tabs">
-                <button class="tab-btn active" onclick="switchTab('chat')">💬 Chat</button>
-                <button class="tab-btn" onclick="switchTab('online')">🟢 Online Users (<span id="onlineBadge">0</span>)</button>
+        <!-- ✅ LIVE CHAT with WIN FEATURE -->
+        <div id="chatSection" class="section" style="display:none">
+            <h2>💬 Live Chat (Chat with Users)</h2>
+            
+            <!-- ✅ WIN BAR -->
+            <div class="win-bar" id="winBar">
+                🏆 Selected: <span class="selected-user" id="selectedWinnerName">Tap a user's name below</span>
+                <button onclick="declareWinner()">🎉 DECLARE WINNER!</button>
             </div>
             
-            <!-- Chat Tab -->
-            <div id="chatTab" class="chat-container">
+            <div class="chat-container">
                 <div class="chat-messages" id="adminChatMessages">
                     <div style="text-align:center;color:#666;padding:50px">Connecting to chat...</div>
                 </div>
                 <div class="chat-input-area">
-                    <input type="text" class="chat-input" id="adminChatInput" placeholder="Type as Admin...">
-                    <button class="send-btn" onclick="sendAdminMessage()">📤</button>
+                    <input type="text" id="adminChatInput" class="chat-input" placeholder="Type as Admin...">
+                    <button class="send-btn" id="sendChatBtn">📤</button>
                 </div>
             </div>
-            
-            <!-- Online Users Tab -->
-            <div id="onlineTab" style="display:none">
-                <h3 style="margin:15px 0">🟢 Select Winner</h3>
-                <div class="online-users-list" id="onlineUsersList">
-                    <div style="text-align:center;color:#888;padding:30px">Loading online users...</div>
-                </div>
-                <button class="win-btn" id="winBtn" disabled onclick="declareWinner()">
-                    🏆 Declare Winner!
-                </button>
-                <div style="font-size:11px;color:#888;margin-top:8px;text-align:center">
-                    Select a user above then click to announce them as winner
-                </div>
+            <div style="margin-top:10px;font-size:12px;color:#888;text-align:center">
+                👑 Chatting as Admin | Tap a user's name to select as winner
             </div>
         </div>
 
-        <!-- Payments Section -->
-        <div id="paymentsSection" class="section">
+        <!-- Timers -->
+        <div id="timersSection" class="section" style="display:none">
+            <h2>⏰ Timer & Info Bar Settings</h2>
+            <div class="setting-group"><h3>🎮 Game Timer</h3>
+                <div class="setting-row">
+                    <div><label>Hours</label><input type="number" id="gameHours" min="0" max="168" value="24"></div>
+                    <div><label>Minutes</label><input type="number" id="gameMinutes" min="0" max="59" value="0"></div>
+                    <div><label>Seconds</label><input type="number" id="gameSeconds" min="0" max="59" value="0"></div>
+                </div>
+                <button class="apply-btn" id="applyGameTimerBtn">🎯 Apply Game Timer</button>
+            </div>
+            <div class="setting-group"><h3>📢 Info Bar</h3>
+                <label>Message</label><input type="text" id="infoText" placeholder="Enter announcement">
+                <label style="margin-top:10px">Color</label><input type="color" id="infoColor" value="#667eea">
+                <button class="apply-btn" id="applyInfoBarBtn">📢 Apply Info Bar</button>
+            </div>
+        </div>
+
+        <!-- Payments -->
+        <div id="paymentsSection" class="section" style="display:none">
             <h2>⏳ Pending Payments</h2>
-            <div id="paymentsList">Loading...</div>
+            <div id="pendingPaymentsList">Loading...</div>
         </div>
 
-        <!-- Users Section -->
-        <div id="usersSection" class="section">
-            <h2>👥 Users</h2>
+        <!-- Users -->
+        <div id="usersSection" class="section" style="display:none">
+            <h2>👥 Registered Users</h2>
             <div id="usersList">Loading...</div>
         </div>
     </div>
 
-    <!-- Confetti Container -->
-    <div class="confetti" id="confettiContainer"></div>
-
     <script>
         const API_URL = '/api';
         let socket = null;
-        let selectedWinner = null;
         let adminMessages = [];
-        let onlineUsers = [];
+        let selectedWinner = null;
+        let currentUser = null;
 
-        // ========== NAVIGATION ==========
-        function showSection(section) {
-            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-            document.getElementById(section + 'Section').classList.add('active');
-            
-            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-            event.target.classList.add('active');
-            
-            if (section === 'payments') loadPayments();
-            if (section === 'users') loadUsers();
-            if (section === 'chat') initSocket();
-        }
-
-        function switchTab(tab) {
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            event.target.classList.add('active');
-            
-            document.getElementById('chatTab').style.display = tab === 'chat' ? 'block' : 'none';
-            document.getElementById('onlineTab').style.display = tab === 'online' ? 'block' : 'none';
-            
-            if (tab === 'online') loadOnlineUsers();
-        }
-
-        // ========== TOAST ==========
         function showToast(msg, type) {
-            const toast = document.createElement('div');
-            toast.className = 'toast ' + type;
-            toast.textContent = msg;
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 3000);
+            const t = document.createElement('div');
+            t.style.cssText = `position:fixed;top:20px;right:20px;z-index:9999;background:${type==='error'?'#ef4444':'#10b981'};color:#fff;padding:12px 20px;border-radius:8px;font-weight:500;animation:fadeIn 0.3s`;
+            t.textContent = msg;
+            document.body.appendChild(t);
+            setTimeout(() => t.remove(), 3000);
         }
 
-        // ========== API ==========
+        function escapeHtml(text) {
+            if (!text) return '';
+            const d = document.createElement('div');
+            d.textContent = String(text);
+            return d.innerHTML;
+        }
+
         async function apiFetch(url, options = {}) {
             const res = await fetch(url, {
                 credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...options.headers },
                 ...options,
                 headers: { 'Content-Type': 'application/json', ...options.headers }
             });
@@ -186,33 +183,23 @@
             return res;
         }
 
-        // ========== INIT ==========
-        async function init() {
-            try {
-                const res = await apiFetch(API_URL + '/auth/me');
-                const user = await res.json();
-                if (!user.isAdmin) { window.location.href = '/index.html'; return; }
-                document.getElementById('adminEmail').textContent = user.email;
-                loadStats();
-            } catch(e) {
-                window.location.href = '/login.html';
-            }
+        function showSection(section) {
+            if (section === 'logout') { handleLogout(); return; }
+            document.querySelectorAll('.section, .broadcast-section').forEach(s => s.style.display = 'none');
+            const target = document.getElementById(section + 'Section');
+            if (target) target.style.display = 'block';
+            
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.querySelector(`[data-section="${section}"]`)?.classList.add('active');
+            
+            if (section === 'chat') initChatSocket();
+            if (section === 'payments') loadPendingPayments();
+            if (section === 'users') loadUsers();
+            if (section === 'timers') loadSettings();
         }
 
-        async function loadStats() {
-            try {
-                const [uRes, pRes] = await Promise.all([
-                    apiFetch(API_URL + '/admin/users'),
-                    apiFetch(API_URL + '/admin/pending-payments')
-                ]);
-                const users = await uRes.json();
-                const payments = await pRes.json();
-                // Update stats if you have stats cards
-            } catch(e) {}
-        }
-
-        // ========== SOCKET ==========
-        function initSocket() {
+        function initChatSocket() {
+            if (socket?.connected) return;
             if (socket) { socket.disconnect(); socket.removeAllListeners(); }
             
             socket = io('/', { withCredentials: true, transports: ['websocket', 'polling'] });
@@ -231,10 +218,10 @@
                 adminMessages.push(msg);
                 renderAdminChat();
             });
-            
-            // ✅ Listen for winner announcements
-            socket.on('winner_announced', (data) => {
-                showWinnerOverlay(data.winner_name);
+
+            document.getElementById('sendChatBtn').addEventListener('click', sendAdminMessage);
+            document.getElementById('adminChatInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') sendAdminMessage();
             });
         }
 
@@ -252,14 +239,21 @@
                 const time = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '';
                 
                 if (msg.isSystem) {
-                    html += `<div style="text-align:center;font-size:12px;color:#f59e0b;margin:8px 0;padding:8px;background:rgba(245,158,11,0.1);border-radius:12px">${escapeHtml(msg.text)}</div>`;
+                    html += `<div style="text-align:center;font-size:12px;color:#f59e0b;margin:8px 0;padding:8px;background:rgba(245,158,11,0.1);border-radius:12px">📢 ${escapeHtml(msg.text)}</div>`;
                 } else {
-                    const isOwn = msg.sender && msg.sender.includes('👑');
-                    html += `<div style="max-width:75%;padding:8px 12px;border-radius:12px;${isOwn ? 'background:#075E54;margin-left:auto' : 'background:#2d2d44'}">
-                        ${!isOwn ? `<div style="font-size:11px;font-weight:bold;margin-bottom:4px;opacity:0.8">${escapeHtml(msg.sender || 'User')}</div>` : ''}
-                        <div style="font-size:14px">${escapeHtml(msg.text)}</div>
-                        <div style="font-size:9px;opacity:0.5;text-align:right;margin-top:4px">${time}</div>
-                    </div>`;
+                    const isOwn = msg.sender?.includes('👑');
+                    const senderName = escapeHtml(msg.sender || 'User');
+                    
+                    html += `<div style="max-width:75%;padding:8px 12px;border-radius:12px;${isOwn?'background:#075E54;margin-left:auto':'background:#2d2d44'}">`;
+                    if (!isOwn) {
+                        // ✅ Make non-admin sender names CLICKABLE for winner selection
+                        html += `<div style="font-size:11px;font-weight:bold;margin-bottom:4px;opacity:0.8;cursor:pointer;color:#f59e0b;text-decoration:underline" onclick="selectWinner('${escapeHtml(msg.sender)}','${escapeHtml(msg.senderEmail || '')}')" title="Click to select as winner">👤 ${senderName}</div>`;
+                    } else {
+                        html += `<div style="font-size:11px;font-weight:bold;margin-bottom:4px;opacity:0.8">${senderName}</div>`;
+                    }
+                    html += `<div style="font-size:14px;word-break:break-word">${escapeHtml(msg.text)}</div>`;
+                    html += `<div style="font-size:9px;opacity:0.5;text-align:right;margin-top:4px">${time}</div>`;
+                    html += `</div>`;
                 }
             });
             
@@ -267,224 +261,163 @@
             container.scrollTop = container.scrollHeight;
         }
 
-        function sendAdminMessage() {
-            const input = document.getElementById('adminChatInput');
-            const text = input.value.trim();
-            if (!text || !socket) return;
-            socket.emit('send_message', { text });
-            input.value = '';
+        // ✅ SELECT WINNER
+        function selectWinner(name, email) {
+            selectedWinner = { name, email };
+            document.getElementById('winBar').style.display = 'block';
+            document.getElementById('selectedWinnerName').textContent = name;
+            showToast('✅ Selected: ' + name + ' | Now click DECLARE WINNER!', 'success');
         }
 
-        function sendBroadcast() {
-            const msg = document.getElementById('broadcastMsg').value.trim();
-            if (!msg || !socket) return;
-            socket.emit('admin_broadcast', { message: msg });
-            document.getElementById('broadcastMsg').value = '';
-            showToast('Broadcast sent!', 'success');
-        }
-
-        // ========== ONLINE USERS & WIN ==========
-        async function loadOnlineUsers() {
-            try {
-                const res = await apiFetch(API_URL + '/admin/online-users');
-                const data = await res.json();
-                onlineUsers = data.online_users || [];
-                renderOnlineUsers();
-                document.getElementById('onlineBadge').textContent = onlineUsers.length;
-            } catch(e) {
-                document.getElementById('onlineUsersList').innerHTML = '<div style="color:#ef4444">Error loading users</div>';
+        // ✅ DECLARE WINNER
+        function declareWinner() {
+            if (!selectedWinner) {
+                showToast('❌ Tap a user name first!', 'error');
+                return;
             }
-        }
-
-        function renderOnlineUsers() {
-            const container = document.getElementById('onlineUsersList');
-            const winBtn = document.getElementById('winBtn');
-            
-            if (onlineUsers.length === 0) {
-                container.innerHTML = '<div style="text-align:center;color:#888;padding:30px">No users online</div>';
-                winBtn.disabled = true;
-                selectedWinner = null;
+            if (!socket?.connected) {
+                showToast('❌ Chat not connected', 'error');
                 return;
             }
             
-            container.innerHTML = onlineUsers.map(u => `
-                <div class="online-user-item select-user ${selectedWinner && selectedWinner.email === u.email ? 'selected' : ''}" 
-                     onclick="selectWinner('${u.email}', '${u.name}', this)" data-email="${u.email}">
-                    <div style="display:flex;align-items:center">
-                        <span class="online-dot"></span>
-                        <span>${escapeHtml(u.name)}</span>
-                    </div>
-                    <input type="radio" name="winner" ${selectedWinner && selectedWinner.email === u.email ? 'checked' : ''}>
-                </div>
-            `).join('');
-            
-            winBtn.disabled = !selectedWinner;
-        }
-
-        function selectWinner(email, name, element) {
-            // Remove previous selection
-            document.querySelectorAll('.select-user').forEach(el => el.classList.remove('selected'));
-            // Select this one
-            element.classList.add('selected');
-            selectedWinner = { email, name };
-            document.getElementById('winBtn').disabled = false;
-        }
-
-        function declareWinner() {
-            if (!selectedWinner || !socket) return;
-            
-            // Send winner declaration
             socket.emit('declare_winner', {
                 email: selectedWinner.email,
                 name: selectedWinner.name
             });
             
-            // Show overlay on admin side too
-            showWinnerOverlay(selectedWinner.name);
+            showToast('🏆 Winner declared: ' + selectedWinner.name + '!', 'success');
             
-            showToast('🏆 Winner declared!', 'success');
+            // Hide win bar
+            document.getElementById('winBar').style.display = 'none';
+            selectedWinner = null;
         }
 
-        // ========== WINNER OVERLAY ==========
-        function showWinnerOverlay(winnerName) {
-            // Remove existing overlay
-            const existing = document.querySelector('.winner-overlay');
-            if (existing) existing.remove();
-            
-            // Create overlay
-            const overlay = document.createElement('div');
-            overlay.className = 'winner-overlay';
-            overlay.innerHTML = `
-                <div class="winner-card">
-                    <div class="winner-emoji">🏆</div>
-                    <div class="winner-title">CONGRATULATIONS!</div>
-                    <div class="winner-name">${escapeHtml(winnerName)}</div>
-                    <p style="color:#ccc;margin:10px 0">You have been selected as the winner!</p>
-                    <p style="color:#f59e0b;font-size:14px">🎉🎉🎉</p>
-                    <button onclick="closeWinnerOverlay()" style="background:#f59e0b;color:#000;border:none;padding:10px 24px;border-radius:20px;font-weight:700;cursor:pointer;margin-top:15px">Close</button>
-                </div>
-            `;
-            document.body.appendChild(overlay);
-            
-            // Create confetti
-            createConfetti();
-            
-            // Auto close after 10 seconds
-            setTimeout(() => {
-                if (document.querySelector('.winner-overlay')) {
-                    closeWinnerOverlay();
-                }
-            }, 10000);
+        function sendAdminMessage() {
+            const input = document.getElementById('adminChatInput');
+            const text = input.value.trim();
+            if (!text || !socket?.connected) return;
+            socket.emit('send_message', { text });
+            input.value = '';
         }
 
-        function closeWinnerOverlay() {
-            const overlay = document.querySelector('.winner-overlay');
-            if (overlay) overlay.remove();
-            const confetti = document.getElementById('confettiContainer');
-            if (confetti) confetti.innerHTML = '';
+        function sendBroadcast() {
+            const msg = document.getElementById('broadcastMessage').value.trim();
+            if (!msg) { showToast('Enter a message', 'error'); return; }
+            if (!socket?.connected) { showToast('Chat not connected', 'error'); return; }
+            socket.emit('admin_broadcast', { message: msg });
+            document.getElementById('broadcastMessage').value = '';
+            showToast('📢 Broadcast sent!');
         }
 
-        function createConfetti() {
-            const container = document.getElementById('confettiContainer');
-            container.innerHTML = '';
-            
-            const colors = ['#f59e0b', '#ef4444', '#10b981', '#667eea', '#ec4899', '#8b5cf6', '#fbbf24'];
-            
-            for (let i = 0; i < 100; i++) {
-                const piece = document.createElement('div');
-                piece.className = 'confetti-piece';
-                piece.style.left = Math.random() * 100 + '%';
-                piece.style.animationDelay = Math.random() * 2 + 's';
-                piece.style.animationDuration = (2 + Math.random() * 3) + 's';
-                piece.style.background = colors[Math.floor(Math.random() * colors.length)];
-                piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
-                container.appendChild(piece);
-            }
-        }
-
-        // ========== PAYMENTS & USERS ==========
-        async function loadPayments() {
-            const container = document.getElementById('paymentsList');
+        async function loadStats() {
             try {
-                const res = await apiFetch(API_URL + '/admin/pending-payments');
+                const [uRes, pRes] = await Promise.all([apiFetch('/api/admin/users'), apiFetch('/api/admin/pending-payments')]);
+                const users = await uRes.json(); const pending = await pRes.json();
+                const total = users.users?.length || 0;
+                const verified = users.users?.filter(u => u.payment_verified).length || 0;
+                const pendingP = pending.payments?.length || 0;
+                document.getElementById('statsGrid').innerHTML = `
+                    <div class="stat-card"><div class="stat-number">${total}</div><div>Total Users</div></div>
+                    <div class="stat-card"><div class="stat-number">${verified}</div><div>Verified Users</div></div>
+                    <div class="stat-card"><div class="stat-number">${pendingP}</div><div>Pending Payments</div></div>`;
+            } catch(e) {}
+        }
+
+        async function loadPendingPayments() {
+            const c = document.getElementById('pendingPaymentsList');
+            try {
+                const res = await apiFetch('/api/admin/pending-payments');
                 const data = await res.json();
                 const payments = data.payments || [];
-                
-                if (payments.length === 0) {
-                    container.innerHTML = '<p style="color:#888">No pending payments</p>';
-                    return;
-                }
-                
-                container.innerHTML = payments.map(p => `
-                    <div style="background:#0f0f1a;padding:15px;border-radius:12px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
-                        <div>
-                            <strong>${escapeHtml(p.full_name || 'User')}</strong><br>
-                            📧 ${escapeHtml(p.user_email)}<br>
-                            🏦 ${escapeHtml(p.bank_name)}<br>
-                            🆔 ${escapeHtml(p.reference)}
-                        </div>
-                        <button onclick="verifyPayment(${p.id})" style="background:#10b981;color:#fff;border:none;padding:8px 16px;border-radius:20px;cursor:pointer">✅ Verify</button>
-                    </div>
-                `).join('');
-            } catch(e) {
-                container.innerHTML = '<p style="color:#ef4444">Error loading payments</p>';
-            }
+                if (payments.length === 0) { c.innerHTML = '<p style="color:#888;text-align:center;padding:20px">No pending payments</p>'; return; }
+                c.innerHTML = payments.map(p => `
+                    <div class="payment-item">
+                        <div><strong>${escapeHtml(p.full_name)}</strong><br>📧 ${escapeHtml(p.user_email)}<br>🏦 ${escapeHtml(p.bank_name)}<br>🆔 ${escapeHtml(p.reference)}</div>
+                        <button class="verify-btn" onclick="verifyPayment(${p.id})">✅ Verify</button>
+                    </div>`).join('');
+            } catch(e) { c.innerHTML = '<p style="color:#ef4444">Error</p>'; }
         }
 
         async function verifyPayment(id) {
-            await apiFetch(API_URL + '/admin/verify', {
-                method: 'POST',
-                body: JSON.stringify({ paymentId: id })
-            });
-            showToast('Payment verified!', 'success');
-            loadPayments();
+            await apiFetch('/api/admin/verify', { method: 'POST', body: JSON.stringify({ paymentId: id }) });
+            showToast('✅ Verified!');
+            loadPendingPayments(); loadStats(); loadUsers();
         }
 
         async function loadUsers() {
-            const container = document.getElementById('usersList');
+            const c = document.getElementById('usersList');
             try {
-                const res = await apiFetch(API_URL + '/admin/users');
+                const res = await apiFetch('/api/admin/users');
                 const data = await res.json();
                 const users = data.users || [];
-                
-                container.innerHTML = users.map(u => `
-                    <div style="background:#0f0f1a;padding:12px;border-radius:10px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
-                        <div>
-                            <strong>${escapeHtml(u.full_name)}</strong><br>
-                            📧 ${escapeHtml(u.email)}
-                        </div>
-                        <span style="padding:4px 12px;border-radius:20px;font-size:12px;background:${u.payment_verified ? '#10b981' : '#f59e0b'}">
-                            ${u.payment_verified ? '✅ Verified' : '⏳ Pending'}
-                        </span>
-                    </div>
-                `).join('');
-            } catch(e) {
-                container.innerHTML = '<p style="color:#ef4444">Error loading users</p>';
-            }
+                c.innerHTML = users.map(u => `
+                    <div class="user-item">
+                        <div><strong>${escapeHtml(u.full_name)}</strong><br>📧 ${escapeHtml(u.email)}</div>
+                        <span class="badge ${u.payment_verified?'badge-approved':'badge-pending'}">${u.payment_verified?'✅ Verified':'⏳ Pending'}</span>
+                    </div>`).join('');
+            } catch(e) { c.innerHTML = '<p style="color:#ef4444">Error</p>'; }
         }
 
-        function escapeHtml(text) {
-            if (!text) return '';
-            const div = document.createElement('div');
-            div.textContent = String(text);
-            return div.innerHTML;
+        async function loadSettings() {
+            try {
+                const res = await apiFetch('/api/settings');
+                const data = await res.json();
+                const s = data.settings || {};
+                document.getElementById('gameHours').value = s.game_timer_hours || 24;
+                document.getElementById('gameMinutes').value = s.game_timer_minutes || 0;
+                document.getElementById('gameSeconds').value = s.game_timer_seconds || 0;
+                document.getElementById('infoText').value = s.info_bar_text || '';
+                document.getElementById('infoColor').value = s.info_bar_color || '#667eea';
+            } catch(e) {}
         }
 
-        async function logout() {
-            await apiFetch(API_URL + '/auth/logout', { method: 'POST' });
+        async function applyGameTimer() {
+            const h = document.getElementById('gameHours').value;
+            const m = document.getElementById('gameMinutes').value;
+            const s = document.getElementById('gameSeconds').value;
+            await Promise.all([
+                apiFetch('/api/admin/update-settings', { method: 'POST', body: JSON.stringify({ key: 'game_timer_hours', value: h }) }),
+                apiFetch('/api/admin/update-settings', { method: 'POST', body: JSON.stringify({ key: 'game_timer_minutes', value: m }) }),
+                apiFetch('/api/admin/update-settings', { method: 'POST', body: JSON.stringify({ key: 'game_timer_seconds', value: s }) })
+            ]);
+            showToast('✅ Timer applied!');
+        }
+
+        async function applyInfoBar() {
+            await Promise.all([
+                apiFetch('/api/admin/update-settings', { method: 'POST', body: JSON.stringify({ key: 'info_bar_text', value: document.getElementById('infoText').value }) }),
+                apiFetch('/api/admin/update-settings', { method: 'POST', body: JSON.stringify({ key: 'info_bar_color', value: document.getElementById('infoColor').value }) })
+            ]);
+            showToast('✅ Info bar applied!');
+        }
+
+        async function handleLogout() {
+            await apiFetch('/api/auth/logout', { method: 'POST' });
             if (socket) socket.disconnect();
             localStorage.clear();
             window.location.href = '/login.html';
         }
 
-        // Enter key for chat
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' && document.activeElement.id === 'adminChatInput') {
-                sendAdminMessage();
-            }
-        });
+        async function init() {
+            try {
+                const res = await apiFetch('/api/auth/me');
+                const user = await res.json();
+                if (!user.isAdmin) { window.location.href = '/index.html'; return; }
+                document.getElementById('adminEmail').textContent = user.email;
+                currentUser = user;
+                
+                document.querySelectorAll('.nav-item').forEach(item => {
+                    item.addEventListener('click', function() { showSection(this.dataset.section); });
+                });
+                document.getElementById('broadcastBtn').addEventListener('click', sendBroadcast);
+                document.getElementById('applyGameTimerBtn').addEventListener('click', applyGameTimer);
+                document.getElementById('applyInfoBarBtn').addEventListener('click', applyInfoBar);
+                
+                loadStats();
+            } catch(e) { window.location.href = '/login.html'; }
+        }
 
-        init();
+        document.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
 </html>
