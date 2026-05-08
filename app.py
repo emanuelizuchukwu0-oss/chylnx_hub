@@ -426,6 +426,45 @@ def on_declare_winner(data):
     
     logger.info(f'🏆 Winner declared: {winner_name} ({winner_email})') 
 
+    # Add this socket event
+@socketio.on('submit_claim')
+def on_submit_claim(data):
+    email = session.get('user_email')
+    if not email: return
+    
+    account_name = safe_get(data, 'accountName', '')
+    account_number = safe_get(data, 'accountNumber', '')
+    bank_name = safe_get(data, 'bankName', '')
+    winner_name = safe_get(data, 'winnerName', '')
+    winner_email = safe_get(data, 'winnerEmail', email)
+    
+    # Save to database
+    conn = get_db()
+    conn.execute("INSERT INTO claims (winner_email, winner_name, account_name, account_number, bank_name) VALUES (?,?,?,?,?)",
+                 (winner_email, winner_name, account_name, account_number, bank_name))
+    conn.commit()
+    conn.close()
+    
+    # Send claim details to admin dashboard
+    claim_msg = f'💰 CLAIM: {winner_name} | Bank: {bank_name} | Acct: {account_number} | Name: {account_name}'
+    
+    conn = get_db()
+    conn.execute("INSERT INTO messages (sender_name,sender_email,message_text,is_system,timestamp) VALUES (?,?,?,?,CURRENT_TIMESTAMP)",
+                 ('💰 CLAIM SYSTEM', winner_email, claim_msg, 1))
+    conn.commit()
+    conn.close()
+    
+    emit('new_message', {
+        'id': 0,
+        'sender': '💰 CLAIM SYSTEM',
+        'text': claim_msg,
+        'timestamp': datetime.now().isoformat(),
+        'isSystem': True
+    }, room='main_chat')
+    
+    emit('claim_response', {'success': True})
+    logger.info(f'💰 Claim submitted by {winner_name}')
+
 @socketio.on('admin_broadcast')
 def on_broadcast(data):
     email = session.get('user_email')
