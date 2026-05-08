@@ -355,6 +355,77 @@ def on_message(data):
         'isSystem': False
     }, room='main_chat')
 
+    # Add this after your other routes
+
+@app.route('/api/admin/online-users', methods=['GET'])
+def get_online_users():
+    """Get list of online users for admin"""
+    email = session.get('user_email')
+    if not email: return jsonify({'error':'Login'}), 401
+    
+    conn = get_db()
+    admin = conn.execute("SELECT is_admin FROM users WHERE email=?",(email,)).fetchone()
+    if not admin or not admin['is_admin']: 
+        conn.close()
+        return jsonify({'error':'Admin only'}), 403
+    
+    # Get online users (excluding admin)
+    online_list = []
+    for user_email, data in online_users.items():
+        if user_email != email:  # Exclude admin
+            online_list.append({
+                'email': user_email,
+                'name': data.get('name', 'Unknown')
+            })
+    
+    conn.close()
+    return jsonify({'online_users': online_list, 'count': len(online_list)})
+
+# Socket event for admin to declare winner
+@socketio.on('declare_winner')
+def on_declare_winner(data):
+    email = session.get('user_email')
+    if not email: return
+    
+    conn = get_db()
+    admin = conn.execute("SELECT is_admin FROM users WHERE email=?",(email,)).fetchone()
+    if not admin or not admin['is_admin']: 
+        conn.close()
+        return
+    
+    winner_email = safe_get(data, 'email', '')
+    winner_name = safe_get(data, 'name', 'Winner')
+    
+    conn.close()
+    
+    # Send congratulation message to everyone
+    win_msg = f'🏆🎉 CONGRATULATIONS {winner_name}! You are the WINNER! 🎉🏆'
+    
+    conn = get_db()
+    conn.execute("INSERT INTO messages (sender_name,sender_email,message_text,is_system,timestamp) VALUES (?,?,?,?,CURRENT_TIMESTAMP)",
+                 ('🏆 SYSTEM', email, win_msg, 1))
+    conn.commit()
+    conn.close()
+    
+    # Send to everyone
+    emit('winner_announced', {
+        'winner_email': winner_email,
+        'winner_name': winner_name,
+        'message': win_msg,
+        'isSystem': True
+    }, room='main_chat')
+    
+    # Also send as regular message
+    emit('new_message', {
+        'id': 0,
+        'sender': '🏆 SYSTEM',
+        'text': win_msg,
+        'timestamp': datetime.now().isoformat(),
+        'isSystem': True
+    }, room='main_chat')
+    
+    logger.info(f'🏆 Winner declared: {winner_name} ({winner_email})') 
+
 @socketio.on('admin_broadcast')
 def on_broadcast(data):
     email = session.get('user_email')
