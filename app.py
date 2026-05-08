@@ -115,7 +115,15 @@ def login():
     if not user or user['password_hash'] != hash_password(pwd):
         conn.close(); return jsonify({'error':'Invalid credentials'}), 401
     conn.close()
+    
+    # ✅ Set persistent session
+    session.clear()
     session['user_email'] = user['email']
+    session['user_id'] = user['id']
+    session.permanent = True  # Makes session last 30 days instead of browser close
+    
+    logger.info(f"✅ Login: {email} (session permanent)")
+    
     return jsonify({'success':True,'user':{
         'email':user['email'],'fullName':user['full_name'],
         'paymentVerified':bool(user['payment_verified']),'isAdmin':bool(user['is_admin']),

@@ -254,47 +254,49 @@
             document.getElementById('successDiv').style.display = 'none';
         }
 
-        async function handleLogin() {
-            var email = document.getElementById('email').value.trim();
-            var password = document.getElementById('password').value;
+       async function handleLogin() {
+    var email = document.getElementById('email').value.trim();
+    var password = document.getElementById('password').value;
+    
+    if (!email || !password) {
+        showError('Please enter both email and password');
+        return;
+    }
+    
+    showLoading('loginBtn', true);
+    
+    try {
+        var res = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ email: email, password: password, rememberMe: true })
+        });
+        
+        var data = await res.json();
+        
+        if (res.ok) {
+            // ✅ Save user to localStorage
+            localStorage.setItem('chylnx_user', JSON.stringify(data.user));
             
-            if (!email || !password) {
-                showError('Please enter both email and password');
-                return;
-            }
-            
-            showLoading('loginBtn', true);
-            
-            try {
-                var res = await fetch('/api/auth/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ email: email, password: password })
-                });
-                
-                var data = await res.json();
-                
-                if (res.ok) {
-                    localStorage.setItem('chylnx_user', JSON.stringify(data.user));
-                    showSuccess('✅ Login successful! Redirecting...');
-                    setTimeout(function() {
-                        if (data.user.isAdmin) {
-                            window.location.href = '/admin_dashboard.html';
-                        } else {
-                            window.location.href = '/index.html';
-                        }
-                    }, 500);
+            showSuccess('✅ Login successful! Redirecting...');
+            setTimeout(function() {
+                if (data.user.isAdmin) {
+                    window.location.href = '/admin_dashboard.html';
                 } else {
-                    showError(data.error || 'Invalid email or password');
-                    showLoading('loginBtn', false);
-                    document.getElementById('password').value = '';
+                    window.location.href = '/index.html';
                 }
-            } catch (err) {
-                showError('Cannot connect to server. Please check your connection.');
-                showLoading('loginBtn', false);
-            }
+            }, 500);
+        } else {
+            showError(data.error || 'Invalid email or password');
+            showLoading('loginBtn', false);
+            document.getElementById('password').value = '';
         }
+    } catch (err) {
+        showError('Cannot connect to server. Please check your connection.');
+        showLoading('loginBtn', false);
+    }
+}
 
         async function handleSignup() {
             var fullName = document.getElementById('fullName').value.trim();
