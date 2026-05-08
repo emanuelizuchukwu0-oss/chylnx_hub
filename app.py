@@ -48,6 +48,17 @@ def sanitize_input(text, max_length=500):
     text = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', '', str(text))
     return text[:max_length].strip()
 
+# ✅ Helper function to safely get values from sqlite3.Row
+def safe_get(row, key, default=None):
+    """Safely get value from sqlite3.Row or dict"""
+    if row is None:
+        return default
+    try:
+        val = row[key]
+        return val if val is not None else default
+    except (KeyError, IndexError, TypeError):
+        return default
+
 # ✅ CREATE DATABASE IMMEDIATELY
 logger.info("🔧 Creating database...")
 
@@ -147,9 +158,9 @@ def register():
         if not data:
             return jsonify({'error': 'No data'}), 400
         
-        full_name = sanitize_input(data.get('fullName', ''), max_length=100)
-        email = data.get('email', '').lower().strip()
-        password = data.get('password', '')
+        full_name = sanitize_input(safe_get(data, 'fullName', ''), max_length=100)
+        email = safe_get(data, 'email', '').lower().strip()
+        password = safe_get(data, 'password', '')
         
         if not full_name or not email or not password:
             return jsonify({'error': 'All fields required'}), 400
@@ -194,13 +205,13 @@ def register():
 def login():
     try:
         data = request.get_json(silent=True)
-        logger.info(f"🔑 Login attempt: {data.get('email') if data else 'no data'}")
+        logger.info(f"🔑 Login attempt: {safe_get(data, 'email') if data else 'no data'}")
         
         if not data:
             return jsonify({'error': 'No data'}), 400
         
-        email = data.get('email', '').lower().strip()
-        password = data.get('password', '')
+        email = safe_get(data, 'email', '').lower().strip()
+        password = safe_get(data, 'password', '')
         
         if not email or not password:
             return jsonify({'error': 'Email and password required'}), 400
@@ -216,7 +227,6 @@ def login():
         # SAME HASH FUNCTION
         input_hash = hash_password(password)
         
-        logger.info(f"📥 Input password: {password}")
         logger.info(f"📥 Input hash:    {input_hash}")
         logger.info(f"🗄️ DB hash:       {user['password_hash']}")
         logger.info(f"✅ Match:        {input_hash == user['password_hash']}")
@@ -230,6 +240,7 @@ def login():
         session['user_email'] = user['email']
         logger.info(f"✅ Logged in: {email}")
         
+        # ✅ FIXED: Use safe_get instead of .get()
         return jsonify({
             'success': True,
             'user': {
@@ -237,7 +248,7 @@ def login():
                 'fullName': user['full_name'],
                 'paymentVerified': bool(user['payment_verified']),
                 'isAdmin': bool(user['is_admin']),
-                'displayName': user.get('display_name')
+                'displayName': safe_get(user, 'display_name', None)
             }
         })
         
@@ -258,12 +269,13 @@ def me():
     if not user:
         return jsonify({'error': 'User not found'}), 404
     
+    # ✅ FIXED: Use safe_get instead of .get()
     return jsonify({
         'email': user['email'],
         'fullName': user['full_name'],
         'paymentVerified': bool(user['payment_verified']),
         'isAdmin': bool(user['is_admin']),
-        'displayName': user.get('display_name')
+        'displayName': safe_get(user, 'display_name', None)
     })
 
 @app.route('/api/auth/logout', methods=['POST'])
@@ -304,9 +316,9 @@ def submit_payment():
     if not data:
         return jsonify({'error': 'No data'}), 400
     
-    bank_name = data.get('bankName', '').strip()
-    reference = data.get('reference', '').strip()
-    method = data.get('method', 'transfer')
+    bank_name = safe_get(data, 'bankName', '').strip()
+    reference = safe_get(data, 'reference', '').strip()
+    method = safe_get(data, 'method', 'transfer')
     
     if not bank_name or not reference:
         return jsonify({'error': 'Bank name and reference required'}), 400
@@ -359,12 +371,16 @@ def handle_send_message(data):
         conn.close()
         return
     
-    text = data.get('text', '').strip()
+    text = safe_get(data, 'text', '').strip()
     if not text:
         conn.close()
         return
     
-    display_name = user['display_name'] or (user['full_name'].split()[0] if user['full_name'] else 'User')
+    # ✅ FIXED: Use safe_get instead of .get()
+    display_name = safe_get(user, 'display_name', None)
+    if not display_name:
+        display_name = user['full_name'].split()[0] if user['full_name'] else 'User'
+    
     if user['is_admin']:
         display_name = f'👑 {display_name}'
     
