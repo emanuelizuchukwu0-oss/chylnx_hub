@@ -16,10 +16,9 @@ app.config['SESSION_COOKIE_SECURE'] = True
 CORS(app, supports_credentials=True)
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
-# FORCE FRESH DATABASE - Use a timestamp to create unique filename
-import time
-DB_PATH = f'/tmp/chylnx_{int(time.time())}.db'
-print(f"📁 NEW DATABASE: {DB_PATH}")
+# Use a simple fixed path
+DB_PATH = '/tmp/chylnx.db'
+print(f"📁 Database: {DB_PATH}")
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)
@@ -30,10 +29,18 @@ def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
 def init_db():
+    # Delete old database to start fresh
+    try:
+        os.remove(DB_PATH)
+        print("🗑️ Old database deleted")
+    except:
+        pass
+    
     conn = get_db()
     c = conn.cursor()
     
-    c.execute('''CREATE TABLE IF NOT EXISTS users (
+    print("📝 Creating users table...")
+    c.execute('''CREATE TABLE users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         full_name TEXT,
         email TEXT UNIQUE,
@@ -42,8 +49,10 @@ def init_db():
         is_admin INTEGER DEFAULT 0,
         display_name TEXT
     )''')
+    print("✅ Users table created")
     
-    c.execute('''CREATE TABLE IF NOT EXISTS payments (
+    print("📝 Creating payments table...")
+    c.execute('''CREATE TABLE payments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_email TEXT,
         bank_name TEXT,
@@ -51,35 +60,47 @@ def init_db():
         payment_method TEXT DEFAULT 'transfer',
         status TEXT DEFAULT 'pending'
     )''')
+    print("✅ Payments table created")
     
-    c.execute('''CREATE TABLE IF NOT EXISTS messages (
+    print("📝 Creating messages table...")
+    c.execute('''CREATE TABLE messages (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         sender_name TEXT,
         sender_email TEXT,
         message_text TEXT,
         is_system INTEGER DEFAULT 0
     )''')
+    print("✅ Messages table created")
     
-    c.execute('''CREATE TABLE IF NOT EXISTS settings (
+    print("📝 Creating settings table...")
+    c.execute('''CREATE TABLE settings (
         setting_key TEXT PRIMARY KEY,
         setting_value TEXT
     )''')
+    print("✅ Settings table created")
     
     # Create admin
     admin_hash = hash_password('admin123')
     print(f"🔐 Admin hash: {admin_hash}")
     
-    c.execute("INSERT OR IGNORE INTO users (full_name, email, password_hash, is_admin, payment_verified) VALUES (?,?,?,?,?)",
+    c.execute("INSERT INTO users (full_name, email, password_hash, is_admin, payment_verified) VALUES (?,?,?,?,?)",
               ('Admin', 'admin@chylnx.com', admin_hash, 1, 1))
+    print("👑 Admin user created")
     
     # Insert default settings
     for key, val in [
         ('game_timer_hours','24'),('game_timer_minutes','0'),('game_timer_seconds','0'),
         ('weekly_timer_days','7'),('info_bar_text','Welcome!'),('info_bar_color','#667eea')
     ]:
-        c.execute("INSERT OR IGNORE INTO settings (setting_key, setting_value) VALUES (?,?)", (key, val))
+        c.execute("INSERT OR REPLACE INTO settings (setting_key, setting_value) VALUES (?,?)", (key, val))
+    print("⚙️ Settings created")
     
     conn.commit()
+    
+    # Verify tables exist
+    tables = c.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+    print(f"📋 Tables in database: {[t['name'] for t in tables]}")
+    
     conn.close()
     print("✅ Database ready!")
 
@@ -96,19 +117,24 @@ def serve_file(filename):
 @app.route('/api/debug', methods=['GET'])
 def debug():
     """Show database contents"""
-    conn = get_db()
-    users = conn.execute("SELECT email, password_hash, is_admin, payment_verified FROM users").fetchall()
-    conn.close()
-    return jsonify({
-        'db_path': DB_PATH,
-        'users': [dict(u) for u in users]
-    })
+    try:
+        conn = get_db()
+        tables = conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+        users = conn.execute("SELECT email, password_hash, is_admin, payment_verified FROM users").fetchall()
+        conn.close()
+        return jsonify({
+            'db_path': DB_PATH,
+            'tables': [t['name'] for t in tables],
+            'users': [dict(u) for u in users]
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/auth/register', methods=['POST'])
 def register():
     try:
         data = request.get_json(silent=True)
-        print(f"📥 Register data: {data}")
+        print(f"📥 Register: {data}")
         
         if not data:
             return jsonify({'error': 'No data'}), 400
@@ -133,23 +159,16 @@ def register():
         
         # Create user
         hashed = hash_password(password)
-        print(f"🔐 Creating user - hash: {hashed[:20]}...")
         
         conn.execute(
             "INSERT INTO users (full_name, email, password_hash) VALUES (?, ?, ?)",
             (full_name, email, hashed)
         )
         conn.commit()
-        
-        # Verify
-        user = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
-        print(f"✅ User created: {dict(user) if user else 'FAILED'}")
         conn.close()
         
-        if user:
-            return jsonify({'success': True, 'message': 'Account created!'}), 201
-        else:
-            return jsonify({'error': 'Failed to create account'}), 500
+        print(f"✅ User registered: {email}")
+        return jsonify({'success': True, 'message': 'Account created!'}), 201
         
     except Exception as e:
         print(f"❌ Register error: {e}")
@@ -159,7 +178,7 @@ def register():
 def login():
     try:
         data = request.get_json(silent=True)
-        print(f"📥 Login data: {data}")
+        print(f"📥 Login: {data}")
         
         if not data:
             return jsonify({'error': 'No data'}), 400
@@ -179,19 +198,18 @@ def login():
             return jsonify({'error': 'Invalid email or password'}), 401
         
         hashed_input = hash_password(password)
-        print(f"🔑 Input hash: {hashed_input[:20]}...")
-        print(f"🔑 DB hash:    {user['password_hash'][:20]}...")
-        print(f"🔑 Match: {user['password_hash'] == hashed_input}")
+        print(f"Input hash: {hashed_input[:20]}...")
+        print(f"DB hash:    {user['password_hash'][:20]}...")
+        print(f"Match: {user['password_hash'] == hashed_input}")
         
         if user['password_hash'] != hashed_input:
             conn.close()
-            print(f"❌ Password mismatch for: {email}")
             return jsonify({'error': 'Invalid email or password'}), 401
         
         conn.close()
         
         session['user_email'] = user['email']
-        print(f"✅ Login successful: {email}")
+        print(f"✅ Login: {email}")
         
         return jsonify({
             'success': True,
@@ -200,7 +218,7 @@ def login():
                 'fullName': user['full_name'],
                 'paymentVerified': bool(user['payment_verified']),
                 'isAdmin': bool(user['is_admin']),
-                'displayName': user['display_name']
+                'displayName': user.get('display_name')
             }
         })
         
@@ -226,7 +244,7 @@ def me():
         'fullName': user['full_name'],
         'paymentVerified': bool(user['payment_verified']),
         'isAdmin': bool(user['is_admin']),
-        'displayName': user['display_name']
+        'displayName': user.get('display_name')
     })
 
 @app.route('/api/auth/logout', methods=['POST'])
@@ -260,7 +278,7 @@ def check_access():
 # Socket.IO
 @socketio.on('connect')
 def handle_connect():
-    print(f"Client connected: {request.sid}")
+    print(f"Connected: {request.sid}")
 
 @socketio.on('join_chat')
 def handle_join_chat():
@@ -300,7 +318,7 @@ def handle_send_message(data):
         conn.close()
         return
     
-    display_name = user['display_name'] or user['full_name'].split()[0] if user['full_name'] else 'User'
+    display_name = user['display_name'] or (user['full_name'].split()[0] if user['full_name'] else 'User')
     if user['is_admin']:
         display_name = f'👑 {display_name}'
     
@@ -318,10 +336,10 @@ def handle_send_message(data):
     }, room='main_chat')
 
 if __name__ == '__main__':
+    print("=" * 50)
+    print("🚀 Starting Server...")
     init_db()
+    print("=" * 50)
+    
     port = int(os.environ.get('PORT', 10000))
-    print("=" * 50)
-    print("🚀 Server starting...")
-    print("👑 Admin: admin@chylnx.com / admin123")
-    print("=" * 50)
     socketio.run(app, host='0.0.0.0', port=port, debug=True)
