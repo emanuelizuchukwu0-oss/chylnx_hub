@@ -509,6 +509,37 @@ def login():
     except Exception as e:
         logger.error(f"Login error: {e}")
         return jsonify({'error': 'Login failed. Please try again.'}), 500
+    
+@app.route('/api/test-register', methods=['GET'])
+def test_register():
+    """Test if registration works directly"""
+    try:
+        conn = get_db()
+        # Try to insert a test user
+        test_email = 'testuser@test.com'
+        test_hash = hash_password('test123')
+        
+        conn.execute("DELETE FROM users WHERE email = ?", (test_email,))
+        conn.execute(
+            "INSERT INTO users (full_name, email, password_hash) VALUES (?, ?, ?)",
+            ('Test User', test_email, test_hash)
+        )
+        conn.commit()
+        
+        user = conn.execute("SELECT * FROM users WHERE email = ?", (test_email,)).fetchone()
+        conn.close()
+        
+        if user:
+            return jsonify({
+                'success': True,
+                'message': 'Test user created!',
+                'user': dict(user),
+                'hash': test_hash
+            })
+        else:
+            return jsonify({'error': 'Failed to create test user'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/auth/logout', methods=['POST'])
 def logout():
