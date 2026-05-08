@@ -29,7 +29,7 @@ app.config['SESSION_COOKIE_HTTPONLY'] = True
 CORS(app, supports_credentials=True)
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
 
-# ✅ USE A UNIQUE DATABASE NAME TO FORCE FRESH START
+# Database path
 DB_PATH = f'/tmp/chylnx_fresh_{int(time.time())}.db'
 logger.info(f"📁 Database: {DB_PATH}")
 
@@ -39,7 +39,6 @@ def get_db():
     return conn
 
 def hash_password(password):
-    """Simple SHA-256 hashing"""
     return hashlib.sha256(password.encode()).hexdigest()
 
 def sanitize_input(text, max_length=500):
@@ -48,9 +47,7 @@ def sanitize_input(text, max_length=500):
     text = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', '', str(text))
     return text[:max_length].strip()
 
-# ✅ Helper function to safely get values from sqlite3.Row
 def safe_get(row, key, default=None):
-    """Safely get value from sqlite3.Row or dict"""
     if row is None:
         return default
     try:
@@ -59,7 +56,7 @@ def safe_get(row, key, default=None):
     except (KeyError, IndexError, TypeError):
         return default
 
-# ✅ CREATE DATABASE IMMEDIATELY
+# ✅ CREATE DATABASE
 logger.info("🔧 Creating database...")
 
 conn = sqlite3.connect(DB_PATH)
@@ -98,20 +95,12 @@ c.execute('''CREATE TABLE IF NOT EXISTS settings (
     setting_value TEXT
 )''')
 
-# ✅ CREATE ADMIN WITH KNOWN HASH
-admin_password = 'admin123'
-admin_hash = hash_password(admin_password)
-logger.info(f"🔐 Admin password: {admin_password}")
-logger.info(f"🔐 Admin hash: {admin_hash}")
-
+# Create admin
+admin_hash = hash_password('admin123')
 c.execute("INSERT INTO users (full_name, email, password_hash, is_admin, payment_verified) VALUES (?, ?, ?, ?, ?)",
           ('Administrator', 'admin@chylnx.com', admin_hash, 1, 1))
 
-# Verify admin was created
-admin_check = c.execute("SELECT * FROM users WHERE email = 'admin@chylnx.com'").fetchone()
-logger.info(f"👑 Admin check: {dict(admin_check) if admin_check else 'FAILED'}")
-
-# Settings
+# Default settings
 for key, val in [
     ('game_timer_hours','24'),('game_timer_minutes','0'),('game_timer_seconds','0'),
     ('weekly_timer_days','7'),('info_bar_text','Welcome!'),('info_bar_color','#667eea')
@@ -121,6 +110,34 @@ for key, val in [
 conn.commit()
 conn.close()
 logger.info("✅ Database ready!")
+
+# ======================
+# DECORATOR - Login Required
+# ======================
+
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if 'user_email' not in session:
+            return jsonify({'error': 'Please login first'}), 401
+        return f(*args, **kwargs)
+    return decorated
+
+def admin_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if 'user_email' not in session:
+            return jsonify({'error': 'Please login first'}), 401
+        
+        conn = get_db()
+        user = conn.execute("SELECT is_admin FROM users WHERE email = ?", 
+                           (session['user_email'],)).fetchone()
+        conn.close()
+        
+        if not user or not user['is_admin']:
+            return jsonify({'error': 'Admin access required'}), 403
+        return f(*args, **kwargs)
+    return decorated
 
 # ======================
 # ROUTES
@@ -138,7 +155,6 @@ def serve_file(filename):
 
 @app.route('/api/debug', methods=['GET'])
 def debug():
-    """Show ALL database contents for debugging"""
     conn = get_db()
     users = conn.execute("SELECT email, password_hash, is_admin, payment_verified FROM users").fetchall()
     tables = conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
@@ -170,32 +186,21 @@ def register():
         
         conn = get_db()
         
-        # Check existing
         existing = conn.execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone()
         if existing:
             conn.close()
             return jsonify({'error': 'Email already registered'}), 409
         
-        # Create user - SAME HASH FUNCTION
         hashed = hash_password(password)
-        logger.info(f"🔐 Creating user hash: {hashed[:20]}...")
-        
         conn.execute(
             "INSERT INTO users (full_name, email, password_hash) VALUES (?, ?, ?)",
             (full_name, email, hashed)
         )
         conn.commit()
-        
-        # VERIFY it was saved
-        user = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
         conn.close()
         
-        if user:
-            logger.info(f"✅ Registered: {email}")
-            return jsonify({'success': True, 'message': 'Account created!'}), 201
-        else:
-            logger.error(f"❌ Failed to create user: {email}")
-            return jsonify({'error': 'Failed to create account'}), 500
+        logger.info(f"✅ Registered: {email}")
+        return jsonify({'success': True, 'message': 'Account created!'}), 201
         
     except Exception as e:
         logger.error(f"Register error: {e}")
@@ -205,7 +210,6 @@ def register():
 def login():
     try:
         data = request.get_json(silent=True)
-        logger.info(f"🔑 Login attempt: {safe_get(data, 'email') if data else 'no data'}")
         
         if not data:
             return jsonify({'error': 'No data'}), 400
@@ -221,15 +225,9 @@ def login():
         
         if not user:
             conn.close()
-            logger.info(f"❌ User not found: {email}")
             return jsonify({'error': 'Invalid email or password'}), 401
         
-        # SAME HASH FUNCTION
         input_hash = hash_password(password)
-        
-        logger.info(f"📥 Input hash:    {input_hash}")
-        logger.info(f"🗄️ DB hash:       {user['password_hash']}")
-        logger.info(f"✅ Match:        {input_hash == user['password_hash']}")
         
         if input_hash != user['password_hash']:
             conn.close()
@@ -238,9 +236,8 @@ def login():
         conn.close()
         
         session['user_email'] = user['email']
-        logger.info(f"✅ Logged in: {email}")
+        logger.info(f"✅ Login: {email}")
         
-        # ✅ FIXED: Use safe_get instead of .get()
         return jsonify({
             'success': True,
             'user': {
@@ -269,7 +266,6 @@ def me():
     if not user:
         return jsonify({'error': 'User not found'}), 404
     
-    # ✅ FIXED: Use safe_get instead of .get()
     return jsonify({
         'email': user['email'],
         'fullName': user['full_name'],
@@ -306,6 +302,25 @@ def check_access():
     has_access = bool(user['payment_verified']) or bool(user['is_admin'])
     return jsonify({'hasAccess': has_access})
 
+@app.route('/api/set-display-name', methods=['POST'])
+def set_display_name():
+    email = session.get('user_email')
+    if not email:
+        return jsonify({'error': 'Login required'}), 401
+    
+    data = request.get_json(silent=True)
+    display_name = safe_get(data, 'displayName', '').strip()
+    
+    if len(display_name) < 2:
+        return jsonify({'error': 'Name too short'}), 400
+    
+    conn = get_db()
+    conn.execute("UPDATE users SET display_name = ? WHERE email = ?", (display_name, email))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'displayName': display_name})
+
 @app.route('/api/submit-payment', methods=['POST'])
 def submit_payment():
     email = session.get('user_email')
@@ -328,6 +343,149 @@ def submit_payment():
         "INSERT INTO payments (user_email, bank_name, reference, payment_method) VALUES (?, ?, ?, ?)",
         (email, bank_name, reference, method)
     )
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True})
+
+# ======================
+# ✅ ADMIN ROUTES - FIXED
+# ======================
+
+@app.route('/api/admin/pending-payments', methods=['GET'])
+def admin_pending_payments():
+    email = session.get('user_email')
+    if not email:
+        return jsonify({'error': 'Please login first'}), 401
+    
+    conn = get_db()
+    admin = conn.execute("SELECT is_admin FROM users WHERE email = ?", (email,)).fetchone()
+    
+    if not admin or not admin['is_admin']:
+        conn.close()
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    # Get pending payments with user name
+    payments = conn.execute("""
+        SELECT p.*, u.full_name 
+        FROM payments p 
+        JOIN users u ON p.user_email = u.email 
+        WHERE p.status = 'pending' 
+        ORDER BY p.rowid DESC
+    """).fetchall()
+    conn.close()
+    
+    return jsonify({'payments': [dict(p) for p in payments]})
+
+@app.route('/api/admin/users', methods=['GET'])
+def admin_users():
+    email = session.get('user_email')
+    if not email:
+        return jsonify({'error': 'Please login first'}), 401
+    
+    conn = get_db()
+    admin = conn.execute("SELECT is_admin FROM users WHERE email = ?", (email,)).fetchone()
+    
+    if not admin or not admin['is_admin']:
+        conn.close()
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    users = conn.execute("""
+        SELECT email, full_name, payment_verified, display_name 
+        FROM users 
+        WHERE is_admin = 0 
+        ORDER BY rowid DESC
+    """).fetchall()
+    conn.close()
+    
+    return jsonify({'users': [dict(u) for u in users]})
+
+@app.route('/api/admin/verify', methods=['POST'])
+def admin_verify():
+    email = session.get('user_email')
+    if not email:
+        return jsonify({'error': 'Please login first'}), 401
+    
+    data = request.get_json(silent=True)
+    payment_id = safe_get(data, 'paymentId')
+    
+    if not payment_id:
+        return jsonify({'error': 'Payment ID required'}), 400
+    
+    conn = get_db()
+    
+    # Check if admin
+    admin = conn.execute("SELECT is_admin FROM users WHERE email = ?", (email,)).fetchone()
+    if not admin or not admin['is_admin']:
+        conn.close()
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    # Get payment
+    payment = conn.execute("SELECT user_email FROM payments WHERE id = ? AND status = 'pending'", (payment_id,)).fetchone()
+    
+    if not payment:
+        conn.close()
+        return jsonify({'error': 'Payment not found or already processed'}), 404
+    
+    # Approve payment
+    conn.execute("UPDATE payments SET status = 'approved' WHERE id = ?", (payment_id,))
+    conn.execute("UPDATE users SET payment_verified = 1 WHERE email = ?", (payment['user_email'],))
+    conn.commit()
+    conn.close()
+    
+    logger.info(f"✅ Payment {payment_id} verified for {payment['user_email']}")
+    return jsonify({'success': True, 'message': 'Payment verified!'})
+
+@app.route('/api/admin/verify-user-payment', methods=['POST'])
+def admin_verify_user():
+    email = session.get('user_email')
+    if not email:
+        return jsonify({'error': 'Please login first'}), 401
+    
+    data = request.get_json(silent=True)
+    target_email = safe_get(data, 'email', '').lower().strip()
+    
+    if not target_email:
+        return jsonify({'error': 'User email required'}), 400
+    
+    conn = get_db()
+    
+    # Check if admin
+    admin = conn.execute("SELECT is_admin FROM users WHERE email = ?", (email,)).fetchone()
+    if not admin or not admin['is_admin']:
+        conn.close()
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    # Verify user
+    conn.execute("UPDATE users SET payment_verified = 1 WHERE email = ?", (target_email,))
+    conn.commit()
+    conn.close()
+    
+    logger.info(f"✅ User verified: {target_email}")
+    return jsonify({'success': True, 'message': f'{target_email} verified!'})
+
+@app.route('/api/admin/update-settings', methods=['POST'])
+def admin_update_settings():
+    email = session.get('user_email')
+    if not email:
+        return jsonify({'error': 'Please login first'}), 401
+    
+    data = request.get_json(silent=True)
+    key = safe_get(data, 'key')
+    value = safe_get(data, 'value')
+    
+    if not key:
+        return jsonify({'error': 'Key required'}), 400
+    
+    conn = get_db()
+    
+    # Check if admin
+    admin = conn.execute("SELECT is_admin FROM users WHERE email = ?", (email,)).fetchone()
+    if not admin or not admin['is_admin']:
+        conn.close()
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    conn.execute("UPDATE settings SET setting_value = ? WHERE setting_key = ?", (str(value), key))
     conn.commit()
     conn.close()
     
@@ -376,7 +534,6 @@ def handle_send_message(data):
         conn.close()
         return
     
-    # ✅ FIXED: Use safe_get instead of .get()
     display_name = safe_get(user, 'display_name', None)
     if not display_name:
         display_name = user['full_name'].split()[0] if user['full_name'] else 'User'
@@ -390,6 +547,38 @@ def handle_send_message(data):
     conn.close()
     
     emit('new_message', {'sender': display_name, 'text': text, 'isSystem': False}, room='main_chat')
+
+@socketio.on('admin_broadcast')
+def handle_admin_broadcast(data):
+    email = session.get('user_email')
+    if not email:
+        return
+    
+    conn = get_db()
+    user = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+    conn.close()
+    
+    if not user or not user['is_admin']:
+        return
+    
+    message = safe_get(data, 'message', '').strip()
+    if not message:
+        return
+    
+    display_name = safe_get(user, 'display_name', None) or 'Admin'
+    broadcast_text = f'🔊 ANNOUNCEMENT from {display_name}: {message}'
+    
+    conn = get_db()
+    conn.execute("INSERT INTO messages (sender_name, sender_email, message_text, is_system) VALUES (?, ?, ?, 1)",
+                 ('📢 ANNOUNCEMENT', email, broadcast_text))
+    conn.commit()
+    conn.close()
+    
+    emit('new_message', {
+        'sender': '📢 ANNOUNCEMENT',
+        'text': broadcast_text,
+        'isSystem': True
+    }, room='main_chat')
 
 # ======================
 # MAIN
