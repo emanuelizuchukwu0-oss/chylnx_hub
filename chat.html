@@ -8,7 +8,7 @@
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
         body{font-family:Arial,sans-serif;background:#0f0f1a;color:#fff;height:100vh;display:flex;flex-direction:column}
-        .header{background:#075E54;padding:15px;display:flex;align-items:center;gap:10px}
+        .header{background:#075E54;padding:15px;display:flex;align-items:center;gap:10px;flex-shrink:0}
         .header h3{flex:1}
         .online{font-size:12px;opacity:0.8}
         .messages{flex:1;overflow-y:auto;padding:15px;display:flex;flex-direction:column;gap:8px}
@@ -19,11 +19,50 @@
         .msg .text{font-size:14px;word-wrap:break-word}
         .msg .time{font-size:9px;opacity:0.5;text-align:right;margin-top:4px}
         .system{text-align:center;font-size:11px;color:#888;margin:8px 0}
-        .input-area{display:flex;gap:10px;padding:15px;background:#1e2a32}
+        .system.win{background:rgba(245,158,11,0.15);color:#f59e0b;padding:10px;border-radius:12px;font-weight:bold;border:1px solid #f59e0b}
+        .system.claim{background:rgba(76,175,80,0.15);color:#4caf50;padding:10px;border-radius:12px;font-weight:bold;border:1px solid #4caf50}
+        .input-area{display:flex;gap:10px;padding:15px;background:#1e2a32;flex-shrink:0}
         .input-area input{flex:1;padding:10px 15px;border-radius:25px;border:none;background:#2a3b44;color:#fff;font-size:14px;outline:none}
         .input-area button{background:#075E54;border:none;width:42px;height:42px;border-radius:50%;color:#fff;font-size:18px;cursor:pointer}
         .input-area button:disabled{opacity:0.5}
         .green-dot{display:inline-block;width:8px;height:8px;background:#25D366;border-radius:50%;margin-right:5px}
+        
+        /* Winner Overlay - ALL users */
+        .winner-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;z-index:9999;animation:fadeIn 0.5s}
+        .winner-card{background:linear-gradient(135deg,#1a1a2e,#2d2d44);border:3px solid #f59e0b;border-radius:24px;padding:35px;text-align:center;max-width:420px;width:90%;animation:bounceIn 0.6s}
+        .winner-emoji{font-size:70px;animation:bounce 1s infinite}
+        .winner-title{font-size:22px;font-weight:800;background:linear-gradient(135deg,#f59e0b,#ef4444);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin:12px 0}
+        .winner-name{font-size:20px;font-weight:700;color:#f59e0b;margin:8px 0}
+        
+        /* Claim Overlay - Only winner */
+        .claim-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.95);display:flex;align-items:center;justify-content:center;z-index:10000;animation:fadeIn 0.5s}
+        .claim-card{background:linear-gradient(135deg,#1a5c1a,#2d8a2d);border:3px solid #4caf50;border-radius:24px;padding:30px;text-align:center;max-width:420px;width:90%;animation:bounceIn 0.6s}
+        .claim-card h2{color:#fff;margin-bottom:8px}
+        .claim-card p{color:#ccc;font-size:13px;margin-bottom:15px}
+        .claim-card input{width:100%;padding:12px;border-radius:12px;border:2px solid transparent;background:rgba(255,255,255,0.15);color:#fff;font-size:14px;margin-bottom:12px;outline:none}
+        .claim-card input:focus{border-color:#4caf50}
+        .claim-card input::placeholder{color:rgba(255,255,255,0.5)}
+        .claim-btn{background:#fff;color:#1a5c1a;border:none;padding:12px 24px;border-radius:30px;font-weight:700;cursor:pointer;width:100%;font-size:15px;margin-top:5px}
+        .claim-btn:hover{background:#e8f5e9}
+        .claim-btn:disabled{opacity:0.6;cursor:not-allowed}
+        
+        .confetti{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9998}
+        .confetti-piece{position:absolute;width:10px;height:10px;animation:confettiFall 3s linear}
+        
+        .loading-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:9999;color:#fff;font-size:16px;flex-direction:column;gap:10px}
+        .spinner{width:40px;height:40px;border:3px solid rgba(255,255,255,0.2);border-top-color:#25D366;border-radius:50%;animation:spin 0.8s linear infinite}
+        
+        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+        @keyframes bounceIn{0%{transform:scale(0.3);opacity:0}50%{transform:scale(1.05)}70%{transform:scale(0.9)}100%{transform:scale(1);opacity:1}}
+        @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-20px)}}
+        @keyframes confettiFall{0%{transform:translateY(-100px)rotate(0deg);opacity:1}100%{transform:translateY(100vh)rotate(720deg);opacity:0}}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        
+        @media(max-width:480px){
+            .winner-card,.claim-card{padding:25px 20px}
+            .winner-emoji{font-size:50px}
+            .winner-title{font-size:18px}
+        }
     </style>
 </head>
 <body>
@@ -39,24 +78,53 @@
         <input type="text" id="messageInput" placeholder="Type a message..." disabled>
         <button id="sendBtn" disabled onclick="sendMessage()">📤</button>
     </div>
+    <div class="confetti" id="confettiContainer"></div>
 
     <script>
         var socket = null;
         var currentUser = null;
         var allMessages = [];
+        var isWinner = false;
 
-        // Get user info
-        async function getUser() {
+        function getCachedUser() {
             try {
-                var res = await fetch('/api/auth/me', { credentials: 'include' });
-                if (res.ok) return await res.json();
-                return null;
+                var cached = localStorage.getItem('chylnx_user');
+                return cached ? JSON.parse(cached) : null;
             } catch(e) { return null; }
         }
 
-        // Start
+        function setCachedUser(user) {
+            try { if (user) localStorage.setItem('chylnx_user', JSON.stringify(user)); } catch(e) {}
+        }
+
+        async function getUser() {
+            var cached = getCachedUser();
+            if (cached) currentUser = cached;
+            
+            try {
+                var res = await fetch('/api/auth/me', { credentials: 'include' });
+                if (res.ok) {
+                    var user = await res.json();
+                    currentUser = user;
+                    setCachedUser(user);
+                    return user;
+                }
+                return cached || null;
+            } catch(e) { return cached || null; }
+        }
+
         async function init() {
+            var loading = document.createElement('div');
+            loading.className = 'loading-overlay';
+            loading.id = 'initLoading';
+            loading.innerHTML = '<div class="spinner"></div><div>Restoring session...</div>';
+            document.body.appendChild(loading);
+            
             currentUser = await getUser();
+            
+            var loadEl = document.getElementById('initLoading');
+            if (loadEl) loadEl.remove();
+            
             if (!currentUser) { window.location.href = '/login.html'; return; }
             if (!currentUser.paymentVerified && !currentUser.isAdmin) {
                 document.body.innerHTML = '<div style="text-align:center;padding:100px"><h2>🔒 Access Required</h2><p>Complete payment to chat</p><a href="/payment.html" style="color:#25D366">Go to Payment</a></div>';
@@ -75,22 +143,41 @@
             });
 
             socket.on('chat_history', function(data) {
-                console.log('📜 History:', data);
+                console.log('📜 History received:', data.messages ? data.messages.length : 0, 'messages');
                 allMessages = data.messages || [];
                 renderMessages();
             });
 
             socket.on('new_message', function(msg) {
                 console.log('📩 New message:', msg);
-                // Add timestamp if missing
                 if (!msg.timestamp) msg.timestamp = new Date().toISOString();
                 allMessages.push(msg);
                 renderMessages();
             });
 
             socket.on('online_count', function(data) {
-                console.log('👥 Online count:', data);
+                console.log('👥 Online:', data.count);
                 document.getElementById('onlineCount').textContent = data.count || 0;
+            });
+
+            // ✅ WINNER ANNOUNCEMENT
+            socket.on('winner_announced', function(data) {
+                console.log('🏆 Winner announced:', data);
+                showWinnerOverlay(data.winner_name, data.winner_email);
+                if (currentUser && data.winner_email === currentUser.email) {
+                    isWinner = true;
+                }
+            });
+            
+            // ✅ CLAIM RESPONSE
+            socket.on('claim_response', function(data) {
+                if (data.success) {
+                    alert('✅ Your bank details have been submitted! Admin will contact you.');
+                    var claimOverlay = document.querySelector('.claim-overlay');
+                    if (claimOverlay) claimOverlay.remove();
+                } else {
+                    alert('❌ Failed to submit. Please try again.');
+                }
             });
 
             socket.on('error', function(data) {
@@ -102,7 +189,6 @@
                 document.getElementById('sendBtn').disabled = true;
             });
 
-            // Input handling
             var input = document.getElementById('messageInput');
             input.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') sendMessage();
@@ -116,7 +202,7 @@
             var input = document.getElementById('messageInput');
             var text = input.value.trim();
             if (!text || !socket || !socket.connected) return;
-            
+            console.log('📤 Sending:', text);
             socket.emit('send_message', { text: text });
             input.value = '';
             document.getElementById('sendBtn').disabled = true;
@@ -129,20 +215,21 @@
                 return;
             }
 
-            var displayName = currentUser.displayName || currentUser.fullName.split(' ')[0];
-
+            var displayName = (currentUser.displayName || currentUser.fullName || 'User').split(' ')[0];
             var html = '';
+            
             for (var i = 0; i < allMessages.length; i++) {
                 var msg = allMessages[i];
                 
                 if (msg.isSystem) {
-                    html += '<div class="system">📢 ' + escapeHtml(msg.text) + '</div>';
+                    var isWin = msg.sender && msg.sender.indexOf('🏆') >= 0;
+                    var isClaim = msg.sender && msg.sender.indexOf('💰') >= 0;
+                    var cls = isWin ? ' win' : (isClaim ? ' claim' : '');
+                    html += '<div class="system' + cls + '">' + escapeHtml(msg.text) + '</div>';
                 } else {
-                    var isOwn = (msg.sender === displayName) || (msg.sender && msg.sender.indexOf('👑') >= 0 && currentUser.isAdmin);
+                    var isOwn = (msg.sender === displayName) || (msg.sender && msg.sender.indexOf('👑') >= 0 && currentUser && currentUser.isAdmin);
                     var timeStr = '';
-                    try {
-                        timeStr = new Date(msg.timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
-                    } catch(e) { timeStr = ''; }
+                    try { timeStr = new Date(msg.timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); } catch(e) {}
                     
                     html += '<div class="msg ' + (isOwn ? 'own' : 'other') + '">';
                     if (!isOwn) html += '<div class="sender">' + escapeHtml(msg.sender || 'User') + '</div>';
@@ -154,6 +241,105 @@
             
             container.innerHTML = html;
             container.scrollTop = container.scrollHeight;
+        }
+
+        function showWinnerOverlay(name, email) {
+            var existing = document.querySelector('.winner-overlay');
+            if (existing) existing.remove();
+            
+            var isMe = currentUser && currentUser.email === email;
+            
+            var overlay = document.createElement('div');
+            overlay.className = 'winner-overlay';
+            overlay.onclick = function(e) { if (e.target === overlay) closeWinnerOverlay(); };
+            overlay.innerHTML = 
+                '<div class="winner-card">' +
+                '<div class="winner-emoji">🏆</div>' +
+                '<div class="winner-title">' + (isMe ? '🎉 YOU WON! 🎉' : 'WE HAVE A WINNER!') + '</div>' +
+                '<div class="winner-name">' + escapeHtml(name) + '</div>' +
+                '<p style="color:#ccc;margin:8px 0">' + (isMe ? 'Congratulations! You have been selected!' : 'Congratulations to the winner!') + '</p>' +
+                '<button onclick="closeWinnerOverlay()" style="background:#f59e0b;color:#000;border:none;padding:10px 24px;border-radius:20px;font-weight:700;cursor:pointer;margin-top:10px;font-size:15px">Close</button>' +
+                '</div>';
+            document.body.appendChild(overlay);
+            createConfetti();
+            
+            setTimeout(function() {
+                if (document.querySelector('.winner-overlay')) closeWinnerOverlay();
+            }, 12000);
+        }
+
+        function closeWinnerOverlay() {
+            var o = document.querySelector('.winner-overlay');
+            if (o) o.remove();
+            document.getElementById('confettiContainer').innerHTML = '';
+            
+            if (isWinner) {
+                setTimeout(function() { showClaimOverlay(); }, 500);
+            }
+        }
+        
+        function showClaimOverlay() {
+            var existing = document.querySelector('.claim-overlay');
+            if (existing) existing.remove();
+            
+            var overlay = document.createElement('div');
+            overlay.className = 'claim-overlay';
+            overlay.innerHTML = 
+                '<div class="claim-card">' +
+                '<div style="font-size:50px;margin-bottom:10px">🎁</div>' +
+                '<h2>Claim Your Reward!</h2>' +
+                '<p>Enter your bank details to receive your prize</p>' +
+                '<input type="text" id="claimAccountName" placeholder="Account Name">' +
+                '<input type="text" id="claimAccountNumber" placeholder="Account Number">' +
+                '<input type="text" id="claimBankName" placeholder="Bank Name (e.g., GTBank, UBA)">' +
+                '<button class="claim-btn" id="claimSubmitBtn" onclick="submitClaim()">💳 Submit & Claim Reward</button>' +
+                '<button onclick="closeClaimOverlay()" style="background:transparent;color:#ccc;border:1px solid #ccc;padding:8px 20px;border-radius:20px;cursor:pointer;width:100%;margin-top:8px;font-size:13px">Maybe Later</button>' +
+                '</div>';
+            document.body.appendChild(overlay);
+        }
+
+        function closeClaimOverlay() {
+            var o = document.querySelector('.claim-overlay');
+            if (o) o.remove();
+            isWinner = false;
+        }
+
+        function submitClaim() {
+            var accountName = document.getElementById('claimAccountName').value.trim();
+            var accountNumber = document.getElementById('claimAccountNumber').value.trim();
+            var bankName = document.getElementById('claimBankName').value.trim();
+            
+            if (!accountName || !accountNumber || !bankName) {
+                alert('Please fill in all fields');
+                return;
+            }
+            
+            var btn = document.getElementById('claimSubmitBtn');
+            btn.disabled = true;
+            btn.textContent = 'Submitting...';
+            
+            socket.emit('submit_claim', {
+                accountName: accountName,
+                accountNumber: accountNumber,
+                bankName: bankName,
+                winnerEmail: currentUser.email,
+                winnerName: currentUser.displayName || currentUser.fullName
+            });
+            
+            setTimeout(function() {
+                closeClaimOverlay();
+                alert('✅ Your details have been submitted! Admin will contact you.');
+            }, 2000);
+        }
+
+        function createConfetti() {
+            var c = document.getElementById('confettiContainer'); c.innerHTML = '';
+            var colors = ['#f59e0b','#ef4444','#10b981','#667eea','#ec4899','#8b5cf6','#fbbf24','#06b6d4'];
+            for (var i = 0; i < 120; i++) {
+                var p = document.createElement('div'); p.className = 'confetti-piece';
+                p.style.cssText = 'left:'+Math.random()*100+'%;background:'+colors[Math.floor(Math.random()*colors.length)]+';animation-delay:'+Math.random()*2+'s;animation-duration:'+(2+Math.random()*3)+'s;border-radius:'+(Math.random()>0.5?'50%':'2px')+';width:'+(6+Math.random()*10)+'px;height:'+(6+Math.random()*10)+'px';
+                c.appendChild(p);
+            }
         }
 
         function escapeHtml(text) {
