@@ -22,8 +22,6 @@ app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_HTTPONLY'] = False
 
 CORS(app, supports_credentials=True, origins="*")
-
-# ✅ SIMPLE Socket.IO setup
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
 
 DB_PATH = f'/tmp/chat_{int(time.time())}.db'
@@ -64,7 +62,8 @@ c.execute('''CREATE TABLE IF NOT EXISTS payments (
 )''')
 c.execute('''CREATE TABLE IF NOT EXISTS messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    sender_name TEXT, sender_email TEXT, message_text TEXT, is_system INTEGER DEFAULT 0
+    sender_name TEXT, sender_email TEXT, message_text TEXT, is_system INTEGER DEFAULT 0,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )''')
 c.execute('''CREATE TABLE IF NOT EXISTS settings (
     setting_key TEXT PRIMARY KEY, setting_value TEXT
@@ -79,10 +78,9 @@ for k,v in [('game_timer_hours','24'),('info_bar_text','Welcome!'),('info_bar_co
 conn.commit()
 conn.close()
 
-# ROUTES
+# ROUTES (same as before - keeping them short)
 @app.route('/')
-def index():
-    return send_from_directory('.', 'login.html')
+def index(): return send_from_directory('.', 'login.html')
 
 @app.route('/<path:filename>')
 def serve(filename):
@@ -100,11 +98,9 @@ def register():
     if len(pwd) < 6: return jsonify({'error':'Password too short'}), 400
     conn = get_db()
     if conn.execute("SELECT id FROM users WHERE email=?",(email,)).fetchone():
-        conn.close()
-        return jsonify({'error':'Email already registered'}), 409
+        conn.close(); return jsonify({'error':'Email already registered'}), 409
     conn.execute("INSERT INTO users (full_name,email,password_hash) VALUES (?,?,?)",(name,email,hash_password(pwd)))
-    conn.commit()
-    conn.close()
+    conn.commit(); conn.close()
     return jsonify({'success':True,'message':'Account created!'}), 201
 
 @app.route('/api/auth/login', methods=['POST'])
@@ -117,11 +113,9 @@ def login():
     conn = get_db()
     user = conn.execute("SELECT * FROM users WHERE email=?",(email,)).fetchone()
     if not user or user['password_hash'] != hash_password(pwd):
-        conn.close()
-        return jsonify({'error':'Invalid credentials'}), 401
+        conn.close(); return jsonify({'error':'Invalid credentials'}), 401
     conn.close()
     session['user_email'] = user['email']
-    logger.info(f"✅ Login: {email}")
     return jsonify({'success':True,'user':{
         'email':user['email'],'fullName':user['full_name'],
         'paymentVerified':bool(user['payment_verified']),'isAdmin':bool(user['is_admin']),
@@ -144,8 +138,7 @@ def me():
 
 @app.route('/api/auth/logout', methods=['POST'])
 def logout():
-    session.clear()
-    return jsonify({'success':True})
+    session.clear(); return jsonify({'success':True})
 
 @app.route('/api/settings', methods=['GET'])
 def settings():
@@ -172,8 +165,7 @@ def set_name():
     if len(name)<2: return jsonify({'error':'Too short'}), 400
     conn = get_db()
     conn.execute("UPDATE users SET display_name=? WHERE email=?",(name,email))
-    conn.commit()
-    conn.close()
+    conn.commit(); conn.close()
     return jsonify({'success':True})
 
 @app.route('/api/submit-payment', methods=['POST'])
@@ -186,10 +178,8 @@ def submit_payment():
     method = safe_get(data,'method','transfer')
     if not bank or not ref: return jsonify({'error':'Bank and reference required'}), 400
     conn = get_db()
-    conn.execute("INSERT INTO payments (user_email,bank_name,reference,payment_method) VALUES (?,?,?,?)",
-                 (email,bank,ref,method))
-    conn.commit()
-    conn.close()
+    conn.execute("INSERT INTO payments (user_email,bank_name,reference,payment_method) VALUES (?,?,?,?)",(email,bank,ref,method))
+    conn.commit(); conn.close()
     return jsonify({'success':True})
 
 # Admin routes
@@ -228,8 +218,7 @@ def admin_verify():
     if not p: conn.close(); return jsonify({'error':'Not found'}), 404
     conn.execute("UPDATE payments SET status='approved' WHERE id=?",(pid,))
     conn.execute("UPDATE users SET payment_verified=1 WHERE email=?",(p['user_email'],))
-    conn.commit()
-    conn.close()
+    conn.commit(); conn.close()
     return jsonify({'success':True})
 
 @app.route('/api/admin/verify-user-payment', methods=['POST'])
@@ -242,8 +231,7 @@ def admin_verify_user():
     admin = conn.execute("SELECT is_admin FROM users WHERE email=?",(email,)).fetchone()
     if not admin or not admin['is_admin']: conn.close(); return jsonify({'error':'Admin only'}), 403
     conn.execute("UPDATE users SET payment_verified=1 WHERE email=?",(target,))
-    conn.commit()
-    conn.close()
+    conn.commit(); conn.close()
     return jsonify({'success':True})
 
 @app.route('/api/admin/update-settings', methods=['POST'])
@@ -256,69 +244,147 @@ def admin_settings():
     admin = conn.execute("SELECT is_admin FROM users WHERE email=?",(email,)).fetchone()
     if not admin or not admin['is_admin']: conn.close(); return jsonify({'error':'Admin only'}), 403
     conn.execute("UPDATE settings SET setting_value=? WHERE setting_key=?",(str(v),k))
-    conn.commit()
-    conn.close()
+    conn.commit(); conn.close()
     return jsonify({'success':True})
 
-# ✅ SOCKET.IO - Super simple
+# ======================
+# ✅ FIXED SOCKET.IO
+# ======================
+
+# Track online users
+online_users = {}
+
 @socketio.on('connect')
 def on_connect():
     logger.info(f"🟢 Connected: {request.sid}")
 
+@socketio.on('disconnect')
+def on_disconnect():
+    # Remove from online users
+    to_remove = None
+    for email, data in online_users.items():
+        if data['sid'] == request.sid:
+            to_remove = email
+            break
+    if to_remove:
+        del online_users[to_remove]
+        logger.info(f"🔴 Disconnected: {to_remove}")
+        # Update online count for everyone
+        emit('online_count', {'count': len(online_users)}, room='main_chat')
+
 @socketio.on('join_chat')
 def on_join():
     email = session.get('user_email')
-    logger.info(f"💬 Join: {email}")
+    logger.info(f"💬 Join request: {email}, session: {dict(session)}")
+    
     if not email:
-        emit('error', {'message': 'Please login'})
+        emit('error', {'message': 'Please login first'})
         return
+    
     conn = get_db()
     user = conn.execute("SELECT * FROM users WHERE email=?",(email,)).fetchone()
     conn.close()
+    
     if not user:
         emit('error', {'message': 'User not found'})
         return
+    
+    if not user['payment_verified'] and not user['is_admin']:
+        emit('error', {'message': 'Payment required'})
+        return
+    
+    # Add to online users
+    online_users[email] = {'sid': request.sid, 'name': safe_get(user,'display_name') or user['full_name'].split()[0]}
+    
     join_room('main_chat')
+    logger.info(f"✅ {email} joined. Online: {len(online_users)}")
+    
+    # Send chat history
     conn = get_db()
     msgs = conn.execute("SELECT * FROM messages ORDER BY rowid DESC LIMIT 50").fetchall()
     conn.close()
-    emit('chat_history', {'messages': [dict(m) for m in reversed(msgs)]})
-    logger.info(f"✅ {email} joined chat")
+    
+    # ✅ Format messages properly for the client
+    formatted_msgs = []
+    for m in reversed(msgs):
+        formatted_msgs.append({
+            'id': m['id'],
+            'sender': m['sender_name'],
+            'text': m['message_text'],
+            'timestamp': m['timestamp'] if m['timestamp'] else datetime.now().isoformat(),
+            'isSystem': bool(m['is_system'])
+        })
+    
+    emit('chat_history', {'messages': formatted_msgs})
+    
+    # ✅ Send online count to everyone
+    emit('online_count', {'count': len(online_users)}, room='main_chat')
 
 @socketio.on('send_message')
 def on_message(data):
     email = session.get('user_email')
     if not email: return
+    
     text = safe_get(data, 'text', '').strip()
     if not text: return
+    
     conn = get_db()
     user = conn.execute("SELECT * FROM users WHERE email=?",(email,)).fetchone()
     if not user: conn.close(); return
+    
     name = safe_get(user,'display_name') or user['full_name'].split()[0]
     if user['is_admin']: name = f'👑 {name}'
-    conn.execute("INSERT INTO messages (sender_name,sender_email,message_text) VALUES (?,?,?)",(name,email,text))
+    
+    # Insert message
+    conn.execute("INSERT INTO messages (sender_name,sender_email,message_text,is_system,timestamp) VALUES (?,?,?,?,CURRENT_TIMESTAMP)",
+                 (name,email,text,0))
     conn.commit()
+    
+    # Get the inserted message
+    msg = conn.execute("SELECT * FROM messages WHERE rowid=last_insert_rowid()").fetchone()
     conn.close()
+    
     logger.info(f"📩 {name}: {text[:30]}")
-    emit('new_message', {'sender':name,'text':text,'isSystem':False}, room='main_chat')
+    
+    # ✅ Send properly formatted message
+    emit('new_message', {
+        'id': msg['id'],
+        'sender': name,
+        'text': text,
+        'timestamp': msg['timestamp'] if msg['timestamp'] else datetime.now().isoformat(),
+        'isSystem': False
+    }, room='main_chat')
 
 @socketio.on('admin_broadcast')
 def on_broadcast(data):
     email = session.get('user_email')
     if not email: return
+    
     conn = get_db()
     user = conn.execute("SELECT * FROM users WHERE email=?",(email,)).fetchone()
     if not user or not user['is_admin']: conn.close(); return
-    msg = safe_get(data,'message','').strip()
-    if not msg: conn.close(); return
+    
+    msg_text = safe_get(data,'message','').strip()
+    if not msg_text: conn.close(); return
+    
     name = safe_get(user,'display_name') or 'Admin'
-    txt = f'🔊 {name}: {msg}'
-    conn.execute("INSERT INTO messages (sender_name,sender_email,message_text,is_system) VALUES (?,?,?,1)",('📢 ANNOUNCEMENT',email,txt))
+    txt = f'🔊 ANNOUNCEMENT from {name}: {msg_text}'
+    
+    conn.execute("INSERT INTO messages (sender_name,sender_email,message_text,is_system,timestamp) VALUES (?,?,?,?,CURRENT_TIMESTAMP)",
+                 ('📢 ANNOUNCEMENT',email,txt,1))
     conn.commit()
     conn.close()
-    emit('new_message', {'sender':'📢 ANNOUNCEMENT','text':txt,'isSystem':True}, room='main_chat')
+    
+    emit('new_message', {
+        'id': 0,
+        'sender': '📢 ANNOUNCEMENT',
+        'text': txt,
+        'timestamp': datetime.now().isoformat(),
+        'isSystem': True
+    }, room='main_chat')
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
-    logger.info("🚀 Server starting...")
+    logger.info("🚀 Server starting on port " + str(port))
+    logger.info("👑 Admin: admin@chylnx.com / admin123")
     socketio.run(app, host='0.0.0.0', port=port, debug=True)
