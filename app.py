@@ -510,6 +510,22 @@ def me():
 # ROUTES - User Profile
 # ======================
 
+@app.route('/api/debug', methods=['GET'])
+def debug():
+    """Debug endpoint to check database"""
+    try:
+        conn = get_db()
+        users = conn.execute("SELECT email, password_hash, is_admin FROM users").fetchall()
+        conn.close()
+        
+        return jsonify({
+            'db_path': DB_PATH,
+            'db_exists': os.path.exists(DB_PATH),
+            'users': [dict(u) for u in users]
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/set-display-name', methods=['POST'])
 @login_required
 def set_display_name():
