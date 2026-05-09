@@ -25,7 +25,8 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 CORS(app, supports_credentials=True, origins="*")
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
 
-DB_PATH = f'/tmp/chat_{int(time.time())}.db'
+# ✅ FIXED: Use a FIXED database path so data persists!
+DB_PATH = '/tmp/chylnx.db'
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)
@@ -76,14 +77,35 @@ c.execute('''CREATE TABLE IF NOT EXISTS claims (
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )''')
 
-c.execute("INSERT INTO users (full_name, email, password_hash, is_admin, payment_verified) VALUES (?,?,?,?,?)",
-          ('Admin', 'admin@chylnx.com', hash_password('admin123'), 1, 1))
+# Create admin if not exists
+existing_admin = c.execute("SELECT id FROM users WHERE email='admin@chylnx.com'").fetchone()
+if not existing_admin:
+    c.execute("INSERT INTO users (full_name, email, password_hash, is_admin, payment_verified) VALUES (?,?,?,?,?)",
+              ('Admin', 'admin@chylnx.com', hash_password('admin123'), 1, 1))
+    logger.info("👑 Admin created")
 
-for k,v in [('game_timer_hours','24'),('info_bar_text','Welcome!'),('info_bar_color','#667eea')]:
-    c.execute("INSERT OR REPLACE INTO settings VALUES (?,?)", (k,v))
+# ✅ FIXED: Insert ALL default settings
+default_settings = [
+    ('game_timer_hours', '24'),
+    ('game_timer_minutes', '0'),
+    ('game_timer_seconds', '0'),
+    ('weekly_timer_days', '7'),
+    ('weekly_timer_hours', '0'),
+    ('weekly_timer_minutes', '0'),
+    ('weekly_timer_seconds', '0'),
+    ('info_bar_text', 'Welcome to Chylnx Hub! 🌿'),
+    ('info_bar_color', '#667eea'),
+    ('info_bar2_text', '🎮 Join our gaming community!'),
+    ('info_bar2_color', '#f59e0b'),
+    ('info_bar3_text', '💰 Win amazing prizes daily!'),
+    ('info_bar3_color', '#764ba2'),
+]
+for k, v in default_settings:
+    c.execute("INSERT OR IGNORE INTO settings (setting_key, setting_value) VALUES (?,?)", (k, v))
 
 conn.commit()
 conn.close()
+logger.info("✅ Database ready with all default settings")
 
 # ======================
 # ROUTES
@@ -127,7 +149,6 @@ def login():
     conn.close()
     session.clear()
     session['user_email'] = user['email']
-    session['user_id'] = user['id']
     session.permanent = True
     logger.info(f"✅ Login: {email}")
     return jsonify({'success':True,'user':{
@@ -196,7 +217,6 @@ def submit_payment():
     conn.commit(); conn.close()
     return jsonify({'success':True})
 
-# Admin routes
 @app.route('/api/admin/pending-payments')
 def admin_payments():
     email = session.get('user_email')
@@ -254,11 +274,14 @@ def admin_settings():
     if not email: return jsonify({'error':'Login'}), 401
     data = request.get_json(silent=True)
     k = safe_get(data,'key'); v = safe_get(data,'value')
+    if not k: return jsonify({'error':'Key required'}), 400
     conn = get_db()
     admin = conn.execute("SELECT is_admin FROM users WHERE email=?",(email,)).fetchone()
     if not admin or not admin['is_admin']: conn.close(); return jsonify({'error':'Admin only'}), 403
-    conn.execute("UPDATE settings SET setting_value=? WHERE setting_key=?",(str(v),k))
+    # ✅ Use INSERT OR REPLACE to handle both new and existing settings
+    conn.execute("INSERT OR REPLACE INTO settings (setting_key, setting_value) VALUES (?,?)", (k, str(v)))
     conn.commit(); conn.close()
+    logger.info(f"⚙️ Setting updated: {k} = {v}")
     return jsonify({'success':True})
 
 @app.route('/api/admin/online-users', methods=['GET'])
@@ -268,10 +291,7 @@ def get_online_users():
     conn = get_db()
     admin = conn.execute("SELECT is_admin FROM users WHERE email=?",(email,)).fetchone()
     if not admin or not admin['is_admin']: conn.close(); return jsonify({'error':'Admin only'}), 403
-    online_list = []
-    for user_email, data in online_users.items():
-        if user_email != email:
-            online_list.append({'email': user_email, 'name': data.get('name', 'Unknown')})
+    online_list = [{'email': e, 'name': d.get('name', 'Unknown')} for e, d in online_users.items() if e != email]
     conn.close()
     return jsonify({'online_users': online_list, 'count': len(online_list)})
 
@@ -290,56 +310,27 @@ def on_disconnect():
     to_remove = None
     for email, data in online_users.items():
         if data['sid'] == request.sid:
-            to_remove = email
-            break
+            to_remove = email; break
     if to_remove:
         del online_users[to_remove]
-        logger.info(f"🔴 Disconnected: {to_remove}")
         socketio.emit('online_count', {'count': len(online_users)}, room='main_chat')
 
 @socketio.on('join_chat')
 def on_join():
     email = session.get('user_email')
-    logger.info(f"💬 Join: {email}")
-    
-    if not email:
-        emit('error', {'message': 'Please login first'})
-        return
-    
+    if not email: return
     conn = get_db()
     user = conn.execute("SELECT * FROM users WHERE email=?",(email,)).fetchone()
     conn.close()
-    
-    if not user:
-        emit('error', {'message': 'User not found'})
-        return
-    
-    if not user['payment_verified'] and not user['is_admin']:
-        emit('error', {'message': 'Payment required'})
-        return
-    
+    if not user or (not user['payment_verified'] and not user['is_admin']):
+        emit('error', {'message': 'Access denied'}); return
     name = safe_get(user,'display_name') or user['full_name'].split()[0]
     online_users[email] = {'sid': request.sid, 'name': name}
-    
     join_room('main_chat')
-    logger.info(f"✅ {email} joined. Online: {len(online_users)}")
-    
-    # Send chat history
     conn = get_db()
     msgs = conn.execute("SELECT * FROM messages ORDER BY rowid DESC LIMIT 50").fetchall()
     conn.close()
-    
-    formatted = []
-    for m in reversed(msgs):
-        formatted.append({
-            'id': m['id'],
-            'sender': m['sender_name'],
-            'text': m['message_text'],
-            'timestamp': m['timestamp'] if m['timestamp'] else datetime.now().isoformat(),
-            'isSystem': bool(m['is_system']),
-            'senderEmail': m['sender_email'] if 'sender_email' in m.keys() else ''
-        })
-    
+    formatted = [{'id':m['id'],'sender':m['sender_name'],'text':m['message_text'],'timestamp':m['timestamp'] if m['timestamp'] else datetime.now().isoformat(),'isSystem':bool(m['is_system']),'senderEmail':m['sender_email'] or ''} for m in reversed(msgs)]
     emit('chat_history', {'messages': formatted})
     socketio.emit('online_count', {'count': len(online_users)}, room='main_chat')
 
@@ -347,36 +338,18 @@ def on_join():
 def on_message(data):
     email = session.get('user_email')
     if not email: return
-    
     text = safe_get(data, 'text', '').strip()
     if not text: return
-    
     conn = get_db()
     user = conn.execute("SELECT * FROM users WHERE email=?",(email,)).fetchone()
-    if not user: conn.close(); return
-    
-    if not user['payment_verified'] and not user['is_admin']:
-        conn.close(); return
-    
+    if not user or (not user['payment_verified'] and not user['is_admin']): conn.close(); return
     name = safe_get(user,'display_name') or user['full_name'].split()[0]
     if user['is_admin']: name = f'👑 {name}'
-    
-    conn.execute("INSERT INTO messages (sender_name,sender_email,message_text,is_system,timestamp) VALUES (?,?,?,?,CURRENT_TIMESTAMP)",
-                 (name,email,text,0))
+    conn.execute("INSERT INTO messages (sender_name,sender_email,message_text,is_system,timestamp) VALUES (?,?,?,?,CURRENT_TIMESTAMP)",(name,email,text,0))
     conn.commit()
     msg = conn.execute("SELECT * FROM messages WHERE rowid=last_insert_rowid()").fetchone()
     conn.close()
-    
-    logger.info(f"📩 {name}: {text[:30]}")
-    
-    emit('new_message', {
-        'id': msg['id'],
-        'sender': name,
-        'text': text,
-        'timestamp': msg['timestamp'] if msg['timestamp'] else datetime.now().isoformat(),
-        'isSystem': False,
-        'senderEmail': email
-    }, room='main_chat')
+    emit('new_message', {'id':msg['id'],'sender':name,'text':text,'timestamp':msg['timestamp'] if msg['timestamp'] else datetime.now().isoformat(),'isSystem':False,'senderEmail':email}, room='main_chat')
 
 @socketio.on('admin_broadcast')
 def on_broadcast(data):
@@ -389,8 +362,7 @@ def on_broadcast(data):
     if not msg_text: conn.close(); return
     name = safe_get(user,'display_name') or 'Admin'
     txt = f'🔊 {name}: {msg_text}'
-    conn.execute("INSERT INTO messages (sender_name,sender_email,message_text,is_system,timestamp) VALUES (?,?,?,?,CURRENT_TIMESTAMP)",
-                 ('📢 ANNOUNCEMENT',email,txt,1))
+    conn.execute("INSERT INTO messages (sender_name,sender_email,message_text,is_system,timestamp) VALUES (?,?,?,?,CURRENT_TIMESTAMP)",('📢 ANNOUNCEMENT',email,txt,1))
     conn.commit(); conn.close()
     emit('new_message', {'id':0,'sender':'📢 ANNOUNCEMENT','text':txt,'timestamp':datetime.now().isoformat(),'isSystem':True,'senderEmail':email}, room='main_chat')
 
@@ -404,108 +376,49 @@ def on_declare_winner(data):
     winner_name = safe_get(data, 'name', 'Winner')
     winner_email = safe_get(data, 'email', '')
     win_msg = f'🏆🎉 {winner_name} is the WINNER! 🎉🏆'
-    conn.execute("INSERT INTO messages (sender_name,sender_email,message_text,is_system,timestamp) VALUES (?,?,?,?,CURRENT_TIMESTAMP)",
-                 ('🏆 SYSTEM', email, win_msg, 1))
+    conn.execute("INSERT INTO messages (sender_name,sender_email,message_text,is_system,timestamp) VALUES (?,?,?,?,CURRENT_TIMESTAMP)",('🏆 SYSTEM', email, win_msg, 1))
     conn.commit(); conn.close()
     emit('winner_announced', {'winner_email': winner_email, 'winner_name': winner_name}, room='main_chat')
     emit('new_message', {'id':0,'sender':'🏆 SYSTEM','text':win_msg,'timestamp':datetime.now().isoformat(),'isSystem':True,'senderEmail':email}, room='main_chat')
-    logger.info(f'🏆 Winner: {winner_name}')
 
 @socketio.on('submit_claim')
 def on_submit_claim(data):
     email = session.get('user_email')
     if not email: return
-    
     account_name = safe_get(data, 'accountName', '')
     account_number = safe_get(data, 'accountNumber', '')
     bank_name = safe_get(data, 'bankName', '')
     winner_name = safe_get(data, 'winnerName', '')
     winner_email = safe_get(data, 'winnerEmail', email)
-    
-    # Save to database
     conn = get_db()
-    conn.execute("INSERT INTO claims (winner_email, winner_name, account_name, account_number, bank_name) VALUES (?,?,?,?,?)",
-                 (winner_email, winner_name, account_name, account_number, bank_name))
-    conn.commit()
-    conn.close()
-    
+    conn.execute("INSERT INTO claims (winner_email, winner_name, account_name, account_number, bank_name) VALUES (?,?,?,?,?)",(winner_email, winner_name, account_name, account_number, bank_name))
+    conn.commit(); conn.close()
     claim_msg = f'💰 CLAIM: {winner_name} | Bank: {bank_name} | Acct: {account_number} | Name: {account_name}'
-    
-    # Save to messages table
     conn = get_db()
-    conn.execute("INSERT INTO messages (sender_name,sender_email,message_text,is_system,timestamp) VALUES (?,?,?,?,CURRENT_TIMESTAMP)",
-                 ('💰 CLAIM SYSTEM', winner_email, claim_msg, 1))
-    conn.commit()
-    conn.close()
-    
-    # ✅ Send confirmation to the winner only
+    conn.execute("INSERT INTO messages (sender_name,sender_email,message_text,is_system,timestamp) VALUES (?,?,?,?,CURRENT_TIMESTAMP)",('💰 CLAIM SYSTEM', winner_email, claim_msg, 1))
+    conn.commit(); conn.close()
     emit('claim_response', {'success': True})
-    
-    # ✅ Send claim details ONLY to admin (find admin's socket)
     for admin_email, admin_data in online_users.items():
-        conn = get_db()
-        admin = conn.execute("SELECT is_admin FROM users WHERE email=?", (admin_email,)).fetchone()
-        conn.close()
-        if admin and admin['is_admin']:
-            # Send claim message ONLY to this admin's socket
-            socketio.emit('new_message', {
-                'id': 0,
-                'sender': '💰 CLAIM SYSTEM',
-                'text': claim_msg,
-                'timestamp': datetime.now().isoformat(),
-                'isSystem': True,
-                'senderEmail': winner_email
-            }, room=admin_data['sid'])  # ✅ Send to admin's specific room
-            
-            # Also send as a special claim notification
-            socketio.emit('claim_notification', {
-                'winner_name': winner_name,
-                'winner_email': winner_email,
-                'account_name': account_name,
-                'account_number': account_number,
-                'bank_name': bank_name,
-                'message': claim_msg
-            }, room=admin_data['sid'])
-    
-    logger.info(f'💰 Claim from {winner_name} sent to admin only')
+        conn = get_db(); admin_check = conn.execute("SELECT is_admin FROM users WHERE email=?",(admin_email,)).fetchone(); conn.close()
+        if admin_check and admin_check['is_admin']:
+            socketio.emit('new_message', {'id':0,'sender':'💰 CLAIM SYSTEM','text':claim_msg,'timestamp':datetime.now().isoformat(),'isSystem':True,'senderEmail':winner_email}, room=admin_data['sid'])
 
 @socketio.on('close_chat_session')
 def on_close_chat():
     email = session.get('user_email')
     if not email: return
-    
-    # Verify sender is admin
     conn = get_db()
-    admin = conn.execute("SELECT is_admin FROM users WHERE email=?", (email,)).fetchone()
-    if not admin or not admin['is_admin']:
-        conn.close()
-        return
-    
-    # ✅ DELETE ALL MESSAGES from database
+    admin = conn.execute("SELECT is_admin FROM users WHERE email=?",(email,)).fetchone()
+    if not admin or not admin['is_admin']: conn.close(); return
     conn.execute("DELETE FROM messages")
-    
-    # ✅ RESET ALL USERS' payment verification (so they have to pay again)
     conn.execute("UPDATE users SET payment_verified = 0 WHERE is_admin = 0")
-    
-    # ✅ Delete all claims
     conn.execute("DELETE FROM claims")
-    
-    # ✅ Delete all payments
     conn.execute("DELETE FROM payments")
-    
-    # Save system message about closure
     close_msg = '🔒 Chat session closed! All messages cleared. Payment required to re-enter.'
-    conn.execute("INSERT INTO messages (sender_name,sender_email,message_text,is_system,timestamp) VALUES (?,?,?,?,CURRENT_TIMESTAMP)",
-                 ('🔒 SYSTEM', email, close_msg, 1))
-    conn.commit()
-    conn.close()
-    
-    # Send close signal to ALL users
-    emit('chat_closed', {
-        'message': '🏆 All winners have been rewarded!\n🔒 Chat session is now closed.\n💳 Payment required to re-enter.\n\nRedirecting to homepage...'
-    }, room='main_chat')
-    
-    logger.info(f'🔒 Chat closed by admin: {email}. Messages cleared, payments reset.')
+    conn.execute("INSERT INTO messages (sender_name,sender_email,message_text,is_system,timestamp) VALUES (?,?,?,?,CURRENT_TIMESTAMP)",('🔒 SYSTEM', email, close_msg, 1))
+    conn.commit(); conn.close()
+    emit('chat_closed', {'message': '🏆 All winners have been rewarded!\n🔒 Chat session is now closed.\n💳 Payment required to re-enter.\n\nRedirecting to homepage...'}, room='main_chat')
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
     logger.info("=" * 50)
