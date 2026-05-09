@@ -415,24 +415,59 @@ def on_declare_winner(data):
 def on_submit_claim(data):
     email = session.get('user_email')
     if not email: return
+    
     account_name = safe_get(data, 'accountName', '')
     account_number = safe_get(data, 'accountNumber', '')
     bank_name = safe_get(data, 'bankName', '')
     winner_name = safe_get(data, 'winnerName', '')
     winner_email = safe_get(data, 'winnerEmail', email)
+    
+    # Save to database
     conn = get_db()
     conn.execute("INSERT INTO claims (winner_email, winner_name, account_name, account_number, bank_name) VALUES (?,?,?,?,?)",
                  (winner_email, winner_name, account_name, account_number, bank_name))
-    conn.commit(); conn.close()
+    conn.commit()
+    conn.close()
+    
     claim_msg = f'💰 CLAIM: {winner_name} | Bank: {bank_name} | Acct: {account_number} | Name: {account_name}'
+    
+    # Save to messages table
     conn = get_db()
     conn.execute("INSERT INTO messages (sender_name,sender_email,message_text,is_system,timestamp) VALUES (?,?,?,?,CURRENT_TIMESTAMP)",
                  ('💰 CLAIM SYSTEM', winner_email, claim_msg, 1))
-    conn.commit(); conn.close()
-    emit('new_message', {'id':0,'sender':'💰 CLAIM SYSTEM','text':claim_msg,'timestamp':datetime.now().isoformat(),'isSystem':True,'senderEmail':winner_email}, room='main_chat')
+    conn.commit()
+    conn.close()
+    
+    # ✅ Send confirmation to the winner only
     emit('claim_response', {'success': True})
-    logger.info(f'💰 Claim: {winner_name}')
-
+    
+    # ✅ Send claim details ONLY to admin (find admin's socket)
+    for admin_email, admin_data in online_users.items():
+        conn = get_db()
+        admin = conn.execute("SELECT is_admin FROM users WHERE email=?", (admin_email,)).fetchone()
+        conn.close()
+        if admin and admin['is_admin']:
+            # Send claim message ONLY to this admin's socket
+            socketio.emit('new_message', {
+                'id': 0,
+                'sender': '💰 CLAIM SYSTEM',
+                'text': claim_msg,
+                'timestamp': datetime.now().isoformat(),
+                'isSystem': True,
+                'senderEmail': winner_email
+            }, room=admin_data['sid'])  # ✅ Send to admin's specific room
+            
+            # Also send as a special claim notification
+            socketio.emit('claim_notification', {
+                'winner_name': winner_name,
+                'winner_email': winner_email,
+                'account_name': account_name,
+                'account_number': account_number,
+                'bank_name': bank_name,
+                'message': claim_msg
+            }, room=admin_data['sid'])
+    
+    logger.info(f'💰 Claim from {winner_name} sent to admin only')
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
     logger.info("=" * 50)
