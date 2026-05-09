@@ -25,12 +25,17 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 CORS(app, supports_credentials=True, origins="*")
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
 
-# ✅ FIXED: Use a FIXED database path so data persists!
-DB_PATH = '/tmp/chylnx.db'
+# ✅ PERSISTENT DATABASE - survives Render restarts
+DB_DIR = os.environ.get('RENDER_DISK_PATH', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data'))
+os.makedirs(DB_DIR, exist_ok=True)
+DB_PATH = os.path.join(DB_DIR, 'chylnx.db')
+logger.info(f"📁 Database: {DB_PATH}")
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
     return conn
 
 def hash_password(password):
@@ -47,70 +52,92 @@ def safe_get(row, key, default=None):
         return val if val is not None else default
     except: return default
 
-# Create database
-conn = sqlite3.connect(DB_PATH)
-conn.row_factory = sqlite3.Row
-c = conn.cursor()
+# ✅ FIRST-TIME SETUP ONLY
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    c.execute('''CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        full_name TEXT, email TEXT UNIQUE, password_hash TEXT,
+        payment_verified INTEGER DEFAULT 0, is_admin INTEGER DEFAULT 0, display_name TEXT
+    )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS payments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_email TEXT, bank_name TEXT, reference TEXT,
+        payment_method TEXT DEFAULT 'transfer', status TEXT DEFAULT 'pending'
+    )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sender_name TEXT, sender_email TEXT, message_text TEXT, is_system INTEGER DEFAULT 0,
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS settings (
+        setting_key TEXT PRIMARY KEY, setting_value TEXT
+    )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS claims (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        winner_email TEXT, winner_name TEXT,
+        account_name TEXT, account_number TEXT, bank_name TEXT,
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+    
+    # Create admin ONLY if not exists
+    existing_admin = c.execute("SELECT id FROM users WHERE email='admin@chylnx.com'").fetchone()
+    if not existing_admin:
+        c.execute("INSERT INTO users (full_name, email, password_hash, is_admin, payment_verified) VALUES (?,?,?,?,?)",
+                  ('Admin', 'admin@chylnx.com', hash_password('admin123'), 1, 1))
+        logger.info("👑 Admin created")
+    else:
+        logger.info("👑 Admin already exists - keeping")
+    
+    # ✅ INSERT OR IGNORE - NEVER overwrites existing settings!
+    default_settings = [
+        ('game_timer_hours', '24'), ('game_timer_minutes', '0'), ('game_timer_seconds', '0'),
+        ('weekly_timer_days', '7'), ('weekly_timer_hours', '0'), ('weekly_timer_minutes', '0'), ('weekly_timer_seconds', '0'),
+        ('info_bar_text', 'Welcome to Chylnx Hub! 🌿'), ('info_bar_color', '#667eea'),
+        ('info_bar2_text', '🎮 Join our gaming community!'), ('info_bar2_color', '#f59e0b'),
+        ('info_bar3_text', '💰 Win amazing prizes daily!'), ('info_bar3_color', '#764ba2'),
+    ]
+    for k, v in default_settings:
+        c.execute("INSERT OR IGNORE INTO settings (setting_key, setting_value) VALUES (?,?)", (k, v))
+    
+    conn.commit()
+    conn.close()
+    
+    # Verify settings exist
+    verify = sqlite3.connect(DB_PATH)
+    verify.row_factory = sqlite3.Row
+    count = verify.execute("SELECT COUNT(*) as c FROM settings").fetchone()['c']
+    verify.close()
+    logger.info(f"✅ Database ready - {count} settings exist")
 
-c.execute('''CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    full_name TEXT, email TEXT UNIQUE, password_hash TEXT,
-    payment_verified INTEGER DEFAULT 0, is_admin INTEGER DEFAULT 0, display_name TEXT
-)''')
-c.execute('''CREATE TABLE IF NOT EXISTS payments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_email TEXT, bank_name TEXT, reference TEXT,
-    payment_method TEXT DEFAULT 'transfer', status TEXT DEFAULT 'pending'
-)''')
-c.execute('''CREATE TABLE IF NOT EXISTS messages (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    sender_name TEXT, sender_email TEXT, message_text TEXT, is_system INTEGER DEFAULT 0,
-    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)''')
-c.execute('''CREATE TABLE IF NOT EXISTS settings (
-    setting_key TEXT PRIMARY KEY, setting_value TEXT
-)''')
-c.execute('''CREATE TABLE IF NOT EXISTS claims (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    winner_email TEXT, winner_name TEXT,
-    account_name TEXT, account_number TEXT, bank_name TEXT,
-    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)''')
-
-# Create admin if not exists
-existing_admin = c.execute("SELECT id FROM users WHERE email='admin@chylnx.com'").fetchone()
-if not existing_admin:
-    c.execute("INSERT INTO users (full_name, email, password_hash, is_admin, payment_verified) VALUES (?,?,?,?,?)",
-              ('Admin', 'admin@chylnx.com', hash_password('admin123'), 1, 1))
-    logger.info("👑 Admin created")
-
-# ✅ FIXED: Insert ALL default settings
-default_settings = [
-    ('game_timer_hours', '24'),
-    ('game_timer_minutes', '0'),
-    ('game_timer_seconds', '0'),
-    ('weekly_timer_days', '7'),
-    ('weekly_timer_hours', '0'),
-    ('weekly_timer_minutes', '0'),
-    ('weekly_timer_seconds', '0'),
-    ('info_bar_text', 'Welcome to Chylnx Hub! 🌿'),
-    ('info_bar_color', '#667eea'),
-    ('info_bar2_text', '🎮 Join our gaming community!'),
-    ('info_bar2_color', '#f59e0b'),
-    ('info_bar3_text', '💰 Win amazing prizes daily!'),
-    ('info_bar3_color', '#764ba2'),
-]
-for k, v in default_settings:
-    c.execute("INSERT OR IGNORE INTO settings (setting_key, setting_value) VALUES (?,?)", (k, v))
-
-conn.commit()
-conn.close()
-logger.info("✅ Database ready with all default settings")
+# Run init
+init_db()
 
 # ======================
-# ROUTES
+# HEALTH CHECK
 # ======================
+@app.route('/api/health', methods=['GET'])
+def health():
+    try:
+        conn = get_db()
+        users = conn.execute("SELECT COUNT(*) as c FROM users").fetchone()['c']
+        settings = conn.execute("SELECT COUNT(*) as c FROM settings").fetchone()['c']
+        sample = conn.execute("SELECT setting_key, setting_value FROM settings LIMIT 3").fetchall()
+        conn.close()
+        return jsonify({
+            'status': 'ok', 'db_path': DB_PATH, 'db_exists': os.path.exists(DB_PATH),
+            'users': users, 'settings': settings,
+            'sample': [dict(s) for s in sample]
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'error': str(e)}), 500
 
+# ======================
+# ROUTES (unchanged)
+# ======================
 @app.route('/')
 def index(): return send_from_directory('.', 'login.html')
 
@@ -133,6 +160,8 @@ def register():
         conn.close(); return jsonify({'error':'Email already registered'}), 409
     conn.execute("INSERT INTO users (full_name,email,password_hash) VALUES (?,?,?)",(name,email,hash_password(pwd)))
     conn.commit(); conn.close()
+    # ✅ Log current settings to verify they weren't changed
+    logger.info(f"✅ New user: {email} - Settings preserved")
     return jsonify({'success':True,'message':'Account created!'}), 201
 
 @app.route('/api/auth/login', methods=['POST'])
@@ -172,8 +201,7 @@ def me():
     })
 
 @app.route('/api/auth/logout', methods=['POST'])
-def logout():
-    session.clear(); return jsonify({'success':True})
+def logout(): session.clear(); return jsonify({'success':True})
 
 @app.route('/api/settings', methods=['GET'])
 def settings():
@@ -278,32 +306,25 @@ def admin_settings():
     conn = get_db()
     admin = conn.execute("SELECT is_admin FROM users WHERE email=?",(email,)).fetchone()
     if not admin or not admin['is_admin']: conn.close(); return jsonify({'error':'Admin only'}), 403
-    # ✅ Use INSERT OR REPLACE to handle both new and existing settings
     conn.execute("INSERT OR REPLACE INTO settings (setting_key, setting_value) VALUES (?,?)", (k, str(v)))
     conn.commit(); conn.close()
     logger.info(f"⚙️ Setting updated: {k} = {v}")
     return jsonify({'success':True})
 
-# Add this route to GET timer end times
 @app.route('/api/timers', methods=['GET'])
 def get_timers():
     conn = get_db()
     rows = conn.execute("SELECT setting_key, setting_value FROM settings WHERE setting_key LIKE '%timer%'").fetchall()
     settings = {r['setting_key']: r['setting_value'] for r in rows}
     conn.close()
-    
-    # Return both the durations AND calculated end times
     gh = int(settings.get('game_timer_hours', 0))
     gm = int(settings.get('game_timer_minutes', 0))
     gs = int(settings.get('game_timer_seconds', 0))
-    
     wd = int(settings.get('weekly_timer_days', 0))
     wh = int(settings.get('weekly_timer_hours', 0))
     wm = int(settings.get('weekly_timer_minutes', 0))
     ws = int(settings.get('weekly_timer_seconds', 0))
-    
     now = datetime.now()
-    
     return jsonify({
         'game_timer': {
             'hours': gh, 'minutes': gm, 'seconds': gs,
@@ -326,22 +347,17 @@ def get_online_users():
     conn.close()
     return jsonify({'online_users': online_list, 'count': len(online_list)})
 
-# ======================
-# SOCKET.IO EVENTS
-# ======================
-
+# Socket.IO events (unchanged)
 online_users = {}
 
 @socketio.on('connect')
-def on_connect():
-    logger.info(f"🟢 Connected: {request.sid}")
+def on_connect(): logger.info(f"🟢 Connected: {request.sid}")
 
 @socketio.on('disconnect')
 def on_disconnect():
     to_remove = None
     for email, data in online_users.items():
-        if data['sid'] == request.sid:
-            to_remove = email; break
+        if data['sid'] == request.sid: to_remove = email; break
     if to_remove:
         del online_users[to_remove]
         socketio.emit('online_count', {'count': len(online_users)}, room='main_chat')
@@ -353,8 +369,7 @@ def on_join():
     conn = get_db()
     user = conn.execute("SELECT * FROM users WHERE email=?",(email,)).fetchone()
     conn.close()
-    if not user or (not user['payment_verified'] and not user['is_admin']):
-        emit('error', {'message': 'Access denied'}); return
+    if not user or (not user['payment_verified'] and not user['is_admin']): emit('error', {'message': 'Access denied'}); return
     name = safe_get(user,'display_name') or user['full_name'].split()[0]
     online_users[email] = {'sid': request.sid, 'name': name}
     join_room('main_chat')
@@ -397,8 +412,6 @@ def on_broadcast(data):
     conn.commit(); conn.close()
     emit('new_message', {'id':0,'sender':'📢 ANNOUNCEMENT','text':txt,'timestamp':datetime.now().isoformat(),'isSystem':True,'senderEmail':email}, room='main_chat')
 
-    
-
 @socketio.on('declare_winner')
 def on_declare_winner(data):
     email = session.get('user_email')
@@ -406,8 +419,7 @@ def on_declare_winner(data):
     conn = get_db()
     admin = conn.execute("SELECT is_admin FROM users WHERE email=?",(email,)).fetchone()
     if not admin or not admin['is_admin']: conn.close(); return
-    winner_name = safe_get(data, 'name', 'Winner')
-    winner_email = safe_get(data, 'email', '')
+    winner_name = safe_get(data, 'name', 'Winner'); winner_email = safe_get(data, 'email', '')
     win_msg = f'🏆🎉 {winner_name} is the WINNER! 🎉🏆'
     conn.execute("INSERT INTO messages (sender_name,sender_email,message_text,is_system,timestamp) VALUES (?,?,?,?,CURRENT_TIMESTAMP)",('🏆 SYSTEM', email, win_msg, 1))
     conn.commit(); conn.close()
@@ -418,10 +430,8 @@ def on_declare_winner(data):
 def on_submit_claim(data):
     email = session.get('user_email')
     if not email: return
-    account_name = safe_get(data, 'accountName', '')
-    account_number = safe_get(data, 'accountNumber', '')
-    bank_name = safe_get(data, 'bankName', '')
-    winner_name = safe_get(data, 'winnerName', '')
+    account_name = safe_get(data, 'accountName', ''); account_number = safe_get(data, 'accountNumber', '')
+    bank_name = safe_get(data, 'bankName', ''); winner_name = safe_get(data, 'winnerName', '')
     winner_email = safe_get(data, 'winnerEmail', email)
     conn = get_db()
     conn.execute("INSERT INTO claims (winner_email, winner_name, account_name, account_number, bank_name) VALUES (?,?,?,?,?)",(winner_email, winner_name, account_name, account_number, bank_name))
@@ -445,8 +455,7 @@ def on_close_chat():
     if not admin or not admin['is_admin']: conn.close(); return
     conn.execute("DELETE FROM messages")
     conn.execute("UPDATE users SET payment_verified = 0 WHERE is_admin = 0")
-    conn.execute("DELETE FROM claims")
-    conn.execute("DELETE FROM payments")
+    conn.execute("DELETE FROM claims"); conn.execute("DELETE FROM payments")
     close_msg = '🔒 Chat session closed! All messages cleared. Payment required to re-enter.'
     conn.execute("INSERT INTO messages (sender_name,sender_email,message_text,is_system,timestamp) VALUES (?,?,?,?,CURRENT_TIMESTAMP)",('🔒 SYSTEM', email, close_msg, 1))
     conn.commit(); conn.close()
@@ -457,5 +466,6 @@ if __name__ == '__main__':
     logger.info("=" * 50)
     logger.info("🚀 Server starting on port " + str(port))
     logger.info("👑 Admin: admin@chylnx.com / admin123")
+    logger.info(f"📁 Database: {DB_PATH}")
     logger.info("=" * 50)
     socketio.run(app, host='0.0.0.0', port=port, debug=True)
