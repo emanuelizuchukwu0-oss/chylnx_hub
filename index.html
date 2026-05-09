@@ -67,14 +67,8 @@
                     <button class="logout" onclick="logout()">🚪 Logout</button>
                 </div>
                 <div class="timers-section">
-                    <div class="timer-card">
-                        <div class="timer-title">🎯 GAME TIMER</div>
-                        <div class="timer-display" id="gameTimer">--:--:--</div>
-                    </div>
-                    <div class="timer-card">
-                        <div class="timer-title">📅 WEEKLY TIMER</div>
-                        <div class="timer-display" id="weeklyTimer">--d --:--:--</div>
-                    </div>
+                    <div class="timer-card"><div class="timer-title">🎯 GAME TIMER</div><div class="timer-display" id="gameTimer">--:--:--</div></div>
+                    <div class="timer-card"><div class="timer-title">📅 WEEKLY TIMER</div><div class="timer-display" id="weeklyTimer">--d --:--:--</div></div>
                 </div>
                 <div class="info-bar" id="infoBar1" style="background:linear-gradient(135deg,#2d8a2d,#4caf50)">Loading...</div>
                 <div class="info-bar" id="infoBar2" style="background:linear-gradient(135deg,#f59e0b,#ef4444)">Loading...</div>
@@ -97,138 +91,101 @@
             const planetColors = ['#e74c3c','#3498db','#f39c12','#9b59b6','#1abc9c','#e67e22','#2ecc71','#f1c40f','#e91e63','#00bcd4','#ff5722','#8bc34a','#ff9800','#795548'];
 
             function createFallingObjects() {
-                const c = document.getElementById('fallingObjects'); if (!c) return;
-                const f = document.createDocumentFragment();
-                for (let i = 0; i < 25; i++) {
-                    const o = document.createElement('div'); o.className = 'falling-object';
-                    const t = Math.random(), l = Math.random()*100, s = 20+Math.random()*40;
-                    o.style.cssText = `left:${l}%;width:${s}px;height:${s}px;animation-duration:${10+Math.random()*15}s;animation-delay:${Math.random()*20}s;animation-iteration-count:infinite`;
-                    if (t<0.35) { o.classList.add('chess-piece'); o.textContent = chessPieces[Math.floor(Math.random()*chessPieces.length)]; o.style.fontSize=s+'px'; o.style.animationName = Math.random()>0.5?'fall':'fallSlow'; }
-                    else if (t<0.7) { o.classList.add('planet'); o.style.background=planetColors[Math.floor(Math.random()*planetColors.length)]; if(Math.random()>0.6) o.style.boxShadow=`inset -4px -4px 8px rgba(0,0,0,0.3), 0 0 15px rgba(255,255,255,0.2), 0 0 0 ${s*0.2}px rgba(255,255,255,0.1)`; o.style.animationName=Math.random()>0.5?'fallSlow':'fallFast'; }
-                    else { o.classList.add('book'); o.textContent=books[Math.floor(Math.random()*books.length)]; o.style.fontSize=s+'px'; o.style.animationName='fall'; }
+                const c=document.getElementById('fallingObjects'); if(!c)return;
+                const f=document.createDocumentFragment();
+                for(let i=0;i<25;i++){
+                    const o=document.createElement('div');o.className='falling-object';
+                    const t=Math.random(),l=Math.random()*100,s=20+Math.random()*40;
+                    o.style.cssText=`left:${l}%;width:${s}px;height:${s}px;animation-duration:${10+Math.random()*15}s;animation-delay:${Math.random()*20}s;animation-iteration-count:infinite`;
+                    if(t<0.35){o.classList.add('chess-piece');o.textContent=chessPieces[Math.floor(Math.random()*chessPieces.length)];o.style.fontSize=s+'px';o.style.animationName=Math.random()>0.5?'fall':'fallSlow';}
+                    else if(t<0.7){o.classList.add('planet');o.style.background=planetColors[Math.floor(Math.random()*planetColors.length)];if(Math.random()>0.6)o.style.boxShadow=`inset -4px -4px 8px rgba(0,0,0,0.3),0 0 15px rgba(255,255,255,0.2),0 0 0 ${s*0.2}px rgba(255,255,255,0.1)`;o.style.animationName=Math.random()>0.5?'fallSlow':'fallFast';}
+                    else{o.classList.add('book');o.textContent=books[Math.floor(Math.random()*books.length)];o.style.fontSize=s+'px';o.style.animationName='fall';}
                     f.appendChild(o);
                 }
                 c.appendChild(f);
             }
 
             function createParticles() {
-                let c = document.getElementById('particles');
-                if (!c) { c = document.createElement('div'); c.id='particles'; c.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:2'; document.body.appendChild(c); }
-                const f = document.createDocumentFragment();
-                for (let i=0;i<15;i++) {
-                    const p = document.createElement('div'); p.classList.add('particle');
-                    p.style.cssText = `width:${2+Math.random()*4}px;height:${2+Math.random()*4}px;left:${Math.random()*100}%;animation-duration:${6+Math.random()*10}s;animation-delay:${Math.random()*8}s`;
-                    f.appendChild(p);
-                }
+                let c=document.getElementById('particles');
+                if(!c){c=document.createElement('div');c.id='particles';c.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:2';document.body.appendChild(c);}
+                const f=document.createDocumentFragment();
+                for(let i=0;i<15;i++){const p=document.createElement('div');p.classList.add('particle');p.style.cssText=`width:${2+Math.random()*4}px;height:${2+Math.random()*4}px;left:${Math.random()*100}%;animation-duration:${6+Math.random()*10}s;animation-delay:${Math.random()*8}s`;f.appendChild(p);}
                 c.appendChild(f);
             }
 
-            function showLoading() { document.getElementById('loading').classList.remove('hide'); }
-            function hideLoading() { document.getElementById('loading').classList.add('hide'); }
-            function escapeHtml(t) { if(!t)return''; const d=document.createElement('div'); d.textContent=String(t); return d.innerHTML; }
+            function showLoading(){document.getElementById('loading').classList.remove('hide');}
+            function hideLoading(){document.getElementById('loading').classList.add('hide');}
+            function escapeHtml(t){if(!t)return'';const d=document.createElement('div');d.textContent=String(t);return d.innerHTML;}
 
-            async function apiFetch(url, options = {}) {
-                const res = await fetch(url, { credentials:'include', headers:{'Content-Type':'application/json'}, ...options, headers:{'Content-Type':'application/json',...options.headers} });
-                if (res.status===401) { if(!localStorage.getItem('chylnx_user')) window.location.href='/login.html'; }
+            async function apiFetch(url,options={}){
+                const res=await fetch(url,{credentials:'include',headers:{'Content-Type':'application/json'},...options,headers:{'Content-Type':'application/json',...options.headers}});
+                if(res.status===401){if(!localStorage.getItem('chylnx_user'))window.location.href='/login.html';}
                 return res;
             }
 
-            async function getUser() {
-                try {
-                    const res = await fetch(`${API_URL}/auth/me`, { credentials:'include' });
-                    if (res.ok) { const u = await res.json(); localStorage.setItem('chylnx_user',JSON.stringify(u)); return u; }
-                    return null;
-                } catch { return null; }
+            async function getUser(){
+                try{const res=await fetch(`${API_URL}/auth/me`,{credentials:'include'});if(res.ok){const u=await res.json();localStorage.setItem('chylnx_user',JSON.stringify(u));return u;}return null;}catch{return null;}
             }
 
-            function getCachedUser() { try { const c=localStorage.getItem('chylnx_user'); return c?JSON.parse(c):null; } catch(e) { return null; } }
+            function getCachedUser(){try{const c=localStorage.getItem('chylnx_user');return c?JSON.parse(c):null;}catch(e){return null;}}
 
-            // ✅ Load timers from server (persistent end times)
-            async function loadTimers() {
-                try {
-                    const res = await fetch(`${API_URL}/timers`, { credentials:'include' });
-                    const data = await res.json();
-                    
-                    if (data.game_timer && data.game_timer.end_time) {
-                        gameEndTime = new Date(data.game_timer.end_time);
-                        console.log('🎯 Game timer ends:', gameEndTime);
-                    }
-                    if (data.weekly_timer && data.weekly_timer.end_time) {
-                        weeklyEndTime = new Date(data.weekly_timer.end_time);
-                        console.log('📅 Weekly timer ends:', weeklyEndTime);
-                    }
-                } catch(e) { console.error('Timer load error:', e); }
+            // ✅ Get timer end times from server
+            async function loadTimersFromServer(){
+                try{
+                    const res=await fetch(`${API_URL}/timers`,{credentials:'include'});
+                    const data=await res.json();
+                    if(data.game_timer&&data.game_timer.end_time){gameEndTime=new Date(data.game_timer.end_time);}else{gameEndTime=null;}
+                    if(data.weekly_timer&&data.weekly_timer.end_time){weeklyEndTime=new Date(data.weekly_timer.end_time);}else{weeklyEndTime=null;}
+                }catch(e){gameEndTime=null;weeklyEndTime=null;}
             }
 
-            async function loadSettings() {
-                try {
-                    const res = await fetch(`${API_URL}/settings`, { credentials:'include' });
-                    const data = await res.json();
-                    const s = data.settings || {};
-                    
-                    const ib1=document.getElementById('infoBar1'), ib2=document.getElementById('infoBar2'), ib3=document.getElementById('infoBar3');
-                    if (ib1) { ib1.innerHTML = s.info_bar_text || 'Welcome to Chylnx Hub! 🌿'; ib1.style.background = s.info_bar_color || 'linear-gradient(135deg,#2d8a2d,#4caf50)'; }
-                    if (ib2) { ib2.innerHTML = s.info_bar2_text || '🎮 Join our gaming community!'; ib2.style.background = s.info_bar2_color || 'linear-gradient(135deg,#f59e0b,#ef4444)'; }
-                    if (ib3) { ib3.innerHTML = s.info_bar3_text || '💰 Win amazing prizes daily!'; ib3.style.background = s.info_bar3_color || 'linear-gradient(135deg,#667eea,#764ba2)'; }
-                    
-                    await loadTimers();
-                    updateTimers();
-                    startTimerInterval();
-                } catch(e) { console.error('Settings error:', e); }
+            // ✅ Load settings & info bars
+            async function loadSettings(){
+                try{
+                    const res=await fetch(`${API_URL}/settings`,{credentials:'include'});
+                    const data=await res.json();
+                    const s=data.settings||{};
+                    const ib1=document.getElementById('infoBar1'),ib2=document.getElementById('infoBar2'),ib3=document.getElementById('infoBar3');
+                    if(ib1){ib1.innerHTML=s.info_bar_text||'Welcome to Chylnx Hub! 🌿';ib1.style.background=s.info_bar_color||'linear-gradient(135deg,#2d8a2d,#4caf50)';}
+                    if(ib2){ib2.innerHTML=s.info_bar2_text||'🎮 Join our gaming community!';ib2.style.background=s.info_bar2_color||'linear-gradient(135deg,#f59e0b,#ef4444)';}
+                    if(ib3){ib3.innerHTML=s.info_bar3_text||'💰 Win amazing prizes daily!';ib3.style.background=s.info_bar3_color||'linear-gradient(135deg,#667eea,#764ba2)';}
+                    await loadTimersFromServer();
+                    updateTimers();startTimerInterval();
+                }catch(e){console.error('Settings error:',e);}
             }
 
-            function updateTimers() {
-                const ge=document.getElementById('gameTimer'), we=document.getElementById('weeklyTimer');
-                if (ge) {
-                    if (gameEndTime) {
-                        const d=gameEndTime-new Date();
-                        if(d<=0){ge.innerHTML='00:00:00';ge.style.color='#ef4444'}
-                        else{const h=Math.floor(d/36e5),m=Math.floor((d%36e5)/6e4),s=Math.floor((d%6e4)/1e3);ge.innerHTML=`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;ge.style.color='#fff'}
-                    } else {ge.innerHTML='00:00:00';ge.style.color='#888';}
-                }
-                if (we) {
-                    if (weeklyEndTime) {
-                        const d=weeklyEndTime-new Date();
-                        if(d<=0){we.innerHTML='00d 00:00:00';we.style.color='#ef4444'}
-                        else{const dd=Math.floor(d/864e5),h=Math.floor((d%864e5)/36e5),m=Math.floor((d%36e5)/6e4),s=Math.floor((d%6e4)/1e3);we.innerHTML=`${dd}d ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;we.style.color='#fff'}
-                    } else {we.innerHTML='00d 00:00:00';we.style.color='#888';}
-                }
+            function updateTimers(){
+                const ge=document.getElementById('gameTimer'),we=document.getElementById('weeklyTimer');
+                if(ge){if(gameEndTime){const d=gameEndTime-new Date();if(d<=0){ge.innerHTML='00:00:00';ge.style.color='#ef4444'}else{const h=Math.floor(d/36e5),m=Math.floor((d%36e5)/6e4),s=Math.floor((d%6e4)/1e3);ge.innerHTML=`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;ge.style.color='#fff'}}else{ge.innerHTML='00:00:00';ge.style.color='#888';}}
+                if(we){if(weeklyEndTime){const d=weeklyEndTime-new Date();if(d<=0){we.innerHTML='00d 00:00:00';we.style.color='#ef4444'}else{const dd=Math.floor(d/864e5),h=Math.floor((d%864e5)/36e5),m=Math.floor((d%36e5)/6e4),s=Math.floor((d%6e4)/1e3);we.innerHTML=`${dd}d ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;we.style.color='#fff'}}else{we.innerHTML='00d 00:00:00';we.style.color='#888';}}
             }
 
-            function startTimerInterval() { if(timerInterval)clearInterval(timerInterval); timerInterval=setInterval(updateTimers,1000); }
+            function startTimerInterval(){if(timerInterval)clearInterval(timerInterval);timerInterval=setInterval(updateTimers,1000);}
 
-            async function load() {
+            async function load(){
                 showLoading();
-                try {
-                    const cached = getCachedUser();
-                    if (cached) document.getElementById('userName').innerHTML = `👤 <strong>${escapeHtml(cached.fullName)}</strong><br><span style="font-size:11px;color:#666;">${escapeHtml(cached.email)}</span>`;
-                    const user = await getUser();
-                    if (!user) { if (!cached) { window.location.href='/login.html'; return; } if(cached.isAdmin)showAdminBtn(); await loadSettings(); hideLoading(); return; }
+                try{
+                    const cached=getCachedUser();
+                    if(cached)document.getElementById('userName').innerHTML=`👤 <strong>${escapeHtml(cached.fullName)}</strong><br><span style="font-size:11px;color:#666;">${escapeHtml(cached.email)}</span>`;
+                    const user=await getUser();
+                    if(!user){if(!cached){window.location.href='/login.html';return;}if(cached.isAdmin)showAdminBtn();await loadSettings();hideLoading();return;}
                     localStorage.setItem('chylnx_user',JSON.stringify(user));
-                    document.getElementById('userName').innerHTML = `👤 <strong>${escapeHtml(user.fullName)}</strong><br><span style="font-size:11px;color:#666;">${escapeHtml(user.email)}</span>`;
+                    document.getElementById('userName').innerHTML=`👤 <strong>${escapeHtml(user.fullName)}</strong><br><span style="font-size:11px;color:#666;">${escapeHtml(user.email)}</span>`;
                     if(user.isAdmin)showAdminBtn();
                     await loadSettings();
-                } catch(e) { console.error('Load error:',e); if(!getCachedUser())window.location.href='/login.html'; }
-                finally { hideLoading(); }
+                }catch(e){if(!getCachedUser())window.location.href='/login.html';}
+                finally{hideLoading();}
             }
 
-            function showAdminBtn() {
-                const c=document.getElementById('adminBtn');
-                if(c&&!c.querySelector('button')){const b=document.createElement('button');b.className='chat-btn admin-btn';b.innerHTML='👑 Admin Dashboard';b.onclick=()=>window.location.href='/admin_dashboard.html';c.appendChild(b);}
-            }
+            function showAdminBtn(){const c=document.getElementById('adminBtn');if(c&&!c.querySelector('button')){const b=document.createElement('button');b.className='chat-btn admin-btn';b.innerHTML='👑 Admin Dashboard';b.onclick=()=>window.location.href='/admin_dashboard.html';c.appendChild(b);}}
 
-            async function enterChat() {
-                try { const r=await apiFetch(`${API_URL}/check-access`); const d=await r.json(); window.location.href=d.hasAccess?'/chat.html':'/payment.html'; }
-                catch { alert('Connection error. Please try again.'); }
-            }
+            async function enterChat(){try{const r=await apiFetch(`${API_URL}/check-access`);const d=await r.json();window.location.href=d.hasAccess?'/chat.html':'/payment.html';}catch{alert('Connection error.');}}
 
-            async function logout() {
-                if(confirm('Are you sure you want to log out?')){try{await apiFetch(`${API_URL}/auth/logout`,{method:'POST'});}catch(e){}if(timerInterval)clearInterval(timerInterval);localStorage.clear();sessionStorage.clear();window.location.href='/login.html';}
-            }
+            async function logout(){if(confirm('Are you sure?')){try{await apiFetch(`${API_URL}/auth/logout`,{method:'POST'});}catch(e){}if(timerInterval)clearInterval(timerInterval);localStorage.clear();sessionStorage.clear();window.location.href='/login.html';}}
 
-            function init() { createFallingObjects(); createParticles(); load(); }
+            function init(){createFallingObjects();createParticles();load();}
             if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
-            window.enterChat=enterChat; window.logout=logout;
+            window.enterChat=enterChat;window.logout=logout;
             window.addEventListener('beforeunload',()=>{if(timerInterval)clearInterval(timerInterval);});
         })();
     </script>
