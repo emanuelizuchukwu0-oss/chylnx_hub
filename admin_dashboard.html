@@ -32,7 +32,6 @@
         .setting-group label{display:block;margin-bottom:8px;font-weight:600}
         .setting-group input{width:100%;padding:10px;border-radius:8px;border:none;background:#2d2d44;color:#fff}
         .setting-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:15px}
-        .setting-row-4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:15px}
         .apply-btn{background:#667eea;color:#fff;border:none;padding:10px 20px;border-radius:30px;cursor:pointer;width:100%;font-weight:600}
         .broadcast-section{background:linear-gradient(135deg,#667eea,#764ba2);padding:20px;border-radius:16px;margin-bottom:20px}
         .broadcast-input{width:100%;padding:12px;border-radius:12px;border:none;background:rgba(255,255,255,0.2);color:#fff;margin-bottom:10px;resize:vertical;min-height:60px}
@@ -42,24 +41,23 @@
         .chat-input-area{padding:12px;background:#1a1a2e;border-radius:0 0 16px 16px;display:flex;gap:12px}
         .chat-input{flex:1;padding:12px 16px;border-radius:25px;border:none;background:#2d2d44;color:#fff;outline:none}
         .send-btn{background:#075E54;border:none;width:45px;height:45px;border-radius:50%;cursor:pointer;color:#fff;font-size:20px}
-        
-        /* WIN BAR */
         .win-bar{display:none;background:linear-gradient(135deg,#f59e0b,#ef4444);padding:12px 15px;border-radius:12px;margin-bottom:15px;text-align:center;animation:fadeIn 0.3s}
-        .win-bar .selected-user{color:#fff;font-weight:bold;font-size:16px}
+        .win-bar span{color:#fff;font-weight:bold;font-size:16px}
         .win-bar button{background:#fff;color:#ef4444;border:none;padding:10px 24px;border-radius:20px;font-weight:700;cursor:pointer;font-size:14px;margin-left:10px}
-        
-        /* Claim card in admin chat */
+        .close-chat-btn{background:#ef4444;color:#fff;border:none;padding:10px 20px;border-radius:25px;cursor:pointer;font-weight:600;font-size:14px;width:100%;margin-bottom:15px}
+        .close-chat-btn:hover{background:#dc2626}
         .claim-card-admin{background:rgba(76,175,80,0.15);border:1px solid #4caf50;border-radius:12px;padding:15px;margin:8px 0;text-align:center}
         .claim-card-admin .claim-title{color:#4caf50;font-weight:700;font-size:14px;margin-bottom:8px}
         .claim-card-admin .claim-detail{color:#ccc;font-size:12px;margin:3px 0}
-        
+        .toast{position:fixed;top:20px;right:20px;z-index:9999;padding:12px 20px;border-radius:8px;animation:fadeIn 0.3s}
+        .toast.success{background:#10b981;color:#fff}
+        .toast.error{background:#ef4444;color:#fff}
         @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-        
         @media(max-width:768px){
             .sidebar{width:100%;height:auto;position:relative;display:flex;flex-wrap:wrap;gap:8px;padding:12px;justify-content:center}
             .sidebar .logo{width:100%;margin-bottom:10px}
             .main-content{margin-left:0}
-            .setting-row,.setting-row-4{grid-template-columns:repeat(2,1fr)}
+            .setting-row{grid-template-columns:repeat(2,1fr)}
         }
     </style>
 </head>
@@ -83,19 +81,26 @@
             <div class="stat-card"><div class="stat-number">-</div><div>Pending Payments</div></div>
         </div>
 
+        <!-- BROADCAST -->
         <div id="broadcastSection" class="broadcast-section active">
             <h3>📢 Send Broadcast Message</h3>
             <textarea id="broadcastMessage" class="broadcast-input" rows="3" placeholder="Type your announcement..."></textarea>
             <button class="broadcast-btn" id="broadcastBtn">📢 Send Broadcast</button>
         </div>
 
+        <!-- LIVE CHAT -->
         <div id="chatSection" class="section">
             <h2>💬 Live Chat</h2>
+            
             <!-- WIN BAR -->
             <div class="win-bar" id="winBar">
-                🏆 Selected: <span class="selected-user" id="selectedWinnerName">Tap a user's name</span>
+                🏆 Selected: <span id="selectedWinnerName">Tap a user's name</span>
                 <button onclick="declareWinner()">🎉 DECLARE WINNER!</button>
             </div>
+            
+            <!-- CLOSE CHAT BUTTON -->
+            <button class="close-chat-btn" onclick="closeChatSession()">🔒 Close Chat Session</button>
+            
             <div class="chat-container">
                 <div class="chat-messages" id="adminChatMessages">
                     <div style="text-align:center;color:#666;padding:50px">Connecting to chat...</div>
@@ -108,67 +113,57 @@
             <div style="margin-top:8px;font-size:11px;color:#888;text-align:center">👑 Tap a user's name to select as winner</div>
         </div>
 
+        <!-- TIMERS -->
         <div id="timersSection" class="section">
             <h2>⏰ Timer & Info Bar</h2>
-            <div class="setting-group"><h3>🎮 Game Timer</h3>
+            <div class="setting-group">
+                <h3>🎮 Game Timer</h3>
                 <div class="setting-row">
                     <div><label>Hours</label><input type="number" id="gameHours" min="0" max="168" value="24"></div>
                     <div><label>Minutes</label><input type="number" id="gameMinutes" min="0" max="59" value="0"></div>
                     <div><label>Seconds</label><input type="number" id="gameSeconds" min="0" max="59" value="0"></div>
                 </div>
-                <button class="apply-btn" id="applyGameTimerBtn">🎯 Apply</button>
+                <button class="apply-btn" id="applyGameTimerBtn">🎯 Apply Game Timer</button>
             </div>
-            <div class="setting-group"><h3>📢 Info Bar</h3>
-                <label>Message</label><input type="text" id="infoText">
+            <div class="setting-group">
+                <h3>📢 Info Bar</h3>
+                <label>Message</label><input type="text" id="infoText" placeholder="Enter announcement message">
                 <label style="margin-top:10px">Color</label><input type="color" id="infoColor" value="#667eea">
-                <button class="apply-btn" id="applyInfoBarBtn">📢 Apply</button>
+                <button class="apply-btn" id="applyInfoBarBtn">📢 Apply Info Bar</button>
             </div>
         </div>
 
-        <div id="paymentsSection" class="section">
-            <h2>⏳ Pending Payments</h2>
-            <div id="pendingPaymentsList">Loading...</div>
-        </div>
-
-        <div id="usersSection" class="section">
-            <h2>👥 Registered Users</h2>
-            <div id="usersList">Loading...</div>
-        </div>
+        <!-- PAYMENTS -->
+        <div id="paymentsSection" class="section"><h2>⏳ Pending Payments</h2><div id="pendingPaymentsList">Loading...</div></div>
+        
+        <!-- USERS -->
+        <div id="usersSection" class="section"><h2>👥 Registered Users</h2><div id="usersList">Loading...</div></div>
     </div>
 
     <script>
         const API_URL = '/api';
-        let socket = null;
-        let adminMessages = [];
-        let currentUser = null;
-        let selectedWinner = null;
+        let socket = null, adminMessages = [], currentUser = null, selectedWinner = null;
 
+        // Toast
         function showToast(msg, type) {
             const t = document.createElement('div');
-            t.style.cssText = `position:fixed;top:20px;right:20px;z-index:9999;background:${type==='error'?'#ef4444':'#10b981'};color:#fff;padding:12px 20px;border-radius:8px;animation:fadeIn 0.3s`;
-            t.textContent = msg;
-            document.body.appendChild(t);
+            t.className = 'toast ' + (type || 'success');
+            t.textContent = msg; document.body.appendChild(t);
             setTimeout(() => t.remove(), 3000);
         }
 
         function escapeHtml(text) {
             if (!text) return '';
-            const d = document.createElement('div');
-            d.textContent = String(text);
-            return d.innerHTML;
+            const d = document.createElement('div'); d.textContent = String(text); return d.innerHTML;
         }
 
         async function apiFetch(url, options = {}) {
-            const res = await fetch(url, {
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json', ...options.headers },
-                ...options,
-                headers: { 'Content-Type': 'application/json', ...options.headers }
-            });
+            const res = await fetch(url, {credentials:'include',headers:{'Content-Type':'application/json',...options.headers},...options,headers:{'Content-Type':'application/json',...options.headers}});
             if (res.status === 401) window.location.href = '/login.html';
             return res;
         }
 
+        // Navigation
         function showSection(section) {
             if (section === 'logout') { handleLogout(); return; }
             document.querySelectorAll('.section, .broadcast-section').forEach(s => s.classList.remove('active'));
@@ -182,98 +177,62 @@
             if (section === 'timers') loadSettings();
         }
 
+        // Socket
         function initChatSocket() {
             if (socket?.connected) return;
             if (socket) { socket.disconnect(); socket.removeAllListeners(); }
-            
             socket = io('/', { withCredentials: true, transports: ['websocket', 'polling'] });
-            
-            socket.on('connect', () => { socket.emit('join_chat'); });
-            
-            socket.on('chat_history', (data) => {
-                adminMessages = data.messages || [];
-                renderAdminChat();
-            });
-            
-            socket.on('new_message', (msg) => {
-                adminMessages.push(msg);
-                renderAdminChat();
-            });
+            socket.on('connect', () => socket.emit('join_chat'));
+            socket.on('chat_history', (data) => { adminMessages = data.messages || []; renderAdminChat(); });
+            socket.on('new_message', (msg) => { adminMessages.push(msg); renderAdminChat(); });
         }
 
+        // Render Chat
         function renderAdminChat() {
             const container = document.getElementById('adminChatMessages');
             if (!container) return;
-            
-            if (adminMessages.length === 0) {
-                container.innerHTML = '<div style="text-align:center;color:#666;padding:50px">No messages yet</div>';
-                return;
-            }
+            if (!adminMessages.length) { container.innerHTML = '<div style="text-align:center;color:#666;padding:50px">No messages yet</div>'; return; }
             
             let html = '';
             adminMessages.forEach(msg => {
                 const time = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '';
-                
                 if (msg.isSystem) {
-                    const isClaim = msg.sender?.includes('💰');
-                    const isWin = msg.sender?.includes('🏆');
-                    
-                    if (isClaim) {
-                        // ✅ Show claim details in a nice card
-                        html += `<div class="claim-card-admin">
-                            <div class="claim-title">💰 CLAIM DETAILS</div>
-                            <div class="claim-detail">${escapeHtml(msg.text)}</div>
-                        </div>`;
-                    } else if (isWin) {
-                        html += `<div style="text-align:center;font-size:13px;color:#f59e0b;margin:8px 0;padding:10px;background:rgba(245,158,11,0.1);border-radius:12px;border:1px solid #f59e0b">🏆 ${escapeHtml(msg.text)}</div>`;
-                    } else {
-                        html += `<div style="text-align:center;font-size:11px;color:#888;margin:8px 0">📢 ${escapeHtml(msg.text)}</div>`;
-                    }
+                    const isClaim = msg.sender?.includes('💰'), isWin = msg.sender?.includes('🏆');
+                    if (isClaim) html += `<div class="claim-card-admin"><div class="claim-title">💰 CLAIM DETAILS</div><div class="claim-detail">${escapeHtml(msg.text)}</div></div>`;
+                    else if (isWin) html += `<div style="text-align:center;font-size:13px;color:#f59e0b;margin:8px 0;padding:10px;background:rgba(245,158,11,0.1);border-radius:12px;border:1px solid #f59e0b">🏆 ${escapeHtml(msg.text)}</div>`;
+                    else html += `<div style="text-align:center;font-size:11px;color:#888;margin:8px 0">📢 ${escapeHtml(msg.text)}</div>`;
                 } else {
-                    const isOwn = msg.sender?.includes('👑');
-                    const senderName = escapeHtml(msg.sender || 'User');
-                    
-                    // ✅ Clickable sender names for winner selection
-                    const senderHtml = isOwn 
-                        ? `<div style="font-size:11px;font-weight:bold;margin-bottom:4px;opacity:0.8">${senderName}</div>`
-                        : `<div style="font-size:11px;font-weight:bold;margin-bottom:4px;opacity:0.8;cursor:pointer;color:#f59e0b;text-decoration:underline" onclick="selectWinner('${escapeHtml(msg.sender)}','${escapeHtml(msg.senderEmail||'')}')">👤 ${senderName}</div>`;
-                    
-                    html += `<div style="max-width:75%;padding:8px 12px;border-radius:12px;${isOwn?'background:#075E54;margin-left:auto':'background:#2d2d44'}">
-                        ${senderHtml}
-                        <div style="font-size:14px;word-break:break-word">${escapeHtml(msg.text)}</div>
-                        <div style="font-size:9px;opacity:0.5;text-align:right;margin-top:4px">${time}</div>
-                    </div>`;
+                    const isOwn = msg.sender?.includes('👑'), sender = escapeHtml(msg.sender || 'User');
+                    const senderHtml = isOwn ? `<div style="font-size:11px;font-weight:bold;margin-bottom:4px;opacity:0.8">${sender}</div>`
+                        : `<div style="font-size:11px;font-weight:bold;margin-bottom:4px;opacity:0.8;cursor:pointer;color:#f59e0b;text-decoration:underline" onclick="selectWinner('${escapeHtml(msg.sender)}','${escapeHtml(msg.senderEmail||'')}')">👤 ${sender}</div>`;
+                    html += `<div style="max-width:75%;padding:8px 12px;border-radius:12px;${isOwn?'background:#075E54;margin-left:auto':'background:#2d2d44'}">${senderHtml}<div style="font-size:14px;word-break:break-word">${escapeHtml(msg.text)}</div><div style="font-size:9px;opacity:0.5;text-align:right;margin-top:4px">${time}</div></div>`;
                 }
             });
-            container.innerHTML = html;
-            container.scrollTop = container.scrollHeight;
+            container.innerHTML = html; container.scrollTop = container.scrollHeight;
         }
 
-        // ✅ WINNER FUNCTIONS
+        // Winner Functions
         function selectWinner(name, email) {
             selectedWinner = { name, email };
             document.getElementById('winBar').style.display = 'block';
             document.getElementById('selectedWinnerName').textContent = name;
-            showToast('✅ Selected: ' + name, 'success');
+            showToast('✅ Selected: ' + name);
         }
-
         function declareWinner() {
             if (!selectedWinner) { showToast('❌ Tap a user name first!', 'error'); return; }
             if (!socket?.connected) { showToast('❌ Chat not connected', 'error'); return; }
             socket.emit('declare_winner', { email: selectedWinner.email, name: selectedWinner.name });
-            showToast('🏆 Winner declared!', 'success');
+            showToast('🏆 Winner declared!');
             document.getElementById('winBar').style.display = 'none';
             selectedWinner = null;
         }
 
+        // Chat Actions
         function sendAdminMessage() {
-            const input = document.getElementById('adminChatInput');
-            const text = input.value.trim();
+            const input = document.getElementById('adminChatInput'), text = input.value.trim();
             if (!text || !socket?.connected) return;
-            socket.emit('send_message', { text });
-            input.value = '';
+            socket.emit('send_message', { text }); input.value = '';
         }
-
         function sendBroadcast() {
             const msg = document.getElementById('broadcastMessage').value.trim();
             if (!msg) { showToast('Enter a message', 'error'); return; }
@@ -282,57 +241,46 @@
             document.getElementById('broadcastMessage').value = '';
             showToast('📢 Broadcast sent!');
         }
+        function closeChatSession() {
+            if (!confirm('⚠️ Close chat for ALL users? They will be redirected to homepage.')) return;
+            if (!socket?.connected) { showToast('❌ Chat not connected', 'error'); return; }
+            socket.emit('close_chat_session');
+            showToast('🔒 Chat closed! All users redirected.');
+        }
 
+        // Data Loading
         async function loadStats() {
             try {
                 const [uR, pR] = await Promise.all([apiFetch('/api/admin/users'), apiFetch('/api/admin/pending-payments')]);
-                const u = await uR.json(); const p = await pR.json();
+                const u = await uR.json(), p = await pR.json();
                 document.getElementById('statsGrid').innerHTML = `
                     <div class="stat-card"><div class="stat-number">${u.users?.length||0}</div><div>Total Users</div></div>
                     <div class="stat-card"><div class="stat-number">${u.users?.filter(x=>x.payment_verified).length||0}</div><div>Verified</div></div>
                     <div class="stat-card"><div class="stat-number">${p.payments?.length||0}</div><div>Pending</div></div>`;
             } catch(e) {}
         }
-
         async function loadPendingPayments() {
             const c = document.getElementById('pendingPaymentsList');
             try {
-                const r = await apiFetch('/api/admin/pending-payments');
-                const d = await r.json();
-                const items = d.payments || [];
+                const r = await apiFetch('/api/admin/pending-payments'), d = await r.json(), items = d.payments || [];
                 if (!items.length) { c.innerHTML = '<p style="color:#888;text-align:center;padding:20px">No pending payments</p>'; return; }
-                c.innerHTML = items.map(p => `
-                    <div class="payment-item">
-                        <div><strong>${escapeHtml(p.full_name)}</strong><br>📧 ${escapeHtml(p.user_email)}<br>🏦 ${escapeHtml(p.bank_name)}<br>🆔 ${escapeHtml(p.reference)}</div>
-                        <button class="verify-btn" onclick="verifyPayment(${p.id})">✅ Verify</button>
-                    </div>`).join('');
-            } catch(e) { c.innerHTML = '<p style="color:#ef4444">Error</p>'; }
+                c.innerHTML = items.map(p => `<div class="payment-item"><div><strong>${escapeHtml(p.full_name)}</strong><br>📧 ${escapeHtml(p.user_email)}<br>🏦 ${escapeHtml(p.bank_name)}<br>🆔 ${escapeHtml(p.reference)}</div><button class="verify-btn" onclick="verifyPayment(${p.id})">✅ Verify</button></div>`).join('');
+            } catch(e) { c.innerHTML = '<p style="color:#ef4444">Error loading payments</p>'; }
         }
-
         async function verifyPayment(id) {
             await apiFetch('/api/admin/verify', { method:'POST', body:JSON.stringify({paymentId:id}) });
-            showToast('✅ Verified!');
-            loadPendingPayments(); loadStats(); loadUsers();
+            showToast('✅ Verified!'); loadPendingPayments(); loadStats(); loadUsers();
         }
-
         async function loadUsers() {
             const c = document.getElementById('usersList');
             try {
-                const r = await apiFetch('/api/admin/users');
-                const d = await r.json();
-                c.innerHTML = (d.users||[]).map(u => `
-                    <div class="user-item">
-                        <div><strong>${escapeHtml(u.full_name)}</strong><br>📧 ${escapeHtml(u.email)}</div>
-                        <span class="badge ${u.payment_verified?'badge-approved':'badge-pending'}">${u.payment_verified?'✅ Verified':'⏳ Pending'}</span>
-                    </div>`).join('');
-            } catch(e) { c.innerHTML = '<p style="color:#ef4444">Error</p>'; }
+                const r = await apiFetch('/api/admin/users'), d = await r.json();
+                c.innerHTML = (d.users||[]).map(u => `<div class="user-item"><div><strong>${escapeHtml(u.full_name)}</strong><br>📧 ${escapeHtml(u.email)}</div><span class="badge ${u.payment_verified?'badge-approved':'badge-pending'}">${u.payment_verified?'✅ Verified':'⏳ Pending'}</span></div>`).join('');
+            } catch(e) { c.innerHTML = '<p style="color:#ef4444">Error loading users</p>'; }
         }
-
         async function loadSettings() {
             try {
-                const r = await apiFetch('/api/settings');
-                const d = await r.json();
-                const s = d.settings || {};
+                const r = await apiFetch('/api/settings'), d = await r.json(), s = d.settings || {};
                 document.getElementById('gameHours').value = s.game_timer_hours||24;
                 document.getElementById('gameMinutes').value = s.game_timer_minutes||0;
                 document.getElementById('gameSeconds').value = s.game_timer_seconds||0;
@@ -340,7 +288,6 @@
                 document.getElementById('infoColor').value = s.info_bar_color||'#667eea';
             } catch(e) {}
         }
-
         async function applyGameTimer() {
             const h=document.getElementById('gameHours').value,m=document.getElementById('gameMinutes').value,s=document.getElementById('gameSeconds').value;
             await Promise.all([
@@ -348,9 +295,8 @@
                 apiFetch('/api/admin/update-settings',{method:'POST',body:JSON.stringify({key:'game_timer_minutes',value:m})}),
                 apiFetch('/api/admin/update-settings',{method:'POST',body:JSON.stringify({key:'game_timer_seconds',value:s})})
             ]);
-            showToast('✅ Timer applied!');
+            showToast('✅ Game timer applied!');
         }
-
         async function applyInfoBar() {
             await Promise.all([
                 apiFetch('/api/admin/update-settings',{method:'POST',body:JSON.stringify({key:'info_bar_text',value:document.getElementById('infoText').value})}),
@@ -358,27 +304,22 @@
             ]);
             showToast('✅ Info bar applied!');
         }
-
         async function handleLogout() {
             await apiFetch('/api/auth/logout',{method:'POST'});
-            if(socket)socket.disconnect();
-            localStorage.clear();
-            window.location.href='/login.html';
+            if(socket)socket.disconnect(); localStorage.clear(); window.location.href='/login.html';
         }
 
+        // Init
         async function init() {
             try {
-                const r = await apiFetch('/api/auth/me');
-                const user = await r.json();
-                if(!user.isAdmin){window.location.href='/index.html';return;}
+                const r = await apiFetch('/api/auth/me'), user = await r.json();
+                if (!user.isAdmin) { window.location.href = '/index.html'; return; }
                 document.getElementById('adminEmail').textContent = user.email;
                 currentUser = user;
                 
-                document.querySelectorAll('.nav-item').forEach(item => {
-                    item.addEventListener('click', function(){showSection(this.dataset.section);});
-                });
+                document.querySelectorAll('.nav-item').forEach(item => item.addEventListener('click', function() { showSection(this.dataset.section); }));
                 document.getElementById('sendChatBtn').addEventListener('click', sendAdminMessage);
-                document.getElementById('adminChatInput').addEventListener('keypress', function(e){if(e.key==='Enter')sendAdminMessage();});
+                document.getElementById('adminChatInput').addEventListener('keypress', function(e) { if (e.key === 'Enter') sendAdminMessage(); });
                 document.getElementById('broadcastBtn').addEventListener('click', sendBroadcast);
                 document.getElementById('applyGameTimerBtn').addEventListener('click', applyGameTimer);
                 document.getElementById('applyInfoBarBtn').addEventListener('click', applyInfoBar);
@@ -386,7 +327,6 @@
                 loadStats();
             } catch(e) { window.location.href = '/login.html'; }
         }
-
         document.addEventListener('DOMContentLoaded', init);
     </script>
 </body>

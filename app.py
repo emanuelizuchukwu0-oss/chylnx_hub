@@ -468,6 +468,43 @@ def on_submit_claim(data):
             }, room=admin_data['sid'])
     
     logger.info(f'💰 Claim from {winner_name} sent to admin only')
+
+@socketio.on('close_chat_session')
+def on_close_chat():
+    email = session.get('user_email')
+    if not email: return
+    
+    # Verify sender is admin
+    conn = get_db()
+    admin = conn.execute("SELECT is_admin FROM users WHERE email=?", (email,)).fetchone()
+    if not admin or not admin['is_admin']:
+        conn.close()
+        return
+    conn.close()
+    
+    # Save system message
+    close_msg = '🔒 All winners have been rewarded! Chat session is now closed.'
+    conn = get_db()
+    conn.execute("INSERT INTO messages (sender_name,sender_email,message_text,is_system,timestamp) VALUES (?,?,?,?,CURRENT_TIMESTAMP)",
+                 ('🔒 SYSTEM', email, close_msg, 1))
+    conn.commit()
+    conn.close()
+    
+    # Send close signal to ALL users in main_chat
+    emit('chat_closed', {
+        'message': '🏆 All winners have been rewarded and the session has closed! 🏆\n\nRedirecting to homepage...'
+    }, room='main_chat')
+    
+    # Also send as system message
+    emit('new_message', {
+        'id': 0,
+        'sender': '🔒 SYSTEM',
+        'text': close_msg,
+        'timestamp': datetime.now().isoformat(),
+        'isSystem': True
+    }, room='main_chat')
+    
+    logger.info(f'🔒 Chat closed by admin: {email}')
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
     logger.info("=" * 50)
