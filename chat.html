@@ -268,15 +268,11 @@
             }, 12000);
         }
 
-        function closeWinnerOverlay() {
-            var o = document.querySelector('.winner-overlay');
-            if (o) o.remove();
-            document.getElementById('confettiContainer').innerHTML = '';
-            
-            if (isWinner) {
-                setTimeout(function() { showClaimOverlay(); }, 500);
-            }
-        }
+       function closeWinnerOverlay() {
+    var o = document.querySelector('.winner-overlay');
+    if (o) o.remove();
+    document.getElementById('confettiContainer').innerHTML = '';
+}
         
         function showClaimOverlay() {
             var existing = document.querySelector('.claim-overlay');
