@@ -30,9 +30,12 @@
         .setting-group{margin-bottom:20px;padding:15px;background:#0f0f1a;border-radius:12px}
         .setting-group h3{margin-bottom:15px}
         .setting-group label{display:block;margin-bottom:8px;font-weight:600}
-        .setting-group input{width:100%;padding:10px;border-radius:8px;border:none;background:#2d2d44;color:#fff}
-        .setting-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:15px}
-        .apply-btn{background:#667eea;color:#fff;border:none;padding:10px 20px;border-radius:30px;cursor:pointer;width:100%;font-weight:600}
+        .setting-group input,.setting-group textarea{width:100%;padding:10px;border-radius:8px;border:none;background:#2d2d44;color:#fff}
+        .setting-group input[type="color"]{height:40px;cursor:pointer;padding:5px}
+        .setting-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:15px}
+        .setting-row-3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:15px}
+        .apply-btn{background:#667eea;color:#fff;border:none;padding:10px 20px;border-radius:30px;cursor:pointer;width:100%;font-weight:600;margin-top:5px}
+        .apply-btn:hover{background:#5a6fd6}
         .broadcast-section{background:linear-gradient(135deg,#667eea,#764ba2);padding:20px;border-radius:16px;margin-bottom:20px}
         .broadcast-input{width:100%;padding:12px;border-radius:12px;border:none;background:rgba(255,255,255,0.2);color:#fff;margin-bottom:10px;resize:vertical;min-height:60px}
         .broadcast-btn{background:#fff;color:#667eea;border:none;padding:10px 20px;border-radius:30px;cursor:pointer;font-weight:600;width:100%}
@@ -57,7 +60,7 @@
             .sidebar{width:100%;height:auto;position:relative;display:flex;flex-wrap:wrap;gap:8px;padding:12px;justify-content:center}
             .sidebar .logo{width:100%;margin-bottom:10px}
             .main-content{margin-left:0}
-            .setting-row{grid-template-columns:repeat(2,1fr)}
+            .setting-row,.setting-row-3{grid-template-columns:repeat(2,1fr)}
         }
     </style>
 </head>
@@ -91,16 +94,11 @@
         <!-- LIVE CHAT -->
         <div id="chatSection" class="section">
             <h2>💬 Live Chat</h2>
-            
-            <!-- WIN BAR -->
             <div class="win-bar" id="winBar">
                 🏆 Selected: <span id="selectedWinnerName">Tap a user's name</span>
                 <button onclick="declareWinner()">🎉 DECLARE WINNER!</button>
             </div>
-            
-            <!-- CLOSE CHAT BUTTON -->
             <button class="close-chat-btn" onclick="closeChatSession()">🔒 Close Chat Session</button>
-            
             <div class="chat-container">
                 <div class="chat-messages" id="adminChatMessages">
                     <div style="text-align:center;color:#666;padding:50px">Connecting to chat...</div>
@@ -113,23 +111,55 @@
             <div style="margin-top:8px;font-size:11px;color:#888;text-align:center">👑 Tap a user's name to select as winner</div>
         </div>
 
-        <!-- TIMERS -->
+        <!-- ✅ TIMERS & INFO BARS -->
         <div id="timersSection" class="section">
-            <h2>⏰ Timer & Info Bar</h2>
+            <h2>⏰ Timer & Info Bar Settings</h2>
+            
+            <!-- Game Timer -->
             <div class="setting-group">
                 <h3>🎮 Game Timer</h3>
-                <div class="setting-row">
+                <div class="setting-row-3">
                     <div><label>Hours</label><input type="number" id="gameHours" min="0" max="168" value="24"></div>
                     <div><label>Minutes</label><input type="number" id="gameMinutes" min="0" max="59" value="0"></div>
                     <div><label>Seconds</label><input type="number" id="gameSeconds" min="0" max="59" value="0"></div>
                 </div>
                 <button class="apply-btn" id="applyGameTimerBtn">🎯 Apply Game Timer</button>
             </div>
+            
+            <!-- Weekly Timer -->
             <div class="setting-group">
-                <h3>📢 Info Bar</h3>
-                <label>Message</label><input type="text" id="infoText" placeholder="Enter announcement message">
-                <label style="margin-top:10px">Color</label><input type="color" id="infoColor" value="#667eea">
-                <button class="apply-btn" id="applyInfoBarBtn">📢 Apply Info Bar</button>
+                <h3>📅 Weekly Timer</h3>
+                <div class="setting-row">
+                    <div><label>Days</label><input type="number" id="weeklyDays" min="0" max="30" value="7"></div>
+                    <div><label>Hours</label><input type="number" id="weeklyHours" min="0" max="23" value="0"></div>
+                    <div><label>Minutes</label><input type="number" id="weeklyMinutes" min="0" max="59" value="0"></div>
+                    <div><label>Seconds</label><input type="number" id="weeklySeconds" min="0" max="59" value="0"></div>
+                </div>
+                <button class="apply-btn" id="applyWeeklyTimerBtn">📅 Apply Weekly Timer</button>
+            </div>
+            
+            <!-- Info Bar 1 -->
+            <div class="setting-group">
+                <h3>📢 Info Bar 1</h3>
+                <label>Message</label><input type="text" id="infoText1" placeholder="Enter message for info bar 1">
+                <label style="margin-top:10px">Color</label><input type="color" id="infoColor1" value="#667eea">
+                <button class="apply-btn" id="applyInfoBar1Btn">📢 Apply Info Bar 1</button>
+            </div>
+            
+            <!-- Info Bar 2 -->
+            <div class="setting-group">
+                <h3>📢 Info Bar 2</h3>
+                <label>Message</label><input type="text" id="infoText2" placeholder="Enter message for info bar 2">
+                <label style="margin-top:10px">Color</label><input type="color" id="infoColor2" value="#f59e0b">
+                <button class="apply-btn" id="applyInfoBar2Btn">📢 Apply Info Bar 2</button>
+            </div>
+            
+            <!-- Info Bar 3 -->
+            <div class="setting-group">
+                <h3>📢 Info Bar 3</h3>
+                <label>Message</label><input type="text" id="infoText3" placeholder="Enter message for info bar 3">
+                <label style="margin-top:10px">Color</label><input type="color" id="infoColor3" value="#764ba2">
+                <button class="apply-btn" id="applyInfoBar3Btn">📢 Apply Info Bar 3</button>
             </div>
         </div>
 
@@ -144,26 +174,19 @@
         const API_URL = '/api';
         let socket = null, adminMessages = [], currentUser = null, selectedWinner = null;
 
-        // Toast
         function showToast(msg, type) {
-            const t = document.createElement('div');
-            t.className = 'toast ' + (type || 'success');
-            t.textContent = msg; document.body.appendChild(t);
-            setTimeout(() => t.remove(), 3000);
+            const t = document.createElement('div'); t.className = 'toast ' + (type || 'success');
+            t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 3000);
         }
-
         function escapeHtml(text) {
-            if (!text) return '';
-            const d = document.createElement('div'); d.textContent = String(text); return d.innerHTML;
+            if (!text) return ''; const d = document.createElement('div'); d.textContent = String(text); return d.innerHTML;
         }
-
         async function apiFetch(url, options = {}) {
-            const res = await fetch(url, {credentials:'include',headers:{'Content-Type':'application/json',...options.headers},...options,headers:{'Content-Type':'application/json',...options.headers}});
+            const res = await fetch(url, {credentials:'include',headers:{'Content-Type':'application/json'},...options,headers:{'Content-Type':'application/json',...options.headers}});
             if (res.status === 401) window.location.href = '/login.html';
             return res;
         }
 
-        // Navigation
         function showSection(section) {
             if (section === 'logout') { handleLogout(); return; }
             document.querySelectorAll('.section, .broadcast-section').forEach(s => s.classList.remove('active'));
@@ -177,7 +200,6 @@
             if (section === 'timers') loadSettings();
         }
 
-        // Socket
         function initChatSocket() {
             if (socket?.connected) return;
             if (socket) { socket.disconnect(); socket.removeAllListeners(); }
@@ -187,12 +209,10 @@
             socket.on('new_message', (msg) => { adminMessages.push(msg); renderAdminChat(); });
         }
 
-        // Render Chat
         function renderAdminChat() {
             const container = document.getElementById('adminChatMessages');
             if (!container) return;
             if (!adminMessages.length) { container.innerHTML = '<div style="text-align:center;color:#666;padding:50px">No messages yet</div>'; return; }
-            
             let html = '';
             adminMessages.forEach(msg => {
                 const time = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '';
@@ -211,7 +231,6 @@
             container.innerHTML = html; container.scrollTop = container.scrollHeight;
         }
 
-        // Winner Functions
         function selectWinner(name, email) {
             selectedWinner = { name, email };
             document.getElementById('winBar').style.display = 'block';
@@ -227,7 +246,6 @@
             selectedWinner = null;
         }
 
-        // Chat Actions
         function sendAdminMessage() {
             const input = document.getElementById('adminChatInput'), text = input.value.trim();
             if (!text || !socket?.connected) return;
@@ -242,13 +260,12 @@
             showToast('📢 Broadcast sent!');
         }
         function closeChatSession() {
-            if (!confirm('⚠️ Close chat for ALL users? They will be redirected to homepage.')) return;
+            if (!confirm('⚠️ Close chat for ALL users? They will need to pay again to re-enter.')) return;
             if (!socket?.connected) { showToast('❌ Chat not connected', 'error'); return; }
             socket.emit('close_chat_session');
-            showToast('🔒 Chat closed! All users redirected.');
+            showToast('🔒 Chat closed! All users redirected. Payments reset.');
         }
 
-        // Data Loading
         async function loadStats() {
             try {
                 const [uR, pR] = await Promise.all([apiFetch('/api/admin/users'), apiFetch('/api/admin/pending-payments')]);
@@ -278,16 +295,32 @@
                 c.innerHTML = (d.users||[]).map(u => `<div class="user-item"><div><strong>${escapeHtml(u.full_name)}</strong><br>📧 ${escapeHtml(u.email)}</div><span class="badge ${u.payment_verified?'badge-approved':'badge-pending'}">${u.payment_verified?'✅ Verified':'⏳ Pending'}</span></div>`).join('');
             } catch(e) { c.innerHTML = '<p style="color:#ef4444">Error loading users</p>'; }
         }
+        
         async function loadSettings() {
             try {
                 const r = await apiFetch('/api/settings'), d = await r.json(), s = d.settings || {};
+                // Game Timer
                 document.getElementById('gameHours').value = s.game_timer_hours||24;
                 document.getElementById('gameMinutes').value = s.game_timer_minutes||0;
                 document.getElementById('gameSeconds').value = s.game_timer_seconds||0;
-                document.getElementById('infoText').value = s.info_bar_text||'';
-                document.getElementById('infoColor').value = s.info_bar_color||'#667eea';
+                // Weekly Timer
+                document.getElementById('weeklyDays').value = s.weekly_timer_days||7;
+                document.getElementById('weeklyHours').value = s.weekly_timer_hours||0;
+                document.getElementById('weeklyMinutes').value = s.weekly_timer_minutes||0;
+                document.getElementById('weeklySeconds').value = s.weekly_timer_seconds||0;
+                // Info Bar 1
+                document.getElementById('infoText1').value = s.info_bar_text||'';
+                document.getElementById('infoColor1').value = s.info_bar_color||'#667eea';
+                // Info Bar 2
+                document.getElementById('infoText2').value = s.info_bar2_text||'';
+                document.getElementById('infoColor2').value = s.info_bar2_color||'#f59e0b';
+                // Info Bar 3
+                document.getElementById('infoText3').value = s.info_bar3_text||'';
+                document.getElementById('infoColor3').value = s.info_bar3_color||'#764ba2';
             } catch(e) {}
         }
+
+        // Apply functions
         async function applyGameTimer() {
             const h=document.getElementById('gameHours').value,m=document.getElementById('gameMinutes').value,s=document.getElementById('gameSeconds').value;
             await Promise.all([
@@ -297,19 +330,43 @@
             ]);
             showToast('✅ Game timer applied!');
         }
-        async function applyInfoBar() {
+        async function applyWeeklyTimer() {
+            const d=document.getElementById('weeklyDays').value,h=document.getElementById('weeklyHours').value,m=document.getElementById('weeklyMinutes').value,s=document.getElementById('weeklySeconds').value;
             await Promise.all([
-                apiFetch('/api/admin/update-settings',{method:'POST',body:JSON.stringify({key:'info_bar_text',value:document.getElementById('infoText').value})}),
-                apiFetch('/api/admin/update-settings',{method:'POST',body:JSON.stringify({key:'info_bar_color',value:document.getElementById('infoColor').value})})
+                apiFetch('/api/admin/update-settings',{method:'POST',body:JSON.stringify({key:'weekly_timer_days',value:d})}),
+                apiFetch('/api/admin/update-settings',{method:'POST',body:JSON.stringify({key:'weekly_timer_hours',value:h})}),
+                apiFetch('/api/admin/update-settings',{method:'POST',body:JSON.stringify({key:'weekly_timer_minutes',value:m})}),
+                apiFetch('/api/admin/update-settings',{method:'POST',body:JSON.stringify({key:'weekly_timer_seconds',value:s})})
             ]);
-            showToast('✅ Info bar applied!');
+            showToast('✅ Weekly timer applied!');
         }
+        async function applyInfoBar1() {
+            await Promise.all([
+                apiFetch('/api/admin/update-settings',{method:'POST',body:JSON.stringify({key:'info_bar_text',value:document.getElementById('infoText1').value})}),
+                apiFetch('/api/admin/update-settings',{method:'POST',body:JSON.stringify({key:'info_bar_color',value:document.getElementById('infoColor1').value})})
+            ]);
+            showToast('✅ Info Bar 1 applied!');
+        }
+        async function applyInfoBar2() {
+            await Promise.all([
+                apiFetch('/api/admin/update-settings',{method:'POST',body:JSON.stringify({key:'info_bar2_text',value:document.getElementById('infoText2').value})}),
+                apiFetch('/api/admin/update-settings',{method:'POST',body:JSON.stringify({key:'info_bar2_color',value:document.getElementById('infoColor2').value})})
+            ]);
+            showToast('✅ Info Bar 2 applied!');
+        }
+        async function applyInfoBar3() {
+            await Promise.all([
+                apiFetch('/api/admin/update-settings',{method:'POST',body:JSON.stringify({key:'info_bar3_text',value:document.getElementById('infoText3').value})}),
+                apiFetch('/api/admin/update-settings',{method:'POST',body:JSON.stringify({key:'info_bar3_color',value:document.getElementById('infoColor3').value})})
+            ]);
+            showToast('✅ Info Bar 3 applied!');
+        }
+
         async function handleLogout() {
             await apiFetch('/api/auth/logout',{method:'POST'});
             if(socket)socket.disconnect(); localStorage.clear(); window.location.href='/login.html';
         }
 
-        // Init
         async function init() {
             try {
                 const r = await apiFetch('/api/auth/me'), user = await r.json();
@@ -322,7 +379,10 @@
                 document.getElementById('adminChatInput').addEventListener('keypress', function(e) { if (e.key === 'Enter') sendAdminMessage(); });
                 document.getElementById('broadcastBtn').addEventListener('click', sendBroadcast);
                 document.getElementById('applyGameTimerBtn').addEventListener('click', applyGameTimer);
-                document.getElementById('applyInfoBarBtn').addEventListener('click', applyInfoBar);
+                document.getElementById('applyWeeklyTimerBtn').addEventListener('click', applyWeeklyTimer);
+                document.getElementById('applyInfoBar1Btn').addEventListener('click', applyInfoBar1);
+                document.getElementById('applyInfoBar2Btn').addEventListener('click', applyInfoBar2);
+                document.getElementById('applyInfoBar3Btn').addEventListener('click', applyInfoBar3);
                 
                 loadStats();
             } catch(e) { window.location.href = '/login.html'; }
