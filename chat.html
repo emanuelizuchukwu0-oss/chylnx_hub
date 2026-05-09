@@ -27,12 +27,14 @@
         .input-area button:disabled{opacity:0.5}
         .green-dot{display:inline-block;width:8px;height:8px;background:#25D366;border-radius:50%;margin-right:5px}
         
+        /* Winner Overlay */
         .winner-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;z-index:9999;animation:fadeIn 0.5s}
         .winner-card{background:linear-gradient(135deg,#1a1a2e,#2d2d44);border:3px solid #f59e0b;border-radius:24px;padding:35px;text-align:center;max-width:420px;width:90%;animation:bounceIn 0.6s}
         .winner-emoji{font-size:70px;animation:bounce 1s infinite}
         .winner-title{font-size:22px;font-weight:800;background:linear-gradient(135deg,#f59e0b,#ef4444);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin:12px 0}
         .winner-name{font-size:20px;font-weight:700;color:#f59e0b;margin:8px 0}
         
+        /* Claim Overlay - Only winner */
         .claim-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.95);display:flex;align-items:center;justify-content:center;z-index:10000;animation:fadeIn 0.5s}
         .claim-card{background:linear-gradient(135deg,#1a5c1a,#2d8a2d);border:3px solid #4caf50;border-radius:24px;padding:30px;text-align:center;max-width:420px;width:90%;animation:bounceIn 0.6s}
         .claim-card h2{color:#fff;margin-bottom:8px}
@@ -44,7 +46,7 @@
         .claim-btn:hover{background:#e8f5e9}
         .claim-btn:disabled{opacity:0.6;cursor:not-allowed}
         
-        /* ✅ CHAT CLOSED OVERLAY */
+        /* Chat Closed Overlay */
         .chat-closed-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.95);display:flex;align-items:center;justify-content:center;z-index:10001;animation:fadeIn 0.5s}
         .chat-closed-card{background:linear-gradient(135deg,#1a1a2e,#2d2d44);border:3px solid #f59e0b;border-radius:24px;padding:40px;text-align:center;max-width:450px;width:90%;animation:bounceIn 0.6s}
         .chat-closed-emoji{font-size:80px;margin-bottom:15px}
@@ -62,6 +64,7 @@
         @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-20px)}}
         @keyframes confettiFall{0%{transform:translateY(-100px)rotate(0deg);opacity:1}100%{transform:translateY(100vh)rotate(720deg);opacity:0}}
         @keyframes spin{to{transform:rotate(360deg)}}
+        
         @media(max-width:480px){.winner-card,.claim-card,.chat-closed-card{padding:25px 20px}.winner-emoji,.chat-closed-emoji{font-size:50px}.winner-title,.chat-closed-title{font-size:18px}}
     </style>
 </head>
@@ -69,7 +72,6 @@
     <div class="header">
         <h3>💬 Chylnx Hub Chat</h3>
         <span class="online"><span class="green-dot"></span><span id="onlineCount">0</span> online</span>
-        <button onclick="logout()" style="background:none;border:none;color:#fff;cursor:pointer;font-size:20px">🚪</button>
     </div>
     <div class="messages" id="messagesContainer">
         <div style="text-align:center;color:#666;padding:50px">Connecting...</div>
@@ -132,9 +134,9 @@
             });
             
             socket.on('new_message', function(msg) {
-                // ✅ Check for chat close message
+                // Check for chat close message
                 if (msg.sender === '🔒 SYSTEM') {
-                    showChatClosedOverlay('🏆 All winners have been rewarded and the session has closed! 🏆\n\nRedirecting to homepage...');
+                    showChatClosedOverlay('🏆 All winners have been rewarded!\n🔒 Chat session is now closed.\n💳 Payment required to re-enter.\n\nRedirecting to homepage...');
                     return;
                 }
                 if (!msg.timestamp) msg.timestamp = new Date().toISOString();
@@ -145,7 +147,7 @@
                 document.getElementById('onlineCount').textContent = data.count || 0;
             });
 
-            // ✅ WINNER ANNOUNCEMENT
+            // Winner announcement
             socket.on('winner_announced', function(data) {
                 console.log('🏆 Winner announced:', data);
                 showWinnerOverlay(data.winner_name, data.winner_email);
@@ -158,10 +160,10 @@
                 }
             });
 
-            // ✅ CHAT CLOSED BY ADMIN
+            // Chat closed by admin
             socket.on('chat_closed', function(data) {
                 console.log('🔒 Chat closed by admin');
-                showChatClosedOverlay(data.message || 'All winners have been rewarded! Session closed.');
+                showChatClosedOverlay(data.message || 'Chat session closed. Redirecting...');
             });
 
             socket.on('error', function(data) { alert(data.message || 'Error'); });
@@ -257,7 +259,6 @@
                 '<input type="text" id="claimAccountNumber" placeholder="Account Number">' +
                 '<input type="text" id="claimBankName" placeholder="Bank Name (e.g., GTBank, UBA)">' +
                 '<button class="claim-btn" id="claimSubmitBtn" onclick="submitClaim()">💳 Submit & Claim Reward</button>' +
-                '<button onclick="closeClaimOverlay()" style="background:transparent;color:#ccc;border:1px solid #ccc;padding:8px 20px;border-radius:20px;cursor:pointer;width:100%;margin-top:8px;font-size:13px">Maybe Later</button>' +
                 '</div>';
             document.body.appendChild(overlay);
         }
@@ -285,7 +286,6 @@
             }, 2000);
         }
 
-        // ✅ CHAT CLOSED OVERLAY
         function showChatClosedOverlay(message) {
             var existing = document.querySelector('.chat-closed-overlay');
             if (existing) existing.remove();
@@ -311,10 +311,17 @@
             var interval = setInterval(function() {
                 count--;
                 if (countdownEl) countdownEl.textContent = count;
-                if (count <= 0) { clearInterval(interval); window.location.href = '/index.html'; }
+                if (count <= 0) { 
+                    clearInterval(interval); 
+                    localStorage.removeItem('chylnx_user');
+                    window.location.href = '/index.html'; 
+                }
             }, 1000);
             
-            setTimeout(function() { window.location.href = '/index.html'; }, 6000);
+            setTimeout(function() { 
+                localStorage.removeItem('chylnx_user');
+                window.location.href = '/index.html'; 
+            }, 6000);
         }
 
         function createConfetti() {
@@ -329,11 +336,6 @@
 
         function escapeHtml(text) {
             if (!text) return ''; var d = document.createElement('div'); d.textContent = String(text); return d.innerHTML;
-        }
-
-        async function logout() {
-            try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }); } catch(e) {}
-            if (socket) socket.disconnect(); localStorage.clear(); window.location.href = '/login.html';
         }
 
         init();

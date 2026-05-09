@@ -480,31 +480,32 @@ def on_close_chat():
     if not admin or not admin['is_admin']:
         conn.close()
         return
-    conn.close()
     
-    # Save system message
-    close_msg = '🔒 All winners have been rewarded! Chat session is now closed.'
-    conn = get_db()
+    # ✅ DELETE ALL MESSAGES from database
+    conn.execute("DELETE FROM messages")
+    
+    # ✅ RESET ALL USERS' payment verification (so they have to pay again)
+    conn.execute("UPDATE users SET payment_verified = 0 WHERE is_admin = 0")
+    
+    # ✅ Delete all claims
+    conn.execute("DELETE FROM claims")
+    
+    # ✅ Delete all payments
+    conn.execute("DELETE FROM payments")
+    
+    # Save system message about closure
+    close_msg = '🔒 Chat session closed! All messages cleared. Payment required to re-enter.'
     conn.execute("INSERT INTO messages (sender_name,sender_email,message_text,is_system,timestamp) VALUES (?,?,?,?,CURRENT_TIMESTAMP)",
                  ('🔒 SYSTEM', email, close_msg, 1))
     conn.commit()
     conn.close()
     
-    # Send close signal to ALL users in main_chat
+    # Send close signal to ALL users
     emit('chat_closed', {
-        'message': '🏆 All winners have been rewarded and the session has closed! 🏆\n\nRedirecting to homepage...'
+        'message': '🏆 All winners have been rewarded!\n🔒 Chat session is now closed.\n💳 Payment required to re-enter.\n\nRedirecting to homepage...'
     }, room='main_chat')
     
-    # Also send as system message
-    emit('new_message', {
-        'id': 0,
-        'sender': '🔒 SYSTEM',
-        'text': close_msg,
-        'timestamp': datetime.now().isoformat(),
-        'isSystem': True
-    }, room='main_chat')
-    
-    logger.info(f'🔒 Chat closed by admin: {email}')
+    logger.info(f'🔒 Chat closed by admin: {email}. Messages cleared, payments reset.')
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
     logger.info("=" * 50)
