@@ -284,6 +284,37 @@ def admin_settings():
     logger.info(f"⚙️ Setting updated: {k} = {v}")
     return jsonify({'success':True})
 
+# Add this route to GET timer end times
+@app.route('/api/timers', methods=['GET'])
+def get_timers():
+    conn = get_db()
+    rows = conn.execute("SELECT setting_key, setting_value FROM settings WHERE setting_key LIKE '%timer%'").fetchall()
+    settings = {r['setting_key']: r['setting_value'] for r in rows}
+    conn.close()
+    
+    # Return both the durations AND calculated end times
+    gh = int(settings.get('game_timer_hours', 0))
+    gm = int(settings.get('game_timer_minutes', 0))
+    gs = int(settings.get('game_timer_seconds', 0))
+    
+    wd = int(settings.get('weekly_timer_days', 0))
+    wh = int(settings.get('weekly_timer_hours', 0))
+    wm = int(settings.get('weekly_timer_minutes', 0))
+    ws = int(settings.get('weekly_timer_seconds', 0))
+    
+    now = datetime.now()
+    
+    return jsonify({
+        'game_timer': {
+            'hours': gh, 'minutes': gm, 'seconds': gs,
+            'end_time': (now + timedelta(hours=gh, minutes=gm, seconds=gs)).isoformat() if (gh or gm or gs) else None
+        },
+        'weekly_timer': {
+            'days': wd, 'hours': wh, 'minutes': wm, 'seconds': ws,
+            'end_time': (now + timedelta(days=wd, hours=wh, minutes=wm, seconds=ws)).isoformat() if (wd or wh or wm or ws) else None
+        }
+    })
+
 @app.route('/api/admin/online-users', methods=['GET'])
 def get_online_users():
     email = session.get('user_email')
@@ -365,6 +396,8 @@ def on_broadcast(data):
     conn.execute("INSERT INTO messages (sender_name,sender_email,message_text,is_system,timestamp) VALUES (?,?,?,?,CURRENT_TIMESTAMP)",('📢 ANNOUNCEMENT',email,txt,1))
     conn.commit(); conn.close()
     emit('new_message', {'id':0,'sender':'📢 ANNOUNCEMENT','text':txt,'timestamp':datetime.now().isoformat(),'isSystem':True,'senderEmail':email}, room='main_chat')
+
+    
 
 @socketio.on('declare_winner')
 def on_declare_winner(data):

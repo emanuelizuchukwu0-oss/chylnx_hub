@@ -21,7 +21,6 @@
         @keyframes rotate{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
         @keyframes spin{to{transform:rotate(360deg)}}
         .container{max-width:500px;margin:0 auto;position:relative;z-index:10}
-        /* ✅ REMOVED glow animation from card */
         .card{background:rgba(255,255,255,0.95);border-radius:40px;overflow:hidden;box-shadow:0 25px 50px -12px rgba(0,0,0,.35),0 0 30px rgba(76,175,80,0.15);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.2)}
         .header{background:linear-gradient(135deg,#1a5c1a,#2d8a2d,#1a5c1a);padding:30px;text-align:center;color:#fff;position:relative;overflow:hidden}
         .header::before{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:radial-gradient(circle,rgba(255,255,255,0.1)0%,transparent 70%);animation:rotate 20s linear infinite}
@@ -36,7 +35,6 @@
         .timer-card{background:linear-gradient(135deg,#0a3d0a,#1a5c1a);border-radius:24px;padding:20px;text-align:center;color:#fff;border:1px solid rgba(139,195,74,0.3)}
         .timer-title{font-size:16px;font-weight:600;margin-bottom:10px;opacity:0.9}
         .timer-display{font-size:28px;font-weight:800;font-family:'Courier New',monospace;background:rgba(0,0,0,0.3);padding:12px;border-radius:16px;letter-spacing:1px}
-        /* ✅ REMOVED pulse animation from info-bar */
         .info-bar{border-radius:16px;padding:15px 20px;margin-bottom:15px;text-align:center;color:#fff;font-size:14px;font-weight:500}
         .chat-btn{width:100%;background:linear-gradient(135deg,#2d8a2d,#4caf50);color:#fff;border:none;padding:16px;font-size:18px;font-weight:600;border-radius:50px;cursor:pointer;margin-top:10px}
         .chat-btn:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(76,175,80,0.4)}
@@ -145,78 +143,55 @@
 
             function getCachedUser() { try { const c=localStorage.getItem('chylnx_user'); return c?JSON.parse(c):null; } catch(e) { return null; } }
 
-            // ✅ FIXED: Properly read all settings including weekly timer
+            // ✅ Load timers from server (persistent end times)
+            async function loadTimers() {
+                try {
+                    const res = await fetch(`${API_URL}/timers`, { credentials:'include' });
+                    const data = await res.json();
+                    
+                    if (data.game_timer && data.game_timer.end_time) {
+                        gameEndTime = new Date(data.game_timer.end_time);
+                        console.log('🎯 Game timer ends:', gameEndTime);
+                    }
+                    if (data.weekly_timer && data.weekly_timer.end_time) {
+                        weeklyEndTime = new Date(data.weekly_timer.end_time);
+                        console.log('📅 Weekly timer ends:', weeklyEndTime);
+                    }
+                } catch(e) { console.error('Timer load error:', e); }
+            }
+
             async function loadSettings() {
                 try {
                     const res = await fetch(`${API_URL}/settings`, { credentials:'include' });
                     const data = await res.json();
                     const s = data.settings || {};
                     
-                    console.log('📊 Settings loaded:', s); // Debug
-                    
-                    // Game Timer
-                    const gh=parseInt(s.game_timer_hours)||0, gm=parseInt(s.game_timer_minutes)||0, gs=parseInt(s.game_timer_seconds)||0;
-                    if (gh>0||gm>0||gs>0) { 
-                        gameEndTime=new Date(); 
-                        gameEndTime.setHours(gameEndTime.getHours()+gh); 
-                        gameEndTime.setMinutes(gameEndTime.getMinutes()+gm); 
-                        gameEndTime.setSeconds(gameEndTime.getSeconds()+gs); 
-                        console.log('🎯 Game timer set:', gh, gm, gs);
-                    }
-                    
-                    // ✅ Weekly Timer - FIXED
-                    const wd=parseInt(s.weekly_timer_days)||0, wh=parseInt(s.weekly_timer_hours)||0, wm=parseInt(s.weekly_timer_minutes)||0, ws=parseInt(s.weekly_timer_seconds)||0;
-                    console.log('📅 Weekly timer values:', wd, wh, wm, ws);
-                    
-                    if (wd>0||wh>0||wm>0||ws>0) { 
-                        weeklyEndTime=new Date(); 
-                        weeklyEndTime.setDate(weeklyEndTime.getDate()+wd); 
-                        weeklyEndTime.setHours(weeklyEndTime.getHours()+wh); 
-                        weeklyEndTime.setMinutes(weeklyEndTime.getMinutes()+wm); 
-                        weeklyEndTime.setSeconds(weeklyEndTime.getSeconds()+ws);
-                        console.log('📅 Weekly end time:', weeklyEndTime);
-                    } else {
-                        console.log('📅 Weekly timer not set (all zeros)');
-                    }
-                    
-                    // Info Bars
                     const ib1=document.getElementById('infoBar1'), ib2=document.getElementById('infoBar2'), ib3=document.getElementById('infoBar3');
                     if (ib1) { ib1.innerHTML = s.info_bar_text || 'Welcome to Chylnx Hub! 🌿'; ib1.style.background = s.info_bar_color || 'linear-gradient(135deg,#2d8a2d,#4caf50)'; }
                     if (ib2) { ib2.innerHTML = s.info_bar2_text || '🎮 Join our gaming community!'; ib2.style.background = s.info_bar2_color || 'linear-gradient(135deg,#f59e0b,#ef4444)'; }
                     if (ib3) { ib3.innerHTML = s.info_bar3_text || '💰 Win amazing prizes daily!'; ib3.style.background = s.info_bar3_color || 'linear-gradient(135deg,#667eea,#764ba2)'; }
                     
-                    updateTimers(); 
+                    await loadTimers();
+                    updateTimers();
                     startTimerInterval();
                 } catch(e) { console.error('Settings error:', e); }
             }
 
             function updateTimers() {
                 const ge=document.getElementById('gameTimer'), we=document.getElementById('weeklyTimer');
-                
-                // Game Timer
                 if (ge) {
                     if (gameEndTime) {
                         const d=gameEndTime-new Date();
                         if(d<=0){ge.innerHTML='00:00:00';ge.style.color='#ef4444'}
                         else{const h=Math.floor(d/36e5),m=Math.floor((d%36e5)/6e4),s=Math.floor((d%6e4)/1e3);ge.innerHTML=`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;ge.style.color='#fff'}
-                    } else {
-                        ge.innerHTML='00:00:00';ge.style.color='#888';
-                    }
+                    } else {ge.innerHTML='00:00:00';ge.style.color='#888';}
                 }
-                
-                // ✅ Weekly Timer - FIXED
                 if (we) {
                     if (weeklyEndTime) {
                         const d=weeklyEndTime-new Date();
                         if(d<=0){we.innerHTML='00d 00:00:00';we.style.color='#ef4444'}
-                        else{
-                            const dd=Math.floor(d/864e5),h=Math.floor((d%864e5)/36e5),m=Math.floor((d%36e5)/6e4),s=Math.floor((d%6e4)/1e3);
-                            we.innerHTML=`${dd}d ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-                            we.style.color='#fff';
-                        }
-                    } else {
-                        we.innerHTML='00d 00:00:00';we.style.color='#888';
-                    }
+                        else{const dd=Math.floor(d/864e5),h=Math.floor((d%864e5)/36e5),m=Math.floor((d%36e5)/6e4),s=Math.floor((d%6e4)/1e3);we.innerHTML=`${dd}d ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;we.style.color='#fff'}
+                    } else {we.innerHTML='00d 00:00:00';we.style.color='#888';}
                 }
             }
 
