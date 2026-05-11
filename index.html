@@ -175,7 +175,20 @@
                 finally{hideLoading();}
             }
 
-            function showAdminBtn(){const c=document.getElementById('adminBtn');if(c&&!c.querySelector('button')){const b=document.createElement('button');b.className='chat-btn admin-btn';b.innerHTML='👑 Admin Dashboard';b.onclick=()=>window.location.href='/admin_dashboard.html';c.appendChild(b);}}
+          function showAdminBtn(){
+    // Show Admin Dashboard button
+    const c=document.getElementById('adminBtn');
+    if(c&&!c.querySelector('button')){
+        const b=document.createElement('button');
+        b.className='chat-btn admin-btn';
+        b.innerHTML='👑 Admin Dashboard';
+        b.onclick=()=>window.location.href='/admin_dashboard.html';
+        c.appendChild(b);
+    }
+    // ✅ Hide the "Enter Chat Room" button for admin
+    const chatBtn = document.querySelector('.chat-btn:not(.admin-btn)');
+    if(chatBtn) chatBtn.style.display = 'none';
+}
 
             async function enterChat(){try{const r=await apiFetch(`${API_URL}/check-access`);const d=await r.json();window.location.href=d.hasAccess?'/chat.html':'/payment.html';}catch{alert('Connection error.');}}
 
