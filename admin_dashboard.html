@@ -84,14 +84,12 @@
             <div class="stat-card"><div class="stat-number">-</div><div>Pending Payments</div></div>
         </div>
 
-        <!-- BROADCAST -->
         <div id="broadcastSection" class="broadcast-section active">
             <h3>📢 Send Broadcast Message</h3>
             <textarea id="broadcastMessage" class="broadcast-input" rows="3" placeholder="Type your announcement..."></textarea>
             <button class="broadcast-btn" id="broadcastBtn">📢 Send Broadcast</button>
         </div>
 
-        <!-- LIVE CHAT -->
         <div id="chatSection" class="section">
             <h2>💬 Live Chat</h2>
             <div class="win-bar" id="winBar">
@@ -111,62 +109,41 @@
             <div style="margin-top:8px;font-size:11px;color:#888;text-align:center">👑 Tap a user's name to select as winner</div>
         </div>
 
-        <!-- ✅ TIMERS & INFO BARS -->
         <div id="timersSection" class="section">
             <h2>⏰ Timer & Info Bar Settings</h2>
-            
-            <!-- Game Timer -->
-            <div class="setting-group">
-                <h3>🎮 Game Timer</h3>
+            <div class="setting-group"><h3>🎮 Game Timer</h3>
                 <div class="setting-row-3">
                     <div><label>Hours</label><input type="number" id="gameHours" min="0" max="168" value="24"></div>
                     <div><label>Minutes</label><input type="number" id="gameMinutes" min="0" max="59" value="0"></div>
                     <div><label>Seconds</label><input type="number" id="gameSeconds" min="0" max="59" value="0"></div>
-                </div>
-                <button class="apply-btn" id="applyGameTimerBtn">🎯 Apply Game Timer</button>
+                </div><button class="apply-btn" id="applyGameTimerBtn">🎯 Apply Game Timer</button>
             </div>
-            
-            <!-- Weekly Timer -->
-            <div class="setting-group">
-                <h3>📅 Weekly Timer</h3>
+            <div class="setting-group"><h3>📅 Weekly Timer</h3>
                 <div class="setting-row">
                     <div><label>Days</label><input type="number" id="weeklyDays" min="0" max="30" value="7"></div>
                     <div><label>Hours</label><input type="number" id="weeklyHours" min="0" max="23" value="0"></div>
                     <div><label>Minutes</label><input type="number" id="weeklyMinutes" min="0" max="59" value="0"></div>
                     <div><label>Seconds</label><input type="number" id="weeklySeconds" min="0" max="59" value="0"></div>
-                </div>
-                <button class="apply-btn" id="applyWeeklyTimerBtn">📅 Apply Weekly Timer</button>
+                </div><button class="apply-btn" id="applyWeeklyTimerBtn">📅 Apply Weekly Timer</button>
             </div>
-            
-            <!-- Info Bar 1 -->
-            <div class="setting-group">
-                <h3>📢 Info Bar 1</h3>
+            <div class="setting-group"><h3>📢 Info Bar 1</h3>
                 <label>Message</label><input type="text" id="infoText1" placeholder="Enter message for info bar 1">
                 <label style="margin-top:10px">Color</label><input type="color" id="infoColor1" value="#667eea">
                 <button class="apply-btn" id="applyInfoBar1Btn">📢 Apply Info Bar 1</button>
             </div>
-            
-            <!-- Info Bar 2 -->
-            <div class="setting-group">
-                <h3>📢 Info Bar 2</h3>
+            <div class="setting-group"><h3>📢 Info Bar 2</h3>
                 <label>Message</label><input type="text" id="infoText2" placeholder="Enter message for info bar 2">
                 <label style="margin-top:10px">Color</label><input type="color" id="infoColor2" value="#f59e0b">
                 <button class="apply-btn" id="applyInfoBar2Btn">📢 Apply Info Bar 2</button>
             </div>
-            
-            <!-- Info Bar 3 -->
-            <div class="setting-group">
-                <h3>📢 Info Bar 3</h3>
+            <div class="setting-group"><h3>📢 Info Bar 3</h3>
                 <label>Message</label><input type="text" id="infoText3" placeholder="Enter message for info bar 3">
                 <label style="margin-top:10px">Color</label><input type="color" id="infoColor3" value="#764ba2">
                 <button class="apply-btn" id="applyInfoBar3Btn">📢 Apply Info Bar 3</button>
             </div>
         </div>
 
-        <!-- PAYMENTS -->
         <div id="paymentsSection" class="section"><h2>⏳ Pending Payments</h2><div id="pendingPaymentsList">Loading...</div></div>
-        
-        <!-- USERS -->
         <div id="usersSection" class="section"><h2>👥 Registered Users</h2><div id="usersList">Loading...</div></div>
     </div>
 
@@ -181,10 +158,11 @@
         function escapeHtml(text) {
             if (!text) return ''; const d = document.createElement('div'); d.textContent = String(text); return d.innerHTML;
         }
+
+        // ✅ FIXED: Don't redirect on 401 - let init() handle it
         async function apiFetch(url, options = {}) {
             const res = await fetch(url, {credentials:'include',headers:{'Content-Type':'application/json'},...options,headers:{'Content-Type':'application/json',...options.headers}});
-            if (res.status === 401) window.location.href = '/login.html';
-            return res;
+            return res; // Just return the response
         }
 
         function showSection(section) {
@@ -295,32 +273,25 @@
                 c.innerHTML = (d.users||[]).map(u => `<div class="user-item"><div><strong>${escapeHtml(u.full_name)}</strong><br>📧 ${escapeHtml(u.email)}</div><span class="badge ${u.payment_verified?'badge-approved':'badge-pending'}">${u.payment_verified?'✅ Verified':'⏳ Pending'}</span></div>`).join('');
             } catch(e) { c.innerHTML = '<p style="color:#ef4444">Error loading users</p>'; }
         }
-        
         async function loadSettings() {
             try {
                 const r = await apiFetch('/api/settings'), d = await r.json(), s = d.settings || {};
-                // Game Timer
                 document.getElementById('gameHours').value = s.game_timer_hours||24;
                 document.getElementById('gameMinutes').value = s.game_timer_minutes||0;
                 document.getElementById('gameSeconds').value = s.game_timer_seconds||0;
-                // Weekly Timer
                 document.getElementById('weeklyDays').value = s.weekly_timer_days||7;
                 document.getElementById('weeklyHours').value = s.weekly_timer_hours||0;
                 document.getElementById('weeklyMinutes').value = s.weekly_timer_minutes||0;
                 document.getElementById('weeklySeconds').value = s.weekly_timer_seconds||0;
-                // Info Bar 1
                 document.getElementById('infoText1').value = s.info_bar_text||'';
                 document.getElementById('infoColor1').value = s.info_bar_color||'#667eea';
-                // Info Bar 2
                 document.getElementById('infoText2').value = s.info_bar2_text||'';
                 document.getElementById('infoColor2').value = s.info_bar2_color||'#f59e0b';
-                // Info Bar 3
                 document.getElementById('infoText3').value = s.info_bar3_text||'';
                 document.getElementById('infoColor3').value = s.info_bar3_color||'#764ba2';
             } catch(e) {}
         }
 
-        // Apply functions
         async function applyGameTimer() {
             const h=document.getElementById('gameHours').value,m=document.getElementById('gameMinutes').value,s=document.getElementById('gameSeconds').value;
             await Promise.all([
@@ -367,10 +338,28 @@
             if(socket)socket.disconnect(); localStorage.clear(); window.location.href='/login.html';
         }
 
+        // ✅ FIXED: Proper init that checks admin status without redirect loop
         async function init() {
             try {
-                const r = await apiFetch('/api/auth/me'), user = await r.json();
-                if (!user.isAdmin) { window.location.href = '/index.html'; return; }
+                const r = await apiFetch('/api/auth/me');
+                console.log('Admin check status:', r.status);
+                
+                // Only redirect if truly not logged in (401)
+                if (r.status === 401) {
+                    window.location.href = '/login.html';
+                    return;
+                }
+                
+                const user = await r.json();
+                console.log('Admin user:', user);
+                
+                // Only redirect if logged in but NOT admin
+                if (!user.isAdmin) {
+                    window.location.href = '/index.html';
+                    return;
+                }
+                
+                // ✅ Admin confirmed - stay here!
                 document.getElementById('adminEmail').textContent = user.email;
                 currentUser = user;
                 
@@ -385,7 +374,11 @@
                 document.getElementById('applyInfoBar3Btn').addEventListener('click', applyInfoBar3);
                 
                 loadStats();
-            } catch(e) { window.location.href = '/login.html'; }
+                
+            } catch(e) {
+                console.error('Init error:', e);
+                window.location.href = '/login.html';
+            }
         }
         document.addEventListener('DOMContentLoaded', init);
     </script>
