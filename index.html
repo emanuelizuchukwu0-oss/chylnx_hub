@@ -129,7 +129,6 @@
 
             function getCachedUser(){try{const c=localStorage.getItem('chylnx_user');return c?JSON.parse(c):null;}catch(e){return null;}}
 
-            // ✅ Get timer end times from server
             async function loadTimersFromServer(){
                 try{
                     const res=await fetch(`${API_URL}/timers`,{credentials:'include'});
@@ -139,7 +138,6 @@
                 }catch(e){gameEndTime=null;weeklyEndTime=null;}
             }
 
-            // ✅ Load settings & info bars
             async function loadSettings(){
                 try{
                     const res=await fetch(`${API_URL}/settings`,{credentials:'include'});

@@ -139,7 +139,7 @@ def health():
 # ROUTES (unchanged)
 # ======================
 @app.route('/')
-def index(): return send_from_directory('.', 'login.html')
+def index(): return send_from_directory('.', 'index.html')
 
 @app.route('/<path:filename>')
 def serve(filename):
